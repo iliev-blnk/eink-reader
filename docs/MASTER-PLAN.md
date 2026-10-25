@@ -119,7 +119,7 @@ Each workstream lists its deliverables, tasks, a "done when" check, and the thes
 
 - [ ] HW-1 Check the DevKit module marking: N16R8 (has PSRAM) or N16. Photograph it.
 - [ ] HW-2 EPD module: photograph the SB3/SB4/SB5 bridges and the SPI-mode pad before any power. Set it to 4-wire SPI. I'll tell you exactly what to bridge from the photos.
-- [ ] HW-3 Smoke test on a breadboard or jumpers: show text on the display (a quick Arduino + GxEPD2 sketch, just to prove the hardware works), read a file from SD, read the buttons.
+- [ ] HW-3 Smoke test on a breadboard or jumpers with the bring-up app in `firmware/` (see `firmware/README.md`): text on the display, partial refresh, SD read and write, buttons, deep sleep and wake. App done 2026-10-25. Wire it up and flash it.
 - [ ] HW-4 Buy the missing parts (section 9, "Now").
 - [ ] HW-5 Check the LiPo JST polarity against the TP4056 B+/B− with the multimeter *before* connecting anything.
 - [ ] HW-6 Perfboard layout drawing: where each module sits and the wire routing, so it fits roughly behind the 106×54 mm display.
@@ -136,17 +136,17 @@ Each workstream lists its deliverables, tasks, a "done when" check, and the thes
 
 Language and stack (my call): **C on ESP-IDF** (latest stable), with **our own UC8253 driver**. GxEPD2 is only a reference for the init sequences and a hardware sanity check. It's not a dependency.
 
-- [ ] FW-1 Project skeleton: components layout, `boards/*.h` pin maps, build and flash instructions. Install ESP-IDF, or run my install script.
-- [ ] FW-2 EPD driver: init, full, fast and partial refresh, deep-sleep command, BUSY handling via interrupt. Optional 4-level grayscale, if the panel supports it.
-- [ ] FW-3 Graphics: 1 bpp framebuffer, rotation (portrait 240×416), dirty-rectangle tracking for partial refresh.
-- [ ] FW-4 Storage: SPI SD + FATFS mount and recovery, file API used by the services.
-- [ ] FW-5 Input: debounced buttons, short and long press, an event queue.
+- [x] FW-1 Project skeleton: components layout, `boards/*.h` pin maps, build and flash instructions. Install ESP-IDF, or run my install script. *Done 2026-10-25: `firmware/` builds on ESP-IDF v6.1, which was already installed.*
+- [ ] FW-2 EPD driver: init, full, fast and partial refresh, deep-sleep command, BUSY handling via interrupt. Optional 4-level grayscale, if the panel supports it. *v0 2026-10-25: everything except grayscale, plus per-phase timing. Builds, but hasn't run on the panel yet.*
+- [ ] FW-3 Graphics: 1 bpp framebuffer, rotation (portrait 240×416), dirty-rectangle tracking for partial refresh. *v0: framebuffer, UTF-8 text with a compiled-in font, dirty rectangles. No rotation yet.*
+- [ ] FW-4 Storage: SPI SD + FATFS mount and recovery, file API used by the services. *v0: mount at 20 MHz with a 5 MHz fallback; never formats. No recovery or file API yet.*
+- [ ] FW-5 Input: debounced buttons, short and long press, an event queue. *v0: all of it (10 ms polling, 30 ms debounce, 800 ms long press). Not run on hardware yet.*
 - [ ] FW-6 App manager: an app lifecycle (enter, event, render, exit) and a FreeRTOS task layout (UI task, input task, background task for pagination).
 - [ ] FW-7 Power manager:
-  - light sleep while reading, deep sleep after idle timeout, wake on any button (ext1 ANY_LOW, RTC pull-ups enabled)
+  - light sleep while reading, deep sleep after idle timeout, wake on any button (ext1 ANY_LOW, RTC pull-ups enabled). *The button wake already works in the bring-up app.*
   - low-battery screen and shutdown below the cutoff
   - every state change timestamped, for the measurements
-- [ ] FW-8 Battery: ADC calibration (eFuse curve), divider correction, a voltage→% curve for the LiPo, smoothing.
+- [ ] FW-8 Battery: ADC calibration (eFuse curve), divider correction, a voltage→% curve for the LiPo, smoothing. *v0: calibration and divider correction. No percentage or smoothing yet.*
 - [ ] FW-9 Settings in NVS: font size, line spacing, margins, full-refresh interval N, sleep timeout, hyphenation on/off.
 - [ ] FW-10 Apps:
   - boot screen
@@ -422,6 +422,7 @@ Prices are rough (RON). I'll check current ones before each purchase.
 - INA226 + logic analyzer for measurements
 - Methods written before experiments
 - Repository layout in section 5
+- Phase 0 smoke test: our own ESP-IDF bring-up app instead of an Arduino + GxEPD2 sketch (2026-10-25). It tests our driver from day one. If the panel stays blank, GxEPD2's example is the fallback, to tell a wiring fault from a driver bug.
 
 ## 12. Open questions
 

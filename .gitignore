@@ -1,6 +1,8 @@
-# ESP-IDF / CMake
+# ESP-IDF / CMake (sdkconfig is generated from sdkconfig.defaults)
 build/
+firmware/sdkconfig
 sdkconfig.old
+firmware/log.*.txt
 managed_components/
 dependencies.lock
 # Arduino
@@ -24,3 +26,5 @@ docs/sessions/
 .idea/
 *.swp
 .DS_Store
+sim/build/
+sim/out/

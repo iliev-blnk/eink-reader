@@ -5,6 +5,9 @@ Raw material for writing up the e-ink reader diploma.
 - `MASTER-PLAN.md`: the master plan. Workstreams, tasks, timeline and milestones, the measurement plan, shopping list, risks, decisions and open questions. The single source of truth.
 - `project-brief.md`: what the project is, the parts list, open purchases, display/power notes, firmware scope and the book-format plan.
 - `../hardware/`: the KiCad schematic (`eink-reader.kicad_sch`), its PDF/SVG exports and `gen.py`, which generates them.
+- `../firmware/`: the ESP-IDF firmware. Its README covers build, flash and wiring.
+- `../sim/`: the PC simulator. It builds the same drawing code as the firmware and renders screens to images.
+- `../tools/fonttool/`: converts a TTF font into the firmware's bitmap font.
 
 ## Log
 
@@ -26,3 +29,12 @@ Raw material for writing up the e-ink reader diploma.
 - Decisions from the brainstorm: measurements and the text layout engine are must-dos. Custom OS on the ESP32 (FreeRTOS + our own layers), not Linux, because the S3 has no MMU and a distro would mostly be configuration rather than original work. Custom PCB added, because it suits the EE half of the degree and fixes the DevKit's mA-level sleep current, which also gives a before/after measurement. Deadline ~9 months (end of July 2027).
 - Wrote `MASTER-PLAN.md`: 10 workstreams, milestones M0–M5, experiments E1–E9, open questions Q1–Q7.
 - Plan approved as v1.0. Thesis answers recorded (Romanian, ~40 pages, topic approved). Shopping list refined: µA-range multimeter required, jumpers and flux added, Sigmanortec links.
+
+### 2026-10-25: Phase 0 firmware, skeleton and bring-up app
+- ESP-IDF v6.1 project in `firmware/`. It builds for the ESP32-S3 with no warnings, and the app uses 343 KB of the 4 MB app partition. Board pin maps are their own component (`boards/`), so the custom PCB can be added later as a second board.
+- Our own UC8253 display driver, written from the command set: full refresh (normal and a ~1 s "fast" waveform), partial refresh of a window, deep sleep, BUSY on an interrupt instead of polling. Each refresh records the time spent in each phase (SPI write, power on, refresh, power off), which is the raw data for E1.
+- Drivers for the SD card (FAT32 over the shared SPI bus, never formats), the buttons (debounce, short and long press, event queue, wake from deep sleep) and the battery ADC (eFuse calibration).
+- Bring-up app: shows chip, memory, SD, battery and wake reason; PREV/NEXT test partial refresh, MENU tests full refresh, holding MENU tests deep sleep and button wake. Prints `PERF,...` lines for every refresh and appends a line per boot to `bringup.txt` on the card.
+- Portable core: 1-bit framebuffer, UTF-8 text, a 16 px Noto Sans bitmap font (Romanian with comma-below ș ț, Cyrillic). The simulator renders the same screens on the PC. The longest strings the firmware can produce were checked there to make sure they fit on the 240 px width.
+- Change from the plan: the smoke test uses this app instead of an Arduino + GxEPD2 sketch, so our driver is tested from the first power-up. GxEPD2 remains the fallback if the panel stays blank.
+- Not yet run on hardware: the parts aren't wired yet.

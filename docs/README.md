@@ -38,3 +38,10 @@ Raw material for writing up the e-ink reader diploma.
 - Portable core: 1-bit framebuffer, UTF-8 text, a 16 px Noto Sans bitmap font (Romanian with comma-below ș ț, Cyrillic). The simulator renders the same screens on the PC. The longest strings the firmware can produce were checked there to make sure they fit on the 240 px width.
 - Change from the plan: the smoke test uses this app instead of an Arduino + GxEPD2 sketch, so our driver is tested from the first power-up. GxEPD2 remains the fallback if the panel stays blank.
 - Not yet run on hardware: the parts aren't wired yet.
+
+### 2026-10-26: case mockup (3D, real size)
+- Interactive 3D mockup of three case options on an A3 cutting mat beside a 19 cm banana: A chin keys (58 × 132 × 12 mm), B side keys (82 × 110 × 12 mm, recommended), C edge keys (58 × 110 × 13 mm).
+- Display geometry is from the GDEY037T03 / WeAct drawings. Case sizes are estimates until the PCB is laid out.
+- The screens are drawn by the firmware's own gfx and font code (`docs/mockup/mock.c`). Reader pages use pyphen soft hyphens and a whole-paragraph line breaker, which is an early preview of the LAYOUT workstream. Sleep and Bring-up are exactly what today's firmware draws, with sample hardware values.
+- Rebuild: see the commands in the header of `docs/mockup/mock.c`, then `python3 docs/mockup/build.py docs/mockup/screens docs/mockup/template.html docs/mockup/eink-mockup.html`.
+- Next: pick a case, then ENC-1 (CAD) and the PCB outline.

@@ -65,6 +65,12 @@ FAMILIES = {
         "faces": {s: (f"notoserif/NotoSerif-{n}.ttf", {}) for s, n in
                   (("r", "Regular"), ("b", "Bold"), ("i", "Italic"), ("bi", "BoldItalic"))},
     },
+    # Latin only: a Cyrillic book in Libron gets U+FFFD boxes.
+    "libron": {
+        "name": "Libron", "render": "gray", "threshold": 128,
+        "faces": {s: (f"libron/Libron_R-{n}.ttf", {}) for s, n in
+                  (("r", "Regular"), ("b", "Bold"), ("i", "Italic"), ("bi", "BoldItalic"))},
+    },
 }
 
 

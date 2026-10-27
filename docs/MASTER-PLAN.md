@@ -228,7 +228,7 @@ My calls for design (to be justified in the spec):
   Partly done 2026-10-27 (`pageidx.c`): the page index (8 B per page, built a few pages at a time, binary search) and its `.pg` sidecar (save, load, resume, CRC and layout-hash checks); the simulator footer shows "n / total" once it's complete. Still open: the background task that drives it on the device (with FW-5).
 - [ ] LAY-5 Line breaking v2: Knuth–Plass (total-fit) per paragraph, with a memory cap and fallback to greedy for huge paragraphs.
 - [x] LAY-6 Simulator: render any book or page to PNG at any setting, a batch mode for experiments, and golden-image tests. Done 2026-10-26 (`sim/`): `pages`, `stats` (whole books: chaining, overhang, timings, page hashes), `compare` (font sheets), `test/run.sh` golden test on a fixture book with every record kind.
-- [ ] LAY-7 Visual review: I render comparison sheets and you judge them on the real screen.
+- [ ] LAY-7 Visual review: I render comparison sheets and you judge them on the real screen. Candidates: Literata, PT Serif, Noto Serif, and Libron (added 2026-10-27: Latin only, so it needs a Cyrillic fallback).
 
 **Done when:** Romanian, Russian and English books lay out with no overflow, missing glyphs or broken diacritics at every font size. Knuth–Plass beats greedy on the E6 metrics and fits the page-turn time budget.
 

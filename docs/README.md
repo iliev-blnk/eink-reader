@@ -67,6 +67,13 @@ Raw material for writing up the e-ink reader diploma.
 - Corpus (MEAS-1, partly): `corpus/fetch.sh` downloads 15 files / 13 books (EN 6, RO 5, RU 4, counting the TXT copies). All convert and validate in 0.4–3.2 s each; table in `corpus/README.md`. Moby-Dick: 7 Greek/Hebrew letters missing from the font.
 - Still open: a real FB2 book and a CP1250 Romanian TXT for the corpus; ~5 more books to reach 20; CONV-8 (fonttool) separately; opening the books on the device needs LAY/FW.
 
+### 2026-10-27: Libron as a fourth font candidate (LAY-7)
+- Libron (Nico Verbruggen, OFL, from Readerly / Newsreader) is made for e-readers. It covers Romanian fully, ș ț and the cedilla forms included, but has **no Cyrillic**, so a Russian book set in it would show U+FFFD boxes. Using it means a second font for Cyrillic books (picked from the book's language), or Libron only for Latin-script books.
+- The plain release has very tight line spacing (19 px lines at 18 px), so the accents on ș and ț nearly touch the line above. The "R" release has relaxed spacing and is the one we use: at 16 px it has a 23 px line and a 9 px x-height, about the same as Literata 16.
+- It's narrow. Pages for Pride and Prejudice / Slavici / Frankenstein: Literata 16 2,105 / 767 / 1,214; PT Serif 18 2,042 / 747 / 1,170; Libron 16 1,845 / 671 / 1,056; Libron 17 2,081 / 756 / 1,198; Libron 18 2,370 / 857 / 1,365. Libron 17 is about as dense as the current two favourites, and its narrower letters leave fewer wide gaps in justified lines.
+- `fetch-fonts.sh` downloads Libron_R v0.32, and `fonttool.py family libron` builds it (unhinted, so grey rendering at threshold 128), 31–36 KB per face. Sheets are in `tools/fonttool/out/sheets/libron-vs-{en,ro}.png`.
+- Like PT Serif, Libron has a Reserved Font Name. Our IBF bitmaps are a converted version, so before release the name shown on the device needs checking against the OFL (or permission from the author).
+
 ### 2026-10-27: widows/orphans, paging back, page index (LAY-3, most of LAY-4)
 - Widow and orphan control: when a page fills mid-paragraph, lines move so no paragraph leaves a single line at the bottom or top of a page (a 2-line paragraph moves whole). A heading left at the bottom of a page moves with what follows. Over the corpus it takes widows and orphans from up to 667 / 687 (pg1322, poetry) to 0 in every book, for 0.5–4.7 % more pages. Off with `--no-keep-lines`; it's part of `layout_hash`.
 - Going back a page: page breaks depend on the pages before, so the layout lays out forward from the nearest *sync point* until it reaches the current page. At first the only sync points were level-1 headings, but in an EPUB level 1 is usually just the book title, so going back cost the whole book.

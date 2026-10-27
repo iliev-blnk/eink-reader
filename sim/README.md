@@ -6,6 +6,7 @@ Builds the firmware's portable core (`firmware/components/core`: fonts, graphics
     sim/build/sim screens -o sim/out                                       # boot and sleep screens
     sim/build/sim pages corpus/out/pg1342.ibv -o sim/out --cover -n 20 -f tools/fonttool/out/fam/literata-16
     sim/build/sim stats corpus/out/*.ibv -f tools/fonttool/out/fam/ptserif-18   # paginate whole books
+    sim/build/sim stats corpus/out/*.ibv --fonts tools/fonttool/out/fam          # each book in its device font (fontsel.c); --size 0-4 = steps 1-5
     sim/build/sim compare corpus/out/pg1342.ibv --page 30 -o cmp.png tools/fonttool/out/fam/literata-16 tools/fonttool/out/fam/ptserif-18
     sim/test/run.sh                                                        # golden-image test
 

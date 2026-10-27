@@ -2,7 +2,9 @@
 device font, or the reader draws a box.
 
 The character set is the one fonttool.py puts into the font (its
-DEFAULT_RANGES). Characters outside it are replaced by a close stand-in from
+DEFAULT_RANGES), less what the book's font lacks: the device sets a book in
+PT Serif if its language is written in Cyrillic and in Libron otherwise
+(firmware fontsel.c), and Libron has no Cyrillic. Characters outside it are replaced by a close stand-in from
 FALLBACK when there is one. The rest are counted and reported, then replaced
 by U+FFFD so the problem is visible on the device rather than silent.
 """
@@ -25,7 +27,7 @@ FALLBACK = {
     "‣": "•", "⁃": "-", "⁣": "",
     # ligatures
     "ﬀ": "ff", "ﬁ": "fi", "ﬂ": "fl", "ﬃ": "ffi", "ﬄ": "ffl",
-    "ﬅ": "st", "ﬆ": "st",
+    "ﬅ": "st", "ﬆ": "st", "Ĳ": "IJ", "ĳ": "ij", "ſ": "s", "ŉ": "’n",
     # Russian: pre-1918 letters, number sign, stress marks
     "Ѣ": "Е", "ѣ": "е", "Ѳ": "Ф", "ѳ": "ф", "Ѵ": "И", "ѵ": "и",
     "№": "№",            # kept if the font has it, see below
@@ -36,6 +38,29 @@ FALLBACK = {
 }
 # second choice when the first one is missing from the font too
 FALLBACK_2 = {"№": "No", "…": "...", "—": "-", "“": '"', "”": '"', "’": "'", "‘": "'", "•": "*"}
+
+
+# Same list and rules as fontsel.c (a test checks they agree).
+CYRILLIC_LANGS = frozenset({"ba", "be", "bg", "ce", "cv", "kk", "ky", "mk", "mn",
+                            "os", "ru", "sah", "sr", "tg", "tt", "uk"})
+# In DEFAULT_RANGES but not in Libron.
+LIBRON_LACKS = frozenset(range(0x400, 0x530)) | {0x132, 0x133, 0x149, 0x17F}
+
+
+def is_cyrillic(lang: str | None) -> bool:
+    """True if the device sets a book in `lang` (BCP 47) in the Cyrillic font."""
+    tags = re.split(r"[-_]", (lang or "").lower())
+    for t in tags[1:]:
+        if t in ("cyrl", "latn"):
+            return t == "cyrl"
+    return tags[0] in CYRILLIC_LANGS
+
+
+@functools.cache
+def charset_for(lang: str | None) -> frozenset[int]:
+    """The characters the device font for a book in `lang` has."""
+    full = default_charset()
+    return full if is_cyrillic(lang) else full - LIBRON_LACKS
 
 
 @functools.cache

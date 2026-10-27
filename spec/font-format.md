@@ -139,13 +139,21 @@ When the source font lacks a character of the default set, the builder stores a 
 
 **Pen arithmetic.** The pen is kept in u. Each glyph is drawn at the pen rounded to the nearest pixel, so rounding errors don't add up along the line. Justified lines add their extra space in u too.
 
-**Faces.** On the card, fonts live in `/fonts/` as `<family>-<size>-<style>.ibf`. Style is `r`, `b`, `i` or `bi`, for example `ptserif-18-bi.ibf`. A reader setting picks a family and a size. A missing bold or italic face falls back to the regular face (bold is then drawn twice, 1 px apart).
+**Faces.** On the card, fonts live in `/fonts/` as `<family>-<size>-<style>.ibf`. Style is `r`, `b`, `i` or `bi`, for example `ptserif-18-bi.ibf`. The device picks the family from the book's language and a size from one reader setting (below). A missing bold or italic face falls back to the regular face (bold is then drawn twice, 1 px apart).
+
+**Which font a book gets** (`fontsel.c`). A book whose META `language` is written in Cyrillic (`ru`, `uk`, `be`, `bg`, `sr`, `mk`, `kk` and a few more, or any tag with the `Cyrl` script subtag) is set in PT Serif; every other book in Libron, which has no Cyrillic. A `Latn` subtag makes it Libron (`sr-Latn`). The reader never picks a family. The size setting has five steps, and each step names one size per family. The sizes are matched on x-height and on page counts over the corpus, so changing to a book in the other script doesn't change how big the text looks:
+
+| Step | 1 | 2 | 3 (default) | 4 | 5 |
+|---|---:|---:|---:|---:|---:|
+| Libron | 15 | 16 | 17 | 18 | 20 |
+| PT Serif | 16 | 17 | 18 | 19 | 21 |
+| x-height, px | 8 | 9 | 9 | 10 | 11 |
 
 **RAM.** One face at 18 px with the default character set is 20–38 KB including kerning (section 7). The four body faces plus a heading face come to about 150–190 KB, out of the S3's 512 KB SRAM. If that turns out too much next to the book buffers, the files can go in a flash partition and be memory-mapped instead, with no format change.
 
 ## 5. Character set
 
-`tools/fonttool/fonttool.py` `DEFAULT_RANGES`. The converter (`glyphs.py`) reads the same list, so a book never needs a character the font lacks.
+`tools/fonttool/fonttool.py` `DEFAULT_RANGES`. The converter (`glyphs.py`) reads the same list, less what the book's own font lacks: for a Latin-script book that's Cyrillic and Ĳ ĳ ŉ ſ, which Libron doesn't have (ſ becomes s, the others their two-letter forms). So a book never needs a character its font lacks, and `sim/test/run.sh` checks that over the corpus.
 
 - Basic Latin, Latin-1, Latin Extended-A
 - Romanian ș ț with comma below (U+0218–U+021B)
@@ -185,3 +193,4 @@ The same as IBV: a reader refuses a major version it doesn't know. During 0.x an
 ## Changelog
 
 - **0.1** (2026-10-26) First draft, with `ibf.py`, `fonttool.py build` and the device reader. Borrowed kerning (`kern_as` in the glyph record's spare field, plus exception pairs) and stand-ins added the same day, after the first PT Serif build had 7,596 pairs.
+- **0.1** (2026-10-27) Font choice by the book's language (LAY-7): Libron for Latin script, PT Serif for Cyrillic, five matched size steps. The converter's character set follows the book's font.

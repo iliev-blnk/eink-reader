@@ -29,6 +29,7 @@
 #include "gfx.h"
 #include "ibv.h"
 #include "layout.h"
+#include "fontsel.h"
 #include "pageidx.h"
 #include "png.h"
 #include "screen_bringup.h"
@@ -41,7 +42,11 @@
 typedef struct {
     layout_cfg_t cfg;
     int margin;
+    int indent;                 // -1: the body font's size
     const char *font_name;      // for messages
+    const char *font_dir;       // --fonts: pick the family by the book's language
+    int size_step;
+    char font_buf[256];
 } setup_t;
 
 static double now_ms(void)
@@ -102,7 +107,21 @@ static void finish_setup(setup_t *s, int indent)
     if (!s->cfg.body[0]) s->cfg.body[0] = &font_ui16, s->font_name = "font_ui16";
     s->cfg.width = W - 2 * s->margin;
     s->cfg.height = H - s->margin - FOOTER;
+    s->indent = indent;
     s->cfg.indent = indent >= 0 ? indent : s->cfg.body[0]->pixel_size;
+}
+
+// With --fonts, loads the font fontsel picks for this book, as the device does.
+static void book_setup(setup_t *s, const ibv_t *book)
+{
+    if (!s->font_dir) return;
+    fontsel_t f = fontsel_pick(book->meta[IBV_LANG], s->size_step);
+    char prefix[1024];
+    snprintf(prefix, sizeof prefix, "%s/%s-%u", s->font_dir, f.family, (unsigned)f.size);
+    load_family(s, prefix);
+    snprintf(s->font_buf, sizeof s->font_buf, "%s-%u", f.family, (unsigned)f.size);
+    s->font_name = s->font_buf;
+    s->cfg.indent = s->indent >= 0 ? s->indent : s->cfg.body[0]->pixel_size;
 }
 
 // Parses the layout options at argv[*i]; returns false if it isn't one.
@@ -115,6 +134,8 @@ static bool layout_option(setup_t *s, int argc, char **argv, int *i, int *indent
     else if (!strcmp(a, "--no-chapter-page")) s->cfg.chapter_page = false;
     else if (!strcmp(a, "--no-keep-lines")) s->cfg.keep_lines = false;
     else if (v && !strcmp(a, "-f")) load_family(s, v), ++*i;
+    else if (v && !strcmp(a, "--fonts")) s->font_dir = v, ++*i;
+    else if (v && !strcmp(a, "--size")) s->size_step = atoi(v), ++*i;
     else if (v && !strcmp(a, "--margin")) s->margin = atoi(v), ++*i;
     else if (v && !strcmp(a, "--indent")) *indent = atoi(v), ++*i;
     else if (v && !strcmp(a, "--line-gap")) s->cfg.line_gap = atoi(v), ++*i;
@@ -131,6 +152,7 @@ static void default_setup(setup_t *s)
     s->cfg.hyphenate = true;
     s->cfg.chapter_page = true;
     s->cfg.keep_lines = true;
+    s->size_step = FONTSEL_DEFAULT_STEP;
 }
 
 static ibv_t *open_book(const char *path)
@@ -281,6 +303,7 @@ static int cmd_pages(int argc, char **argv)
     finish_setup(&s, indent);
     ibv_t *book = open_book(path);
     if (!book) return 1;
+    book_setup(&s, book);
 
     static uint8_t buf[GFX_BUF_SIZE(W, H)];
     gfx_t g;
@@ -319,6 +342,26 @@ static int cmd_pages(int argc, char **argv)
 
 // Counts a page's widow (it starts with a paragraph's last line alone) and
 // orphan (it ends with a paragraph's first line alone). Headings don't count.
+// Characters of the book the body font has no glyph for (drawn as U+FFFD).
+// Spaces and the invisible break characters the layout handles don't count.
+static uint32_t missing_glyphs(ibv_t *book, const font_t *font)
+{
+    uint32_t missing = 0;
+    for (uint32_t p = 0; p < book->paragraph_count; p++) {
+        ibv_record_t r;
+        if (ibv_record(book, p, &r)) break;
+        const char *t = r.text, *end = r.text + r.text_len;
+        while (t < end) {
+            uint32_t cp = utf8_next_n(&t, end);
+            if (cp <= 0x20 || cp == 0xA0 || cp == 0xAD || (cp >= 0x200B && cp <= 0x200D) || cp == 0x2028
+                || cp == 0x2060 || cp == 0xFEFF)
+                continue;
+            missing += font_index(font, cp) < 0;
+        }
+    }
+    return missing;
+}
+
 static void widows_orphans(ibv_t *book, const layout_page_t *pg, int *widows, int *orphans)
 {
     if (pg->line_count == 0) return;
@@ -350,12 +393,13 @@ static int cmd_stats(int argc, char **argv)
         else { fprintf(stderr, "stats: bad argument %s\n", argv[i]); return 2; }
     }
     finish_setup(&s, indent);
-    const uint32_t lh = layout_hash(&s.cfg);
-    printf("# font %s, text area %dx%d, layout hash %08x%s\n", s.font_name, s.cfg.width, s.cfg.height, lh,
+    uint32_t lh = layout_hash(&s.cfg);
+    printf("# font %s, text area %dx%d, layout hash %08x%s\n", s.font_dir ? "by language" : s.font_name, s.cfg.width,
+           s.cfg.height, lh,
            s.cfg.keep_lines ? "" : ", widows and orphans allowed");
     printf("# prev: pages laid out to go back one page without the index (max, mean over up to 64 pages)\n");
-    printf("%-28s %6s %7s %8s %8s %5s %4s %4s %5s %6s %6s  %s\n", "book", "pages", "paras", "ms", "us/page",
-           "lines", "ovhg", "wid", "orph", "prev", "mean", "hash");
+    printf("%-28s %6s %7s %8s %8s %5s %4s %4s %5s %6s %6s %6s  %-8s  %s\n", "book", "pages", "paras", "ms",
+           "us/page", "lines", "ovhg", "wid", "orph", "prev", "mean", "miss", "hash", "font");
     static uint8_t buf[GFX_BUF_SIZE(W, H)];
     gfx_t g;
     gfx_init(&g, buf, W, H);
@@ -366,6 +410,7 @@ static int cmd_stats(int argc, char **argv)
     for (int b = 0; b < nbooks; b++) {
         ibv_t *book = open_book(books[b]);
         if (!book) { failures++; continue; }
+        if (s.font_dir) book_setup(&s, book), lh = layout_hash(&s.cfg);
         const char *name = basename_of(books[b]);
         bool ok = true;
 #define FAIL(...) do { fprintf(stderr, "%s: ", name); fprintf(stderr, __VA_ARGS__); fputc('\n', stderr); ok = false; } while (0)
@@ -450,10 +495,11 @@ static int cmd_stats(int argc, char **argv)
         remove(sidecar);
         pageidx_free(&back);
 
-        printf("%-28.28s %6u %7u %8.1f %8.0f %5u %2dpx %4d %5d %6d %6.1f  %08x%s\n", name, idx.count,
+        printf("%-28.28s %6u %7u %8.1f %8.0f %5u %2dpx %4d %5d %6d %6.1f %6u  %08x  %s%s\n", name, idx.count,
                book->paragraph_count, layout_ms, layout_ms * 1000 / (idx.count ? idx.count : 1),
                min_lines == 999 ? 0 : min_lines, overhang, widows, orphans, prev_max,
-               samples ? prev_sum / samples : 0.0, hash, ok ? "" : "  FAILED");
+               samples ? prev_sum / samples : 0.0, missing_glyphs(book, s.cfg.body[0]), hash, s.font_name,
+               ok ? "" : "  FAILED");
         if (overhang > s.cfg.body[0]->pixel_size / 4) FAIL("ink %d px outside the text area", overhang);
 #undef FAIL
         failures += !ok;

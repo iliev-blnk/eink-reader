@@ -12,6 +12,7 @@ import base64
 import contextlib
 import io
 import pathlib
+import re
 import tempfile
 import unittest
 import zipfile
@@ -500,6 +501,24 @@ class TestGlyphs(unittest.TestCase):
         cs = glyphs.default_charset()
         for ch in "ăâîșțĂÂÎȘȚёЁ„”«»—–…’ �":
             self.assertIn(ord(ch), cs, ch)
+
+    def test_font_follows_language(self):
+        for lang in ("ru", "uk-UA", "BG", "sr", "sr_Cyrl", "ro-Cyrl", "kk"):
+            self.assertTrue(glyphs.is_cyrillic(lang), lang)
+        for lang in ("en", "ro", "mo", "sr-Latn", "de-CH", "", None, "rus"):
+            self.assertFalse(glyphs.is_cyrillic(lang), lang)
+        # A Latin-script book is set in Libron: no Cyrillic, and ſ becomes s.
+        missing, replaced = {}, {}
+        st = glyphs.apply(styled(("ſun Москва ăș", 0)), glyphs.charset_for("en"), missing, replaced)
+        self.assertEqual(st.text, "sun ������ ăș")
+        self.assertEqual(missing, {c: 1 for c in "Москва"})
+        st = glyphs.apply(styled(("Москва", 0)), glyphs.charset_for("ru"), {}, {})
+        self.assertEqual(st.text, "Москва")
+
+    def test_language_list_matches_firmware(self):
+        src = (pathlib.Path(__file__).resolve().parents[2] / "firmware/components/core/fontsel.c").read_text()
+        block = re.search(r"CYRILLIC\[\] = \{(.*?)\};", src, re.S).group(1)
+        self.assertEqual(set(re.findall(r'"(\w+)"', block)), glyphs.CYRILLIC_LANGS)
 
 
 class TestFinish(unittest.TestCase):

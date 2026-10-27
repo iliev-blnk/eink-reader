@@ -111,7 +111,7 @@ def finish(b: Builder, meta: dict[str, str], *, hyphenate: bool = True,
         ro_legacy = lang.lower().startswith(("ro", "mo")) and textnorm.detect_ro_legacy(sample)
     if ro_legacy:
         rep.warnings.append("Romanian typed with ã/º/þ for ă/ș/ț: mapped back")
-    charset = charset if charset is not None else glyphs.default_charset()
+    charset = charset if charset is not None else glyphs.charset_for(lang)
 
     # 1. text clean-up; each source item becomes zero or more items
     groups: list[list[Item]] = []

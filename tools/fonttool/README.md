@@ -4,6 +4,9 @@ Turns TTF/OTF fonts into IBF bitmap fonts for the reader (format: `../../spec/fo
 
     ./fetch-fonts.sh                                     # Literata, PT Serif, Noto Serif -> fonts/ (OFL, not tracked)
     python3 fonttool.py family literata --sizes 16,18,20 -o out/fam    # -> out/fam/literata-18-r.ibf, -b, -i, -bi
+    # the device set (spec/font-format.md, section 4): copy out/fam/libron-* and ptserif-* to /fonts/ on the card
+    python3 fonttool.py family libron --sizes 15,16,17,18,20 -o out/fam
+    python3 fonttool.py family ptserif --sizes 16,17,18,19,21 -o out/fam
     python3 fonttool.py build --ttf X.ttf --size 18 --style i -o x.ibf # one face
     python3 fonttool.py c --ttf NotoSans-Regular.ttf --size 16 --name font_ui16 --out ../../firmware/components/core/fonts/font_ui16.c
     python3 fonttool.py validate out/fam/*.ibf

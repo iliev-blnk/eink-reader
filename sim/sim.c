@@ -38,7 +38,7 @@
 
 #define W 240
 #define H 416
-#define FOOTER 22               // px below the text area for the footer line
+#define FOOTER 22               // px sub zona de text, pentru rândul de jos
 #define MAX_FONTS 8
 
 typedef struct {
@@ -76,7 +76,7 @@ static const font_t *load_font(const char *path)
     uint8_t *d = malloc((size_t)n);        // malloc aliniază cel puțin la 8
     font_t *font = malloc(sizeof *font);
     if (!d || !font || fread(d, 1, (size_t)n, f) != (size_t)n) {
-        fprintf(stderr, "%s: read error\n", path);
+        fprintf(stderr, "%s: eroare de citire\n", path);
         exit(1);
     }
     fclose(f);
@@ -98,7 +98,7 @@ static void load_family(setup_t *s, const char *prefix)
         s->cfg.body[i] = load_font(path);
     }
     if (!s->cfg.body[0]) {
-        fprintf(stderr, "%s-r.ibf: not found\n", prefix);
+        fprintf(stderr, "%s-r.ibf: nu există\n", prefix);
         exit(1);
     }
     s->font_name = basename_of(prefix);
@@ -234,7 +234,7 @@ static bool render_page(gfx_t *g, const setup_t *s, ibv_t *book, layout_pos_t po
         err = layout_draw(&s->cfg, book, page, g, s->margin, s->margin);
     }
     if (err) {
-        fprintf(stderr, "page at %u:%u: %s\n", pos.para, pos.byte, ibv_strerror(err));
+        fprintf(stderr, "pagina de la %u:%u: %s\n", pos.para, pos.byte, ibv_strerror(err));
         return false;
     }
     draw_footer(g, s, book, page, idx);
@@ -254,25 +254,25 @@ static int cmd_screens(int argc, char **argv)
     const bringup_info_t screens[] = {
         {
             .board = "devkit-proto",
-            .chip = "ESP32-S3 v0.2, 2 cores",
+            .chip = "ESP32-S3 v0.2, 2 nuclee",
             .memory = "16M flash, 8M PSRAM",
-            .sd = "OK, 15.9 GB, 3 files",
-            .battery = "3.92 V",
-            .wake = "power-on · boot 1",
-            .last_button = "NEXT",
+            .sd = "OK, 15,9 GB, 3 fișiere",
+            .battery = "3,92 V",
+            .wake = "alimentare · nr. 1",
+            .last_button = "ÎNAINTE",
             .counter = 3,
-            .last_timing = "prev: partial 412 ms",
+            .last_timing = "ultima: parțială 412 ms",
         },
         {
             .board = "devkit-proto",
-            .chip = "ESP32-S3 v0.2, 2 cores",
-            .memory = "16M flash, no PSRAM",
-            .sd = "not FAT32 formatted",
-            .battery = "none (0.13 V)",
-            .wake = "other reset · boot 1234",
-            .last_button = "PREV long",
+            .chip = "ESP32-S3 v0.2, 2 nuclee",
+            .memory = "16M flash, fără PSRAM",
+            .sd = "niciun card (timp depășit)",
+            .battery = "lipsă (0,13 V)",
+            .wake = "subtensiune · nr. 1234",
+            .last_button = "ÎNAINTE lung",
             .counter = -1234,
-            .last_timing = "prev: partial 1234 ms",
+            .last_timing = "ultima: parțială 1234 ms",
         },
     };
     const char *names[] = {"bringup", "bringup-long"};
@@ -284,7 +284,7 @@ static int cmd_screens(int argc, char **argv)
     screen_sleep_draw(&g);
     snprintf(path, sizeof path, "%s/sleep.png", outdir);
     if (png_write(&g, path)) return 1;
-    printf("wrote %s/{bringup,bringup-long,sleep}.png\n", outdir);
+    printf("s-au scris %s/{bringup,bringup-long,sleep}.png\n", outdir);
     return 0;
 }
 
@@ -302,9 +302,9 @@ static int cmd_pages(int argc, char **argv)
         else if (i + 1 < argc && !strcmp(argv[i], "--from")) from = atoi(argv[++i]);
         else if (i + 1 < argc && !strcmp(argv[i], "-n")) count = atoi(argv[++i]);
         else if (argv[i][0] != '-' && !path) path = argv[i];
-        else { fprintf(stderr, "pages: bad argument %s\n", argv[i]); return 2; }
+        else { fprintf(stderr, "pages: argument greșit %s\n", argv[i]); return 2; }
     }
-    if (!path) { fprintf(stderr, "pages: no book\n"); return 2; }
+    if (!path) { fprintf(stderr, "pages: lipsește cartea\n"); return 2; }
     finish_setup(&s, indent);
     ibv_t *book = open_book(path);
     if (!book) return 1;
@@ -339,7 +339,7 @@ static int cmd_pages(int argc, char **argv)
         if (page.at_end) break;
         pos = page.end;
     }
-    printf("%s: %d pages written to %s (%s)\n", name, written, outdir, s.font_name);
+    printf("%s: %d pagini scrise în %s (%s)\n", name, written, outdir, s.font_name);
     pageidx_free(&idx);
     ibv_close(book);
     return 0;
@@ -431,19 +431,22 @@ static int cmd_stats(int argc, char **argv)
     for (int i = 1; i < argc; i++) {
         if (layout_option(&s, argc, argv, &i, &indent)) continue;
         if (argv[i][0] != '-' && nbooks < 256) books[nbooks++] = argv[i];
-        else { fprintf(stderr, "stats: bad argument %s\n", argv[i]); return 2; }
+        else { fprintf(stderr, "stats: argument greșit %s\n", argv[i]); return 2; }
     }
     finish_setup(&s, indent);
     uint32_t lh = layout_hash(&s.cfg);
-    printf("# font %s, text area %dx%d, layout hash %08x%s\n", s.font_dir ? "by language" : s.font_name, s.cfg.width,
+    printf("# font %s, zona de text %dx%d, hash de paginare %08x%s\n", s.font_dir ? "după limbă" : s.font_name, s.cfg.width,
            s.cfg.height, lh,
-           s.cfg.keep_lines ? "" : ", widows and orphans allowed");
-    printf("# line breaking: %s\n", s.cfg.fit ? "total fit" : "greedy");
-    printf("# prev: pages laid out to go back one page without the index (max, mean over up to 64 pages)\n");
-    printf("# hyph: %% of lines hyphenated, 2hy: two in a row; r: how much wider than a plain space justified\n"
-           "#   spaces are (0.5 = a space and a half), mean, 95th percentile; loose: %% of lines with r > 0.5\n");
-    printf("%-28s %6s %7s %8s %8s %5s %4s %4s %5s %6s %6s %5s %4s %5s %5s %6s %6s  %-8s  %s\n", "book", "pages", "paras",
-           "ms", "us/page", "lines", "ovhg", "wid", "orph", "prev", "mean", "hyph", "2hy", "r", "r95", "loose", "miss",
+           s.cfg.keep_lines ? "" : ", rânduri văduve și orfane permise");
+    printf("# ruperea rândurilor: %s\n", s.cfg.fit ? "încadrare totală" : "greedy");
+    printf("# min: cele mai puține rânduri pe o pagină care nu e ultima; dep: px de cerneală în afara zonei de text;\n"
+           "#   văd, orf: rânduri văduve și orfane; lipsă: caractere fără glifă în font\n");
+    printf("# înap: pagini așezate ca să se întoarcă o pagină fără index (maximul și media pe cel mult 64 de pagini)\n");
+    printf("# cr: %% din rânduri cu cratimă, 2cr: două la rând; r: cu cât e mai lat decât un spațiu simplu un spațiu\n"
+           "#   justificat (0,5 = un spațiu și jumătate), media și percentila 95; larg: %% din rânduri cu r > 0,5\n");
+    // Lățimile sunt în octeți: fiecare literă cu diacritic are 2, deci primește o coloană în plus.
+    printf("%-28s %6s %7s %8s %8s %5s %4s %5s %5s %7s %6s %5s %4s %5s %5s %6s %7s  %-8s  %s\n", "carte", "pagini",
+           "parag", "ms", "us/pag", "min", "dep", "văd", "orf", "înap", "medie", "cr", "2cr", "r", "r95", "larg", "lipsă",
            "hash", "font");
     static uint8_t buf[GFX_BUF_SIZE(W, H)];
     gfx_t g;
@@ -475,7 +478,7 @@ static int cmd_stats(int argc, char **argv)
             if ((err = layout_page(&s.cfg, book, pos, &page)) != IBV_OK) { FAIL("%s", ibv_strerror(err)); break; }
             gfx_clear(&g, GFX_WHITE);
             gfx_take_dirty(&g, &(gfx_rect_t){0});
-            if (layout_draw(&s.cfg, book, &page, &g, s.margin, s.margin)) { FAIL("draw error"); break; }
+            if (layout_draw(&s.cfg, book, &page, &g, s.margin, s.margin)) { FAIL("eroare la desenare"); break; }
             gfx_rect_t d;
             if (gfx_take_dirty(&g, &d)) {
                 // Cerneală dincolo de zona de text. Spațiile laterale ale glifelor
@@ -490,12 +493,12 @@ static int cmd_stats(int argc, char **argv)
             widows_orphans(book, &page, &widows, &orphans);
             quality_page(&q, &s, &page);
             if (page.line_count > 0 && (uint32_t)page.line_count < min_lines && !page.at_end) min_lines = (uint32_t)page.line_count;
-            if (page.at_end != (i + 1 == idx.count)) FAIL("page %u: at_end is wrong", i + 1);
+            if (page.at_end != (i + 1 == idx.count)) FAIL("pagina %u: at_end greșit", i + 1);
             if (page.at_end) break;
             uint32_t off;
             ibv_text_offset(book, page.end.para, page.end.byte, &off);
-            if (layout_pos_cmp(page.end, pos) <= 0 || off < prev_off) FAIL("page %u doesn't advance (%u:%u)", i + 1, pos.para, pos.byte);
-            if (layout_pos_cmp(page.end, idx.starts[i + 1]) != 0) FAIL("page %u: end isn't the next page's start", i + 1);
+            if (layout_pos_cmp(page.end, pos) <= 0 || off < prev_off) FAIL("pagina %u nu avansează (%u:%u)", i + 1, pos.para, pos.byte);
+            if (layout_pos_cmp(page.end, idx.starts[i + 1]) != 0) FAIL("pagina %u: sfârșitul nu e începutul paginii următoare", i + 1);
             prev_off = off;
         }
 
@@ -507,8 +510,8 @@ static int cmd_stats(int argc, char **argv)
         for (uint32_t i = 1; ok && i < idx.count; i += step) {
             layout_pos_t got;
             int n;
-            if ((err = layout_prev(&s.cfg, book, idx.starts[i], &page, &got, &n)) != IBV_OK) { FAIL("prev: %s", ibv_strerror(err)); break; }
-            if (layout_pos_cmp(got, idx.starts[i - 1]) != 0) FAIL("prev of page %u is %u:%u, not page %u", i + 1, got.para, got.byte, i);
+            if ((err = layout_prev(&s.cfg, book, idx.starts[i], &page, &got, &n)) != IBV_OK) { FAIL("înapoi: %s", ibv_strerror(err)); break; }
+            if (layout_pos_cmp(got, idx.starts[i - 1]) != 0) FAIL("înapoi de la pagina %u dă %u:%u, nu pagina %u", i + 1, got.para, got.byte, i);
             if (n > prev_max) prev_max = n;
             prev_sum += n;
             samples++;
@@ -516,21 +519,21 @@ static int cmd_stats(int argc, char **argv)
             layout_pos_t mid = idx.starts[i];
             mid.byte++;
             if (i + 1 < idx.count && layout_pos_cmp(mid, idx.starts[i + 1]) >= 0) mid = idx.starts[i];
-            if ((err = layout_locate(&s.cfg, book, mid, &page, &got)) != IBV_OK) { FAIL("locate: %s", ibv_strerror(err)); break; }
-            if (layout_pos_cmp(got, idx.starts[i]) != 0) FAIL("locate %u:%u gives %u:%u, not page %u", mid.para, mid.byte, got.para, got.byte, i + 1);
-            if (pageidx_find(&idx, mid) != (int32_t)i) FAIL("pageidx_find %u:%u isn't page %u", mid.para, mid.byte, i + 1);
+            if ((err = layout_locate(&s.cfg, book, mid, &page, &got)) != IBV_OK) { FAIL("găsirea poziției: %s", ibv_strerror(err)); break; }
+            if (layout_pos_cmp(got, idx.starts[i]) != 0) FAIL("poziția %u:%u dă %u:%u, nu pagina %u", mid.para, mid.byte, got.para, got.byte, i + 1);
+            if (pageidx_find(&idx, mid) != (int32_t)i) FAIL("pageidx_find %u:%u nu e pagina %u", mid.para, mid.byte, i + 1);
         }
         layout_pos_t first;
-        if (layout_prev(&s.cfg, book, (layout_pos_t){0, 0}, &page, &first, NULL) != IBV_ERR_RANGE) FAIL("prev of page 1 isn't an error");
+        if (layout_prev(&s.cfg, book, (layout_pos_t){0, 0}, &page, &first, NULL) != IBV_ERR_RANGE) FAIL("înapoi de la pagina 1 nu dă eroare");
 
         // Fișierul însoțitor: dus-întors dă același index, un octet inversat sau altă paginare nu dau niciunul.
         pageidx_t back;
         pageidx_init(&back, lh);
-        if (!pageidx_save(&idx, book->book_id, sidecar)) FAIL("can't write %s", sidecar);
+        if (!pageidx_save(&idx, book->book_id, sidecar)) FAIL("nu se poate scrie %s", sidecar);
         else if (!pageidx_load(&back, book->book_id, lh, sidecar) || back.count != idx.count || !back.complete
                  || memcmp(back.starts, idx.starts, idx.count * sizeof *idx.starts))
-            FAIL("sidecar round trip differs");
-        else if (pageidx_load(&back, book->book_id, lh ^ 1, sidecar)) FAIL("sidecar loads for another layout");
+            FAIL("fișierul însoțitor nu dă înapoi același index");
+        else if (pageidx_load(&back, book->book_id, lh ^ 1, sidecar)) FAIL("fișierul însoțitor se încarcă pentru altă paginare");
         else {
             FILE *f = fopen(sidecar, "r+b");
             fseek(f, 30, SEEK_SET);
@@ -538,7 +541,7 @@ static int cmd_stats(int argc, char **argv)
             fseek(f, 30, SEEK_SET);
             fputc(c ^ 0x10, f);
             fclose(f);
-            if (pageidx_load(&back, book->book_id, lh, sidecar)) FAIL("damaged sidecar loads");
+            if (pageidx_load(&back, book->book_id, lh, sidecar)) FAIL("fișierul însoțitor deteriorat se încarcă");
         }
         remove(sidecar);
         pageidx_free(&back);
@@ -558,10 +561,10 @@ static int cmd_stats(int argc, char **argv)
                min_lines == 999 ? 0 : min_lines, overhang, widows, orphans, prev_max,
                samples ? prev_sum / samples : 0.0, q.text_lines ? 100.0 * q.hyphens / q.text_lines : 0.0,
                q.double_hyphens, r_mean, r95, loose, missing_glyphs(book, s.cfg.body[0]), hash, s.font_name,
-               ok ? "" : "  FAILED");
+               ok ? "" : "  EȘUAT");
         free(q.r);
-        if (getenv("SIM_FIT")) fprintf(stderr, "%s: total fit pass 1 %u, pass 2 %u, greedy %u\n", name, broken[0], broken[1], broken[2]);
-        if (overhang > s.cfg.body[0]->pixel_size / 4) FAIL("ink %d px outside the text area", overhang);
+        if (getenv("SIM_FIT")) fprintf(stderr, "%s: încadrare totală la trecerea 1 %u, la trecerea 2 %u, greedy %u\n", name, broken[0], broken[1], broken[2]);
+        if (overhang > s.cfg.body[0]->pixel_size / 4) FAIL("cerneală la %d px în afara zonei de text", overhang);
 #undef FAIL
         failures += !ok;
         pageidx_free(&idx);
@@ -584,15 +587,15 @@ static int cmd_compare(int argc, char **argv)
     const char *path = NULL, *out = NULL, *fonts[MAX_FONTS];
     int nfonts = 0, page_no = 1, indent = -1;
     for (int i = 1; i < argc; i++) {
-        if (!strcmp(argv[i], "-f")) { fprintf(stderr, "compare: fonts are positional\n"); return 2; }
+        if (!strcmp(argv[i], "-f")) { fprintf(stderr, "compare: fonturile se dau fără -f\n"); return 2; }
         if (layout_option(&s, argc, argv, &i, &indent)) continue;
         if (i + 1 < argc && !strcmp(argv[i], "-o")) out = argv[++i];
         else if (i + 1 < argc && !strcmp(argv[i], "--page")) page_no = atoi(argv[++i]);
         else if (argv[i][0] != '-' && !path) path = argv[i];
         else if (argv[i][0] != '-' && nfonts < MAX_FONTS) fonts[nfonts++] = argv[i];
-        else { fprintf(stderr, "compare: bad argument %s\n", argv[i]); return 2; }
+        else { fprintf(stderr, "compare: argument greșit %s\n", argv[i]); return 2; }
     }
-    if (!path || !out || !nfonts) { fprintf(stderr, "compare: need BOOK, -o OUT.png and fonts\n"); return 2; }
+    if (!path || !out || !nfonts) { fprintf(stderr, "compare: trebuie cartea, -o OUT.png și fonturile\n"); return 2; }
     ibv_t *book = open_book(path);
     if (!book) return 1;
 
@@ -622,7 +625,7 @@ static int cmd_compare(int argc, char **argv)
         gfx_text(&canvas, &font_ui12, x + 2, H + 15, s.font_name, GFX_BLACK);
     }
     int rc = png_write(&canvas, out);
-    if (!rc) printf("wrote %s\n", out);
+    if (!rc) printf("s-a scris %s\n", out);
     free(cbuf);
     ibv_close(book);
     return rc;
@@ -634,6 +637,6 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "pages")) return cmd_pages(argc - 1, argv + 1);
     if (!strcmp(argv[1], "stats")) return cmd_stats(argc - 1, argv + 1);
     if (!strcmp(argv[1], "compare")) return cmd_compare(argc - 1, argv + 1);
-    fprintf(stderr, "usage: sim screens|pages|stats|compare ... (see sim.c)\n");
+    fprintf(stderr, "folosire: sim screens|pages|stats|compare ... (vezi sim.c)\n");
     return 2;
 }

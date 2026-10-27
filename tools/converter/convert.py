@@ -25,6 +25,12 @@ import txt
 
 READERS = {".epub": epub, ".fb2": fb2, ".txt": txt, ".text": txt}
 
+# Cum se afișează în raport ce întorc cititoarele de formate în `info`.
+INFO_NAMES = {"spine": "fișiere în spine", "toc": "cuprins", "css_classes": "clase CSS", "encoding": "codificare",
+              "paragraphs": "paragrafe", "language": "limba", "cover": "coperta"}
+INFO_VALUES = {"headings": "din titluri", "blank": "despărțite de rânduri goale", "indent": "după alineat",
+               "line": "câte unul pe rând"}
+
 
 def reader_for(path: pathlib.Path):
     name = path.name.lower()
@@ -38,7 +44,7 @@ def convert(src: pathlib.Path, *, lang=None, title=None, author=None, hyphenate=
     """Întoarce (octeții ibv, rândurile raportului)."""
     reader = reader_for(src)
     if reader is None:
-        raise SystemExit(f"{src}: unknown format (expected .epub, .fb2, .fb2.zip or .txt)")
+        raise SystemExit(f"{src}: format necunoscut (se așteaptă .epub, .fb2, .fb2.zip sau .txt)")
     t0 = time.perf_counter()
     data = src.read_bytes()
     b, meta, info = reader.parse(data, src.name)
@@ -48,7 +54,7 @@ def convert(src: pathlib.Path, *, lang=None, title=None, author=None, hyphenate=
     if not meta.get("language"):
         sample = " ".join(it.st.text for it in b.items[:300])
         meta["language"] = txt.guess_language(sample)
-        info["language"] = "guessed"
+        info["language"] = "ghicită"
     if title:
         meta["title"] = title
     if author:
@@ -59,7 +65,7 @@ def convert(src: pathlib.Path, *, lang=None, title=None, author=None, hyphenate=
         try:
             cov = cover_mod.load(cover_bytes)
         except Exception as e:          # o copertă stricată nu trebuie să oprească cartea
-            info["cover"] = f"unreadable ({e.__class__.__name__})"
+            info["cover"] = f"ilizibilă ({e.__class__.__name__})"
     book, rep = doc.finish(b, meta, hyphenate=hyphenate, cover=cov)
     meta = book.meta
     out = ibv.write(book, block_target=block, compress=compress)
@@ -67,55 +73,57 @@ def convert(src: pathlib.Path, *, lang=None, title=None, author=None, hyphenate=
     dt = time.perf_counter() - t0
 
     lines = [f"{src.name}: {reader.__name__.upper()} -> {len(out):,} B "
-             f"({len(out) / max(len(data), 1):.0%} of the input) in {dt:.2f} s"]
-    lines.append(f"  {meta['title']!r}" + (f" by {meta['author']}" if meta.get("author") else "")
+             f"({len(out) / max(len(data), 1):.0%} din intrare) în {dt:.2f} s"]
+    lines.append(f"  {meta['title']!r}" + (f" de {meta['author']}" if meta.get("author") else "")
                  + f"  [{meta['language']}]  book_id {p.book_id.hex()}")
-    lines.append(f"  {rep.paragraphs} paragraphs, {len(p.blocks)} blocks, {len(book.toc)} TOC entries, "
-                 f"{rep.hyphenated_words:,} words hyphenated ({rep.hyphenation}), "
-                 f"cover {f'{cov.width}x{cov.height}' if cov else 'none'}, "
-                 f"{rep.chapter_pages} chapter pages (heading levels {rep.chapter_levels or 'none'})")
+    hyph = {"off": "oprită", "none": "fără modele"}.get(rep.hyphenation, rep.hyphenation)
+    levels = ", ".join(map(str, rep.chapter_levels)) or "niciunul"
+    lines.append(f"  {rep.paragraphs} paragrafe, {len(p.blocks)} blocuri, {len(book.toc)} intrări în cuprins, "
+                 f"{rep.hyphenated_words:,} cuvinte despărțite ({hyph}), "
+                 f"coperta {f'{cov.width}x{cov.height}' if cov else 'lipsă'}, "
+                 f"{rep.chapter_pages} capitole pe pagină nouă (nivelurile de titlu {levels})")
     extra = {k: v for k, v in info.items() if v not in (None, "")}
     if extra:
-        lines.append("  " + ", ".join(f"{k} {v}" for k, v in extra.items()))
+        lines.append("  " + ", ".join(f"{INFO_NAMES.get(k, k)}: {INFO_VALUES.get(v, v)}" for k, v in extra.items()))
     if rep.replaced:
-        lines.append("  replaced: " + ", ".join(f"U+{ord(c):04X} {c!r}×{n}" for c, n in sorted(rep.replaced.items())))
+        lines.append("  înlocuite: " + ", ".join(f"U+{ord(c):04X} {c!r}×{n}" for c, n in sorted(rep.replaced.items())))
     if rep.missing:
-        lines.append("  MISSING from the font: " + ", ".join(
+        lines.append("  LIPSESC din font: " + ", ".join(
             f"U+{ord(c):04X} {c!r}×{n}" for c, n in sorted(rep.missing.items(), key=lambda kv: -kv[1])[:20]))
     for w in rep.warnings[:10]:
-        lines.append(f"  warning: {w}")
+        lines.append(f"  avertisment: {w}")
     if len(rep.warnings) > 10:
-        lines.append(f"  ... and {len(rep.warnings) - 10} more warnings")
+        lines.append(f"  ... și încă {len(rep.warnings) - 10} avertismente")
     return out, lines
 
 
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(prog="convert.py", description=__doc__.split("\n\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
-    c = sub.add_parser("convert", help="convert books to .ibv")
+    c = sub.add_parser("convert", help="convertește cărți în .ibv")
     c.add_argument("inputs", nargs="+", type=pathlib.Path)
     c.add_argument("-o", "--out", type=pathlib.Path,
-                   help="output file (one input) or directory (default: next to the input)")
-    c.add_argument("--lang", help="override the book's language (BCP 47, e.g. ro, ru, en)")
-    c.add_argument("--title")
-    c.add_argument("--author")
-    c.add_argument("--no-hyphenate", action="store_true")
-    c.add_argument("--no-cover", action="store_true")
-    c.add_argument("--block", type=int, default=ibv.DEFAULT_BLOCK_TARGET, help="block target size in bytes")
-    c.add_argument("--stored", action="store_true", help="don't compress (for reading the hex)")
-    v = sub.add_parser("validate", help="check .ibv files")
+                   help="fișierul de ieșire (o singură carte) sau directorul (implicit: lângă carte)")
+    c.add_argument("--lang", help="limba cărții, în locul celei din fișier (BCP 47, de exemplu ro, ru, en)")
+    c.add_argument("--title", help="titlul, în locul celui din fișier")
+    c.add_argument("--author", help="autorul, în locul celui din fișier")
+    c.add_argument("--no-hyphenate", action="store_true", help="fără despărțire în silabe")
+    c.add_argument("--no-cover", action="store_true", help="fără copertă")
+    c.add_argument("--block", type=int, default=ibv.DEFAULT_BLOCK_TARGET, help="mărimea țintă a unui bloc, în octeți")
+    c.add_argument("--stored", action="store_true", help="fără compresie (ca să se poată citi în hex)")
+    v = sub.add_parser("validate", help="verifică fișiere .ibv")
     v.add_argument("files", nargs="+", type=pathlib.Path)
-    d = sub.add_parser("dump", help="print a .ibv file's structure")
+    d = sub.add_parser("dump", help="afișează structura unui fișier .ibv")
     d.add_argument("file", type=pathlib.Path)
-    d.add_argument("--records", type=int, default=40)
-    pc = sub.add_parser("preview-cover", help="write a .ibv file's cover as PNG")
+    d.add_argument("--records", type=int, default=40, help="câte înregistrări se afișează")
+    pc = sub.add_parser("preview-cover", help="scrie coperta unui fișier .ibv ca PNG")
     pc.add_argument("file", type=pathlib.Path)
     pc.add_argument("png", type=pathlib.Path)
     a = ap.parse_args(argv)
 
     if a.cmd == "convert":
         if len(a.inputs) > 1 and a.out and a.out.suffix == ".ibv":
-            ap.error("-o must be a directory when converting several books")
+            ap.error("-o trebuie să fie un director când se convertesc mai multe cărți")
         failed, written = 0, set()
         for src in a.inputs:
             if a.out and (a.out.is_dir() or len(a.inputs) > 1):
@@ -131,7 +139,7 @@ def main(argv: list[str]) -> int:
                                      hyphenate=not a.no_hyphenate, with_cover=not a.no_cover,
                                      block=a.block, compress=not a.stored)
             except Exception as e:             # o carte stricată nu trebuie să oprească un lot
-                print(f"{src.name}: FAILED: {e.__class__.__name__}: {e}", file=sys.stderr)
+                print(f"{src.name}: EȘUAT: {e.__class__.__name__}: {e}", file=sys.stderr)
                 failed += 1
                 continue
             dst.write_bytes(out)
@@ -143,7 +151,7 @@ def main(argv: list[str]) -> int:
         for f in a.files:
             try:
                 p = ibv.validate(f.read_bytes())
-                print(f"{f}: OK ({p.paragraph_count} paragraphs, {len(p.blocks)} blocks)")
+                print(f"{f}: OK ({p.paragraph_count} paragrafe, {len(p.blocks)} blocuri)")
             except ibv.FormatError as e:
                 print(f"{f}: INVALID: {e}")
                 bad += 1
@@ -154,7 +162,7 @@ def main(argv: list[str]) -> int:
     if a.cmd == "preview-cover":
         p = ibv.parse(a.file.read_bytes())
         if not p.cover:
-            print(f"{a.file}: no cover", file=sys.stderr)
+            print(f"{a.file}: nu are copertă", file=sys.stderr)
             return 1
         cover_mod.to_image(p.cover).save(a.png)
         return 0

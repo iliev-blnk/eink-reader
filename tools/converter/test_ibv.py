@@ -67,7 +67,7 @@ class Rejects(unittest.TestCase):
         for pos in range(len(data)):
             bad = bytearray(data)
             bad[pos] ^= 0x01
-            with self.assertRaises(FormatError, msg=f"flip at byte {pos} not detected"):
+            with self.assertRaises(FormatError, msg=f"bitul inversat din octetul {pos} nu a fost detectat"):
                 ibv.validate(bytes(bad))
 
     def test_truncation(self):
@@ -130,7 +130,7 @@ class LineInput(unittest.TestCase):
         self.assertTrue(all(r.flags & ibv.CONT for r in b.records[1:]))
         self.assertEqual(" ".join(r.text for r in b.records), " ".join(["cuvânt"] * 3000))
 
-    @unittest.skipUnless(TEXTS.exists(), "mockup texts not present")
+    @unittest.skipUnless(TEXTS.exists(), "lipsesc textele machetei")
     def test_mockup_books(self):
         for path in sorted(TEXTS.glob("*.hy.txt")):
             with self.subTest(book=path.name):

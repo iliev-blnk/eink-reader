@@ -33,7 +33,7 @@ esp_err_t sdcard_mount(const sdcard_config_t *cfg, sdcard_info_t *info)
         host.max_freq_khz = speeds_khz[i];
         err = esp_vfs_fat_sdspi_mount(cfg->mount_point, &host, &dev, &mount, &s_card);
         if (err == ESP_OK) break;
-        ESP_LOGW(TAG, "mount at %d kHz failed: %s", speeds_khz[i], esp_err_to_name(err));
+        ESP_LOGW(TAG, "montarea la %d kHz a eșuat: %s", speeds_khz[i], esp_err_to_name(err));
         s_card = NULL;
         if (err == ESP_FAIL) break;  // cardul a răspuns, dar nu are volum FAT
     }

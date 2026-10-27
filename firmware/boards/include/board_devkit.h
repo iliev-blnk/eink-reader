@@ -21,7 +21,7 @@
 #define BOARD_EPD_DC GPIO_NUM_9
 #define BOARD_EPD_RST GPIO_NUM_8
 #define BOARD_EPD_BUSY GPIO_NUM_18
-#define BOARD_EPD_SPI_HZ (4 * 1000 * 1000)  // conservative for jumper wires
+#define BOARD_EPD_SPI_HZ (4 * 1000 * 1000)  // prudent pentru firele de pe breadboard
 
 // Modulul microSD.
 #define BOARD_SD_CS GPIO_NUM_14

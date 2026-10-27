@@ -107,7 +107,7 @@ class TestCodec(unittest.TestCase):
             for bit in (0, 5):
                 bad = bytearray(data)
                 bad[i] ^= 1 << bit
-                with self.assertRaises(ibf.FormatError, msg=f"byte {i} bit {bit}"):
+                with self.assertRaises(ibf.FormatError, msg=f"octetul {i}, bitul {bit}"):
                     ibf.parse(bytes(bad))
 
     def test_truncated(self):
@@ -123,35 +123,35 @@ class TestCodec(unittest.TestCase):
 
         bad = bytearray(data)                                 # tabel nealiniat
         struct.pack_into("<I", bad, 40, glyphs_off + 2)
-        with self.assertRaisesRegex(ibf.FormatError, "aligned"):
+        with self.assertRaisesRegex(ibf.FormatError, "nu e aliniat"):
             ibf.parse(recrc(bad))
 
         bad = bytearray(data)                                 # perechi de kerning nesortate
         a = bytes(bad[kerns_off:kerns_off + 6])
         bad[kerns_off:kerns_off + 6] = bad[kerns_off + 6:kerns_off + 12]
         bad[kerns_off + 6:kerns_off + 12] = a
-        with self.assertRaisesRegex(ibf.FormatError, "unsorted"):
+        with self.assertRaisesRegex(ibf.FormatError, "kerning .* nesortată"):
             ibf.parse(recrc(bad))
 
         bad = bytearray(data)                                 # bitmap în afara zonei bitmapurilor
         struct.pack_into("<I", bad, glyphs_off + 12 * 2, 10_000)
-        with self.assertRaisesRegex(ibf.FormatError, "outside"):
+        with self.assertRaisesRegex(ibf.FormatError, "iese din zona bitmapurilor"):
             ibf.parse(recrc(bad))
 
         bad = bytearray(data)                                 # kern_as în afara limitelor
         struct.pack_into("<H", bad, glyphs_off + 10, 99)
-        with self.assertRaisesRegex(ibf.FormatError, "kern_as"):
+        with self.assertRaisesRegex(ibf.FormatError, "kern_as .* în afara limitelor"):
             ibf.parse(recrc(bad))
 
         bad = bytearray(data)                                 # bpp 2
         bad[12] = 2
-        with self.assertRaisesRegex(ibf.FormatError, "bpp"):
+        with self.assertRaisesRegex(ibf.FormatError, "bpp 2 nu e suportat"):
             ibf.parse(recrc(bad))
 
     def test_dump(self):
         text = ibf.dump(ibf.parse(ibf.write(tiny_font())), "Aă")
-        self.assertIn("Tiny regular, 10 px", text)
-        self.assertIn("kerns as U+0061", text)
+        self.assertIn("Tiny normal, 10 px", text)
+        self.assertIn("kerning ca U+0061", text)
 
 
 class TestRanges(unittest.TestCase):
@@ -169,7 +169,7 @@ class TestRanges(unittest.TestCase):
 LITERATA_I = HERE / "fonts/literata/Literata-Italic[opsz,wght].ttf"
 
 
-@unittest.skipUnless(LITERATA_I.exists(), "Literata not found (run fetch-fonts.sh)")
+@unittest.skipUnless(LITERATA_I.exists(), "Literata nu a fost găsită (rulați fetch-fonts.sh)")
 class TestFeatureVariations(unittest.TestCase):
     def test_bitmap_matches_advance(self):
         # Literata Italic înlocuiește 'w' cu o glifă mai lată la mărimile optice mici.
@@ -182,7 +182,7 @@ class TestFeatureVariations(unittest.TestCase):
         self.assertLess(w.advance - (w.x_off + w.width) * ibf.UNIT, ibf.UNIT * 3 // 2)
 
 
-@unittest.skipUnless(NOTO, "Noto Serif not found (run fetch-fonts.sh)")
+@unittest.skipUnless(NOTO, "Noto Serif nu a fost găsit (rulați fetch-fonts.sh)")
 class TestBuild(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

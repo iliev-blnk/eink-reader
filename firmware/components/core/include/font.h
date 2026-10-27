@@ -11,7 +11,7 @@
 #include <stdint.h>
 
 #if defined(__BYTE_ORDER__) && __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
-#error "IBF tables are little-endian and used in place"
+#error "tabelele IBF sunt little-endian și se folosesc direct din fișier"
 #endif
 
 #define FONT_UNIT 64            // 1/64 px pe px
@@ -40,9 +40,9 @@ typedef struct {
     int16_t value;         // 1/64 px, adăugat la avansul glifei din stânga
 } font_kern_t;
 
-_Static_assert(sizeof(font_range_t) == 8, "font_range_t must match the file");
-_Static_assert(sizeof(font_glyph_t) == 12, "font_glyph_t must match the file");
-_Static_assert(sizeof(font_kern_t) == 6, "font_kern_t must match the file");
+_Static_assert(sizeof(font_range_t) == 8, "font_range_t trebuie să se potrivească cu fișierul");
+_Static_assert(sizeof(font_glyph_t) == 12, "font_glyph_t trebuie să se potrivească cu fișierul");
+_Static_assert(sizeof(font_kern_t) == 6, "font_kern_t trebuie să se potrivească cu fișierul");
 
 typedef struct {
     char name[33];

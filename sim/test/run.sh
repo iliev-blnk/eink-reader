@@ -27,17 +27,17 @@ for cfg in default ragged; do
         rm -rf "$here/golden/$cfg"
         mkdir -p "$here/golden"
         cp -r "$out/$cfg" "$here/golden/$cfg"
-        echo "golden/$cfg: $(ls "$out/$cfg" | wc -l) pages updated"
+        echo "golden/$cfg: $(ls "$out/$cfg" | wc -l) pagini actualizate"
         continue
     fi
     if ! diff -r -q "$here/golden/$cfg" "$out/$cfg" >"$out/diff.txt"; then
-        echo "FAIL $cfg:"
+        echo "EȘUAT $cfg:"
         sed "s|$out/||; s|$here/||" "$out/diff.txt"
-        echo "  new pages are in $out/$cfg (kept)"
+        echo "  paginile noi sunt în $out/$cfg (păstrate)"
         trap - EXIT
         fail=1
     else
-        echo "ok   $cfg: $(ls "$out/$cfg" | wc -l) pages match"
+        echo "ok    $cfg: $(ls "$out/$cfg" | wc -l) pagini identice"
     fi
 done
 
@@ -45,9 +45,9 @@ books=$(ls "$here"/../../corpus/out/*.ibv 2>/dev/null || true)
 if [ -n "$books" ] && [ "$1" != --update ]; then
     # shellcheck disable=SC2086
     if "$sim" stats $books >"$out/stats.txt" 2>&1; then
-        echo "ok   corpus: $(grep -c '\.ibv' "$out/stats.txt") books paginated"
+        echo "ok    corpus: $(grep -c '\.ibv' "$out/stats.txt") cărți paginate"
     else
-        echo "FAIL corpus:"; grep -E "FAILED|:" "$out/stats.txt"; fail=1
+        echo "EȘUAT corpus:"; grep -E "EȘUAT|:" "$out/stats.txt"; fail=1
     fi
     # Fonturile dispozitivului, alese după limba fiecărei cărți (fontsel.c).
     # Fiecare caracter lăsat de convertor trebuie să fie în fontul primit de carte.
@@ -55,11 +55,11 @@ if [ -n "$books" ] && [ "$1" != --update ]; then
     if [ -f "$fam/libron-17-r.ibf" ] && [ -f "$fam/ptserif-18-r.ibf" ]; then
         # shellcheck disable=SC2086
         if "$sim" stats $books --fonts "$fam" >"$out/stats-fonts.txt" 2>&1 \
-            && awk '/\.ibv/ && $17 != 0 { bad = 1; print "  " $1 ": " $17 " characters not in " $19 } END { exit bad }' \
+            && awk '/\.ibv/ && $17 != 0 { bad = 1; print "  " $1 ": " $17 " caractere lipsă din " $19 } END { exit bad }' \
                 "$out/stats-fonts.txt"; then
-            echo "ok   corpus: $(grep -c '\.ibv' "$out/stats-fonts.txt") books in their own font, no missing glyphs"
+            echo "ok    corpus: $(grep -c '\.ibv' "$out/stats-fonts.txt") cărți în fontul lor, nicio glifă lipsă"
         else
-            echo "FAIL corpus in the device fonts:"; grep -E "FAILED|:" "$out/stats-fonts.txt"; fail=1
+            echo "EȘUAT corpus în fonturile dispozitivului:"; grep -E "EȘUAT|:" "$out/stats-fonts.txt"; fail=1
         fi
     fi
 fi

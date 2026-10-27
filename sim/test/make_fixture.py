@@ -96,5 +96,5 @@ book = ibv.Book({"title": "Layout fixture", "author": "eink-reader", "language":
 data = ibv.write(book, block_target=600)
 ibv.validate(data)
 (HERE / "layout.ibv").write_bytes(data)
-print(f"layout.ibv: {len(records)} records, {len(data)} bytes, "
-      f"{len(ibv.parse(data).blocks)} blocks")
+print(f"layout.ibv: {len(records)} înregistrări, {len(data)} octeți, "
+      f"{len(ibv.parse(data).blocks)} blocuri")

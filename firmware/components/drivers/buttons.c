@@ -9,7 +9,7 @@
 static const char *TAG = "buttons";
 
 #define POLL_MS 10
-#define DEBOUNCE_MS 30  // a level must hold this long to count
+#define DEBOUNCE_MS 30  // cât trebuie să țină un nivel ca să conteze
 #define LONG_MS 800
 
 typedef struct {
@@ -76,7 +76,7 @@ esp_err_t buttons_init(const gpio_num_t pins[BUTTON_COUNT])
     };
     for (int i = 0; i < BUTTON_COUNT; i++) io.pin_bit_mask |= BIT64(pins[i]);
     // Tot aici pinii se iau înapoi din domeniul RTC după o trezire din somnul adânc.
-    ESP_RETURN_ON_ERROR(gpio_config(&io), TAG, "pins");
+    ESP_RETURN_ON_ERROR(gpio_config(&io), TAG, "pinii");
 
     for (int i = 0; i < BUTTON_COUNT; i++) {
         bool down = gpio_get_level(pins[i]) == 0;
@@ -89,9 +89,9 @@ esp_err_t buttons_init(const gpio_num_t pins[BUTTON_COUNT])
         };
     }
     s_queue = xQueueCreate(8, sizeof(button_event_t));
-    ESP_RETURN_ON_FALSE(s_queue, ESP_ERR_NO_MEM, TAG, "queue");
+    ESP_RETURN_ON_FALSE(s_queue, ESP_ERR_NO_MEM, TAG, "coada");
     ESP_RETURN_ON_FALSE(xTaskCreate(poll_task, "buttons", 2560, NULL, 5, &s_task) == pdPASS, ESP_ERR_NO_MEM,
-                        TAG, "task");
+                        TAG, "task-ul");
     return ESP_OK;
 }
 
@@ -119,10 +119,10 @@ esp_err_t buttons_enable_wakeup(void)
         mask |= BIT64(pin);
         // Pull-up-uri RTC; ESP-IDF ține pinii în somn când perifericele RTC
         // sunt oprite, deci nu costă un domeniu în plus.
-        ESP_RETURN_ON_ERROR(rtc_gpio_init(pin), TAG, "rtc init %d", pin);
-        ESP_RETURN_ON_ERROR(rtc_gpio_set_direction(pin, RTC_GPIO_MODE_INPUT_ONLY), TAG, "rtc dir");
-        ESP_RETURN_ON_ERROR(rtc_gpio_pulldown_dis(pin), TAG, "pulldown");
-        ESP_RETURN_ON_ERROR(rtc_gpio_pullup_en(pin), TAG, "pullup");
+        ESP_RETURN_ON_ERROR(rtc_gpio_init(pin), TAG, "inițializarea RTC %d", pin);
+        ESP_RETURN_ON_ERROR(rtc_gpio_set_direction(pin, RTC_GPIO_MODE_INPUT_ONLY), TAG, "direcția RTC");
+        ESP_RETURN_ON_ERROR(rtc_gpio_pulldown_dis(pin), TAG, "rezistența pull-down");
+        ESP_RETURN_ON_ERROR(rtc_gpio_pullup_en(pin), TAG, "rezistența pull-up");
     }
     return esp_sleep_enable_ext1_wakeup_io(mask, ESP_EXT1_WAKEUP_ANY_LOW);
 }
@@ -137,6 +137,6 @@ int buttons_from_wake_mask(uint64_t mask)
 
 const char *button_name(button_t b)
 {
-    static const char *const names[BUTTON_COUNT] = {"PREV", "NEXT", "MENU"};
+    static const char *const names[BUTTON_COUNT] = {"ÎNAPOI", "ÎNAINTE", "MENIU"};
     return b < BUTTON_COUNT ? names[b] : "?";
 }

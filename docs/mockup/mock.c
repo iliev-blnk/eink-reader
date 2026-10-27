@@ -5,6 +5,19 @@
 // e motorul final.
 //
 //   mock <outdir> <bookdir>   (formatul cărții: "# titlu", "P text", "V vers", "S")
+//
+// Fonturile din fonts/ sunt în formatul font_t de dinainte de IBF, deci paginile de
+// lectură și biblioteca se desenează cu nucleul din commit-ul machetei (d9c9e0b):
+//   git archive d9c9e0b firmware/components/core firmware/main | tar -x -C /tmp/old
+//   O=/tmp/old/firmware
+//   cc -O2 -o mock -I$O/components/core/include -I$O/main docs/mockup/mock.c $O/main/screen_bringup.c \
+//      $O/components/core/*.c $O/components/core/fonts/font_ui16.c docs/mockup/fonts/*.c -lm
+// Ecranele de verificare și de somn se iau dintr-o compilare cu nucleul de acum, ca să
+// fie exact ce desenează firmware-ul (paginile ei de lectură ies goale, se aruncă):
+//   I=firmware/components/core
+//   cc -O2 -o mock-now -I$I/include -Ifirmware/main docs/mockup/mock.c firmware/main/screen_bringup.c \
+//      $I/gfx.c $I/font.c $I/crc32.c $I/fonts/font_ui16.c docs/mockup/fonts/*.c -lm
+// Fiecare scrie .pbm în <outdir>; se convertesc în PNG de 1 bit în docs/mockup/screens/.
 #define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
@@ -342,8 +355,8 @@ static void library(int sel, const int *pages)
         snprintf(meta, sizeof meta, "%s · %d pagini", ENTRIES[i].author, pages[i]);
         gfx_text(&s_g, &font_ui13, ML, y + 53, meta, ink);
     }
-    // "◀ ▶ alege    MENU deschide", săgețile desenate ca triunghiuri
-    const char *t1 = "alege", *t2 = "MENU  deschide";
+    // "◀ ▶ alege    MENIU deschide", săgețile desenate ca triunghiuri
+    const char *t1 = "alege", *t2 = "MENIU  deschide";
     const int r = 4, cy = FOOT - 5;
     int x = (W - (2 * (r + 1) + 5 + 6 + gfx_text_width(&font_ui13, t1) + 20 + gfx_text_width(&font_ui13, t2))) / 2;
     for (int dy = -r; dy <= r; dy++) {
@@ -359,7 +372,7 @@ static void library(int sel, const int *pages)
 
 int main(int argc, char **argv)
 {
-    if (argc < 2) { fprintf(stderr, "usage: mock <outdir> <bookdir>\n"); return 1; }
+    if (argc < 2) { fprintf(stderr, "folosire: mock <outdir> <bookdir>\n"); return 1; }
     const char *out = argv[1], *dir = argc > 2 ? argv[2] : ".";
     gfx_init(&s_g, s_buf, W, H);
     char path[512];
@@ -371,7 +384,7 @@ int main(int argc, char **argv)
         s_body = ENTRIES[b].small ? &font_serif16 : &font_serif18;
         s_lh = ENTRIES[b].small ? 21 : LH;
         pages[b] = layout(&book, -1);
-        printf("%-12s %4d pages\n", ENTRIES[b].file, pages[b]);
+        printf("%-12s %4d pagini\n", ENTRIES[b].file, pages[b]);
         for (int pg = 1; pg <= SHOW_PAGES && pg <= pages[b]; pg++) {
             gfx_clear(&s_g, GFX_WHITE);
             layout(&book, pg);
@@ -391,24 +404,25 @@ int main(int argc, char **argv)
     // sunt ale firmware-ului; cipul, memoria, SD-ul și bateria sunt valori de exemplu.
     bringup_info_t info = {
         .board = "devkit-proto",
-        .chip = "ESP32-S3 v0.2, 2 cores",
+        .chip = "ESP32-S3 v0.2, 2 nuclee",
         .memory = "16M flash, 8M PSRAM",
-        .sd = "OK, 15.9 GB, 3 files",
-        .battery = "3.92 V",
-        .wake = "power-on · boot 1",
-        .last_button = "ready",
+        .sd = "OK, 15,9 GB, 3 fișiere",
+        .battery = "3,92 V",
+        .wake = "alimentare · nr. 1",
+        .last_button = "gata",
         .counter = 0,
-        .last_timing = "prev: none yet",
+        .last_timing = "ultima: încă niciuna",
     };
     screen_bringup_draw(&s_g, &info);
     snprintf(path, sizeof path, "%s/bringup.pbm", out);
     if (write_pbm(path)) return 1;
     // După o trezire, firmware-ul spune ce buton l-a trezit.
-    static const char *const names[] = {"PREV", "NEXT", "MENU"};
+    static const char *const names[] = {"PREV", "NEXT", "MENU"};          // în numele fișierelor
+    static const char *const labels[] = {"ÎNAPOI", "ÎNAINTE", "MENIU"};   // pe ecran, ca în buttons.c
     char wake[40];
     for (int boot = 2; boot <= 9; boot++) {
         for (int n = 0; n < 3; n++) {
-            snprintf(wake, sizeof wake, "%s · boot %d", names[n], boot);
+            snprintf(wake, sizeof wake, "%s · nr. %d", labels[n], boot);
             info.wake = wake;
             screen_bringup_draw(&s_g, &info);
             snprintf(path, sizeof path, "%s/bringup-%s-%d.pbm", out, names[n], boot);

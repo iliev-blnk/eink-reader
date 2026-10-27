@@ -15,19 +15,19 @@
 static const char *TAG = "epd";
 
 // Comenzile UC8253
-#define CMD_PSR 0x00    // panel setting
-#define CMD_POF 0x02    // power off
-#define CMD_PON 0x04    // power on
-#define CMD_DSLP 0x07   // deep sleep, needs check code 0xA5
-#define CMD_DTM1 0x10   // image RAM "old": what is on screen now
-#define CMD_DRF 0x12    // display refresh
-#define CMD_DTM2 0x13   // image RAM "new": what should be on screen
-#define CMD_CDI 0x50    // VCOM and data interval, border
-#define CMD_PTL 0x90    // partial window
-#define CMD_PTIN 0x91   // partial mode in
-#define CMD_PTOUT 0x92  // partial mode out
-#define CMD_CCSET 0xE0  // cascade setting; 0x02 = TSFIX: use the TSSET temperature
-#define CMD_TSSET 0xE5  // forced temperature, selects the OTP waveform
+#define CMD_PSR 0x00    // setarea panoului
+#define CMD_POF 0x02    // oprirea alimentării panoului
+#define CMD_PON 0x04    // pornirea alimentării panoului
+#define CMD_DSLP 0x07   // somn adânc, cere codul de verificare 0xA5
+#define CMD_DTM1 0x10   // RAM-ul de imagine „vechi”: ce e acum pe ecran
+#define CMD_DRF 0x12    // reîmprospătarea ecranului
+#define CMD_DTM2 0x13   // RAM-ul de imagine „nou”: ce trebuie să fie pe ecran
+#define CMD_CDI 0x50    // VCOM și intervalul datelor, chenarul
+#define CMD_PTL 0x90    // fereastra parțială
+#define CMD_PTIN 0x91   // intrarea în modul parțial
+#define CMD_PTOUT 0x92  // ieșirea din modul parțial
+#define CMD_CCSET 0xE0  // setarea cascadei; 0x02 = TSFIX: se folosește temperatura din TSSET
+#define CMD_TSSET 0xE5  // temperatura impusă, alege forma de undă din OTP
 
 // PSR, al doilea octet ca în exemplul producătorului pentru panoul ăsta.
 // 0x1f: LUT din OTP, mod alb-negru, scanare în sus, deplasare la dreapta, booster pornit.
@@ -47,13 +47,13 @@ static const char *TAG = "epd";
 
 // BUSY e în 0 cât lucrează controlerul. Timpi obișnuiți: pornire/oprire ~45 ms,
 // completă rapidă ~1,0 s, completă normală ~3 s, parțială ~0,35 s.
-#define BUSY_START_US 5000  // BUSY must go low this soon after a command
+#define BUSY_START_US 5000  // cât de repede trebuie să coboare BUSY după o comandă
 #define TIMEOUT_RESET_MS 100
 #define TIMEOUT_POWER_MS 300
 #define TIMEOUT_FULL_MS 6000
 #define TIMEOUT_PARTIAL_MS 2000
 
-#define SPI_CHUNK 4092  // bytes per transaction, fits the default bus limit
+#define SPI_CHUNK 4092  // octeți pe tranzacție, încape în limita implicită a magistralei
 
 static struct {
     epd_config_t cfg;
@@ -89,7 +89,7 @@ static esp_err_t send(bool is_data, const uint8_t *buf, size_t len)
         // interogare pentru octeții scurți de comandă, unde pregătirea ar costa
         // mai mult decât transferul.
         esp_err_t err = n > 32 ? spi_device_transmit(s.spi, &t) : spi_device_polling_transmit(s.spi, &t);
-        ESP_RETURN_ON_ERROR(err, TAG, "spi transfer");
+        ESP_RETURN_ON_ERROR(err, TAG, "transferul SPI");
         buf += n;
         len -= n;
     }
@@ -103,7 +103,7 @@ static esp_err_t cmd(uint8_t c)
 
 static esp_err_t cmd_data(uint8_t c, const uint8_t *data, size_t len)
 {
-    ESP_RETURN_ON_ERROR(cmd(c), TAG, "cmd 0x%02x", c);
+    ESP_RETURN_ON_ERROR(cmd(c), TAG, "comanda 0x%02x", c);
     return send(true, data, len);
 }
 
@@ -139,14 +139,14 @@ static esp_err_t wait_busy(const char *what, int timeout_ms, uint32_t *busy_us)
     int64_t t0 = esp_timer_get_time();
     while (gpio_get_level(s.cfg.busy) != 0) {
         if (esp_timer_get_time() - t0 > BUSY_START_US) {
-            ESP_LOGE(TAG, "%s: BUSY never went low, the panel isn't answering", what);
+            ESP_LOGE(TAG, "%s: BUSY n-a coborât deloc, panoul nu răspunde", what);
             return ESP_ERR_INVALID_RESPONSE;
         }
         esp_rom_delay_us(10);
     }
     esp_err_t err = wait_idle(t0 + (int64_t)timeout_ms * 1000);
     if (busy_us) *busy_us = since(t0);
-    if (err != ESP_OK) ESP_LOGE(TAG, "%s: BUSY still low after %d ms", what, timeout_ms);
+    if (err != ESP_OK) ESP_LOGE(TAG, "%s: BUSY e tot jos după %d ms", what, timeout_ms);
     return err;
 }
 
@@ -171,25 +171,25 @@ static esp_err_t panel_setup(void)
     if (s.asleep) {
         hw_reset();
     } else {
-        ESP_RETURN_ON_ERROR(cmd_data(CMD_PSR, (const uint8_t[]){PSR_SOFT_RESET, PSR_2}, 2), TAG, "soft reset");
+        ESP_RETURN_ON_ERROR(cmd_data(CMD_PSR, (const uint8_t[]){PSR_SOFT_RESET, PSR_2}, 2), TAG, "resetarea software");
         vTaskDelay(pdMS_TO_TICKS(2));
     }
-    ESP_RETURN_ON_ERROR(wait_idle(esp_timer_get_time() + TIMEOUT_RESET_MS * 1000), TAG, "BUSY low after reset");
+    ESP_RETURN_ON_ERROR(wait_idle(esp_timer_get_time() + TIMEOUT_RESET_MS * 1000), TAG, "BUSY jos după reset");
     return cmd_data(CMD_PSR, (const uint8_t[]){PSR_NORMAL, PSR_2}, 2);
 }
 
 static esp_err_t power(bool on, uint32_t *busy_us)
 {
-    ESP_RETURN_ON_ERROR(cmd(on ? CMD_PON : CMD_POF), TAG, "power cmd");
-    return wait_busy(on ? "power on" : "power off", TIMEOUT_POWER_MS, busy_us);
+    ESP_RETURN_ON_ERROR(cmd(on ? CMD_PON : CMD_POF), TAG, "comanda de alimentare");
+    return wait_busy(on ? "pornirea alimentării" : "oprirea alimentării", TIMEOUT_POWER_MS, busy_us);
 }
 
 // Pornire, reîmprospătare, oprire. Oprește chiar și după ce reîmprospătarea a depășit timpul.
 static esp_err_t run_refresh(epd_timing_t *t, int timeout_ms)
 {
-    ESP_RETURN_ON_ERROR(power(true, &t->power_on_us), TAG, "power on");
+    ESP_RETURN_ON_ERROR(power(true, &t->power_on_us), TAG, "pornirea alimentării");
     esp_err_t err = cmd(CMD_DRF);
-    if (err == ESP_OK) err = wait_busy("refresh", timeout_ms, &t->refresh_us);
+    if (err == ESP_OK) err = wait_busy("reîmprospătarea", timeout_ms, &t->refresh_us);
     esp_err_t off = power(false, &t->power_off_us);
     return err != ESP_OK ? err : off;
 }
@@ -208,10 +208,10 @@ static esp_err_t write_ram(uint8_t ram, const uint8_t *fb, int x, int y, int w, 
 {
     const int stride = EPD_WIDTH / 8, bw = w / 8;
     for (int r = 0; r < h; r++) memcpy(s.scratch + r * bw, fb + (y + r) * stride + x / 8, bw);
-    ESP_RETURN_ON_ERROR(cmd(CMD_PTIN), TAG, "partial in");
-    ESP_RETURN_ON_ERROR(set_window(x, y, w, h), TAG, "window");
-    ESP_RETURN_ON_ERROR(cmd(ram), TAG, "ram");
-    ESP_RETURN_ON_ERROR(send(true, s.scratch, (size_t)bw * h), TAG, "image data");
+    ESP_RETURN_ON_ERROR(cmd(CMD_PTIN), TAG, "intrarea în modul parțial");
+    ESP_RETURN_ON_ERROR(set_window(x, y, w, h), TAG, "fereastra");
+    ESP_RETURN_ON_ERROR(cmd(ram), TAG, "comanda RAM");
+    ESP_RETURN_ON_ERROR(send(true, s.scratch, (size_t)bw * h), TAG, "datele imaginii");
     return cmd(CMD_PTOUT);
 }
 
@@ -229,7 +229,7 @@ esp_err_t epd_init(const epd_config_t *cfg)
         .pin_bit_mask = BIT64(cfg->dc) | BIT64(cfg->rst),
         .mode = GPIO_MODE_OUTPUT,
     };
-    ESP_RETURN_ON_ERROR(gpio_config(&out), TAG, "dc/rst pins");
+    ESP_RETURN_ON_ERROR(gpio_config(&out), TAG, "pinii DC/RST");
     // RST a fost ținut în 1 în ultimul somn adânc. Se eliberează abia acum, când
     // pinul e ieșire în 1, altfel ar coborî scurt în 0.
     gpio_hold_dis(cfg->rst);
@@ -241,17 +241,17 @@ esp_err_t epd_init(const epd_config_t *cfg)
         .pull_up_en = GPIO_PULLUP_ENABLE,
         .intr_type = GPIO_INTR_POSEDGE,
     };
-    ESP_RETURN_ON_ERROR(gpio_config(&in), TAG, "busy pin");
+    ESP_RETURN_ON_ERROR(gpio_config(&in), TAG, "pinul BUSY");
 
     if (!s.busy_sem) s.busy_sem = xSemaphoreCreateBinary();
-    ESP_RETURN_ON_FALSE(s.busy_sem, ESP_ERR_NO_MEM, TAG, "semaphore");
+    ESP_RETURN_ON_FALSE(s.busy_sem, ESP_ERR_NO_MEM, TAG, "semaforul");
     esp_err_t err = gpio_install_isr_service(0);
-    ESP_RETURN_ON_FALSE(err == ESP_OK || err == ESP_ERR_INVALID_STATE, err, TAG, "isr service");
-    ESP_RETURN_ON_ERROR(gpio_isr_handler_add(cfg->busy, busy_isr, NULL), TAG, "busy isr");
+    ESP_RETURN_ON_FALSE(err == ESP_OK || err == ESP_ERR_INVALID_STATE, err, TAG, "serviciul de întreruperi");
+    ESP_RETURN_ON_ERROR(gpio_isr_handler_add(cfg->busy, busy_isr, NULL), TAG, "întreruperea BUSY");
     gpio_intr_disable(cfg->busy);
 
     if (!s.scratch) s.scratch = heap_caps_malloc(EPD_FB_SIZE, MALLOC_CAP_DMA);
-    ESP_RETURN_ON_FALSE(s.scratch, ESP_ERR_NO_MEM, TAG, "scratch buffer");
+    ESP_RETURN_ON_FALSE(s.scratch, ESP_ERR_NO_MEM, TAG, "bufferul de lucru");
 
     const spi_device_interface_config_t dev = {
         .mode = 0,
@@ -259,13 +259,13 @@ esp_err_t epd_init(const epd_config_t *cfg)
         .spics_io_num = cfg->cs,
         .queue_size = 1,
     };
-    ESP_RETURN_ON_ERROR(spi_bus_add_device(cfg->host, &dev, &s.spi), TAG, "spi device");
+    ESP_RETURN_ON_ERROR(spi_bus_add_device(cfg->host, &dev, &s.spi), TAG, "dispozitivul SPI");
 
-    ESP_RETURN_ON_ERROR(panel_setup(), TAG, "setup");
+    ESP_RETURN_ON_ERROR(panel_setup(), TAG, "configurarea");
     uint32_t on_us = 0, off_us = 0;
-    ESP_RETURN_ON_ERROR(power(true, &on_us), TAG, "power-on check");
-    ESP_RETURN_ON_ERROR(power(false, &off_us), TAG, "power-off check");
-    ESP_LOGI(TAG, "panel answers: power on %lu us, power off %lu us", (unsigned long)on_us,
+    ESP_RETURN_ON_ERROR(power(true, &on_us), TAG, "verificarea pornirii");
+    ESP_RETURN_ON_ERROR(power(false, &off_us), TAG, "verificarea opririi");
+    ESP_LOGI(TAG, "panoul răspunde: pornire %lu us, oprire %lu us", (unsigned long)on_us,
              (unsigned long)off_us);
     return ESP_OK;
 }
@@ -274,21 +274,21 @@ esp_err_t epd_full_refresh(const uint8_t *fb)
 {
     int64_t t0 = esp_timer_get_time();
     epd_timing_t t = {.full = true, .w = EPD_WIDTH, .h = EPD_HEIGHT};
-    if (s.asleep) ESP_RETURN_ON_ERROR(panel_setup(), TAG, "wake");
+    if (s.asleep) ESP_RETURN_ON_ERROR(panel_setup(), TAG, "trezirea");
 
     // Ambele RAM-uri primesc imaginea nouă: forma de undă completă redesenează
     // fiecare pixel, iar după aceea „vechiul” se potrivește deja cu ecranul
     // pentru următoarea reîmprospătare parțială.
     int64_t w0 = esp_timer_get_time();
-    ESP_RETURN_ON_ERROR(write_ram(CMD_DTM1, fb, 0, 0, EPD_WIDTH, EPD_HEIGHT), TAG, "old ram");
-    ESP_RETURN_ON_ERROR(write_ram(CMD_DTM2, fb, 0, 0, EPD_WIDTH, EPD_HEIGHT), TAG, "new ram");
+    ESP_RETURN_ON_ERROR(write_ram(CMD_DTM1, fb, 0, 0, EPD_WIDTH, EPD_HEIGHT), TAG, "RAM-ul vechi");
+    ESP_RETURN_ON_ERROR(write_ram(CMD_DTM2, fb, 0, 0, EPD_WIDTH, EPD_HEIGHT), TAG, "RAM-ul nou");
     t.write_us = since(w0);
 
     if (s.cfg.fast_full) {
-        ESP_RETURN_ON_ERROR(cmd_byte(CMD_CCSET, 0x02), TAG, "ccset");
-        ESP_RETURN_ON_ERROR(cmd_byte(CMD_TSSET, TSSET_FAST_FULL), TAG, "tsset");
+        ESP_RETURN_ON_ERROR(cmd_byte(CMD_CCSET, 0x02), TAG, "CCSET");
+        ESP_RETURN_ON_ERROR(cmd_byte(CMD_TSSET, TSSET_FAST_FULL), TAG, "TSSET");
     }
-    ESP_RETURN_ON_ERROR(cmd_byte(CMD_CDI, CDI_FULL), TAG, "cdi");
+    ESP_RETURN_ON_ERROR(cmd_byte(CMD_CDI, CDI_FULL), TAG, "CDI");
     esp_err_t err = run_refresh(&t, TIMEOUT_FULL_MS);
     if (s.cfg.fast_full && err == ESP_OK) err = panel_setup();  // înapoi la temperatura senzorului
     s.ram_valid = err == ESP_OK;
@@ -322,14 +322,14 @@ esp_err_t epd_partial_refresh(const uint8_t *fb, int x, int y, int w, int h)
     epd_timing_t t = {.full = false, .x = x, .y = y, .w = w, .h = h};
 
     int64_t w0 = esp_timer_get_time();
-    ESP_RETURN_ON_ERROR(write_ram(CMD_DTM2, fb, x, y, w, h), TAG, "new ram");
+    ESP_RETURN_ON_ERROR(write_ram(CMD_DTM2, fb, x, y, w, h), TAG, "RAM-ul nou");
     t.write_us = since(w0);
 
-    ESP_RETURN_ON_ERROR(cmd(CMD_PTIN), TAG, "partial in");
-    ESP_RETURN_ON_ERROR(set_window(x, y, w, h), TAG, "window");
-    ESP_RETURN_ON_ERROR(cmd_byte(CMD_CCSET, 0x02), TAG, "ccset");
-    ESP_RETURN_ON_ERROR(cmd_byte(CMD_TSSET, TSSET_PARTIAL), TAG, "tsset");
-    ESP_RETURN_ON_ERROR(cmd_byte(CMD_CDI, CDI_PARTIAL), TAG, "cdi");
+    ESP_RETURN_ON_ERROR(cmd(CMD_PTIN), TAG, "intrarea în modul parțial");
+    ESP_RETURN_ON_ERROR(set_window(x, y, w, h), TAG, "fereastra");
+    ESP_RETURN_ON_ERROR(cmd_byte(CMD_CCSET, 0x02), TAG, "CCSET");
+    ESP_RETURN_ON_ERROR(cmd_byte(CMD_TSSET, TSSET_PARTIAL), TAG, "TSSET");
+    ESP_RETURN_ON_ERROR(cmd_byte(CMD_CDI, CDI_PARTIAL), TAG, "CDI");
     esp_err_t err = run_refresh(&t, TIMEOUT_PARTIAL_MS);
     if (err == ESP_OK) err = panel_setup();
     if (err == ESP_OK) err = cmd(CMD_PTOUT);
@@ -351,7 +351,7 @@ esp_err_t epd_sleep(void)
 {
     if (s.asleep) return ESP_OK;
     // Fiecare reîmprospătare se termină cu oprirea, deci controlerul e deja liber.
-    ESP_RETURN_ON_ERROR(cmd_byte(CMD_DSLP, 0xA5), TAG, "deep sleep");
+    ESP_RETURN_ON_ERROR(cmd_byte(CMD_DSLP, 0xA5), TAG, "somnul adânc");
     s.asleep = true;
     s.ram_valid = false;
     // Un RST lăsat în aer ar putea scoate panoul din somnul adânc cât doarme ESP32.

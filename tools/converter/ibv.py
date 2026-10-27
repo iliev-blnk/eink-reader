@@ -99,7 +99,7 @@ class Book:
 
 def uleb(n: int) -> bytes:
     if n < 0:
-        raise ValueError("varint must be unsigned")
+        raise ValueError("varint-ul trebuie să fie fără semn")
     out = bytearray()
     while True:
         b = n & 0x7F
@@ -113,14 +113,14 @@ def read_uleb(buf: bytes, pos: int) -> tuple[int, int]:
     n = shift = 0
     for i in range(5):                       # valorile sunt < 2^32, deci cel mult 5 octeți
         if pos >= len(buf):
-            raise FormatError("varint runs past the end of the block")
+            raise FormatError("varint-ul trece de sfârșitul blocului")
         b = buf[pos]
         pos += 1
         n |= (b & 0x7F) << shift
         if not b & 0x80:
             return n, pos
         shift += 7
-    raise FormatError("varint longer than 5 bytes")
+    raise FormatError("varint mai lung de 5 octeți")
 
 
 def crc32(b: bytes) -> int:
@@ -136,7 +136,7 @@ def inflate_raw(b: bytes, raw_len: int) -> bytes:
     d = zlib.decompressobj(-15)
     out = d.decompress(b, raw_len + 1)
     if len(out) != raw_len or not d.eof or d.unused_data:
-        raise FormatError(f"block inflates to {len(out)} bytes, expected {raw_len}")
+        raise FormatError(f"blocul se decomprimă la {len(out)} octeți, se așteptau {raw_len}")
     return out
 
 
@@ -146,11 +146,11 @@ def check_text(text: str, where: str) -> None:
     for ch in text:
         o = ord(ch)
         if o < 0x20 or 0x7F <= o < 0xA0:
-            raise FormatError(f"{where}: control character U+{o:04X} in text")
+            raise FormatError(f"{where}: caracter de control U+{o:04X} în text")
     if text != text.strip(" ") or "  " in text:
-        raise FormatError(f"{where}: leading, trailing or doubled spaces")
+        raise FormatError(f"{where}: spații la început, la sfârșit sau dublate")
     if not unicodedata.is_normalized("NFC", text):
-        raise FormatError(f"{where}: text is not NFC-normalized")
+        raise FormatError(f"{where}: textul nu e normalizat NFC")
 
 
 def encode_record(r: Record) -> bytes:
@@ -164,7 +164,7 @@ def encode_record(r: Record) -> bytes:
 
 def decode_record(buf: bytes, pos: int) -> tuple[Record, int]:
     if pos + 2 > len(buf):
-        raise FormatError("record header runs past the end of the block")
+        raise FormatError("antetul înregistrării trece de sfârșitul blocului")
     kind, flags = buf[pos], buf[pos + 1]
     pos += 2
     tlen, pos = read_uleb(buf, pos)
@@ -174,38 +174,38 @@ def decode_record(buf: bytes, pos: int) -> tuple[Record, int]:
         s, pos = read_uleb(buf, pos)
         n, pos = read_uleb(buf, pos)
         if pos >= len(buf):
-            raise FormatError("run runs past the end of the block")
+            raise FormatError("un run trece de sfârșitul blocului")
         runs.append((s, n, buf[pos]))
         pos += 1
     if pos + tlen > len(buf):
-        raise FormatError("text runs past the end of the block")
+        raise FormatError("textul trece de sfârșitul blocului")
     try:
         text = buf[pos:pos + tlen].decode("utf-8")
     except UnicodeDecodeError as e:
-        raise FormatError(f"invalid UTF-8 in text: {e}") from None
+        raise FormatError(f"UTF-8 invalid în text: {e}") from None
     return Record(kind, text, flags, runs), pos + tlen
 
 
 def validate_record(r: Record, where: str) -> None:
     if r.flags & FLAGS_RESERVED:
-        raise FormatError(f"{where}: reserved flag bit 7 set")
+        raise FormatError(f"{where}: bitul rezervat 7 al indicatorilor e setat")
     if r.kind == BREAK and (r.text or r.runs):
-        raise FormatError(f"{where}: BREAK carries text")
+        raise FormatError(f"{where}: BREAK are text")
     if r.flags & PAGE and (r.kind == BREAK or r.flags & CONT):
-        raise FormatError(f"{where}: PAGE on a BREAK or CONT record")
+        raise FormatError(f"{where}: PAGE pe o înregistrare BREAK sau CONT")
     if r.kind != BREAK and not r.text:
-        raise FormatError(f"{where}: empty text")
+        raise FormatError(f"{where}: text gol")
     check_text(r.text, where)
     tb = r.text.encode("utf-8")
     end = 0
     for s, n, style in r.runs:
         if n == 0 or s < end or s + n > len(tb):
-            raise FormatError(f"{where}: run ({s},{n}) empty, overlapping, unsorted or out of range")
+            raise FormatError(f"{where}: run-ul ({s},{n}) e gol, se suprapune, nu e sortat sau iese din text")
         for edge in (s, s + n):
             if edge < len(tb) and (tb[edge] & 0xC0) == 0x80:
-                raise FormatError(f"{where}: run edge {edge} splits a UTF-8 sequence")
+                raise FormatError(f"{where}: marginea de run {edge} taie o secvență UTF-8")
         if style == 0:
-            raise FormatError(f"{where}: run with no style (leave regular text uncovered)")
+            raise FormatError(f"{where}: run fără stil (textul obișnuit rămâne neacoperit)")
         end = s + n
 
 
@@ -214,11 +214,11 @@ def validate_record(r: Record, where: str) -> None:
 def plan_blocks(encoded: list[bytes], target: int) -> list[tuple[int, int]]:
     """Greedy: fiecare bloc se umple până la `target` octeți bruți cu înregistrări întregi."""
     if not 0 < target <= MAX_BLOCK_RAW:
-        raise ValueError(f"block target must be 1..{MAX_BLOCK_RAW}")
+        raise ValueError(f"mărimea țintă a blocului trebuie să fie între 1 și {MAX_BLOCK_RAW}")
     blocks, first, size = [], 0, 0
     for i, rec in enumerate(encoded):
         if len(rec) > MAX_BLOCK_RAW:
-            raise FormatError(f"record {i} is {len(rec)} bytes; split it with CONT first")
+            raise FormatError(f"înregistrarea {i} are {len(rec)} octeți; mai întâi trebuie împărțită cu CONT")
         if size and size + len(rec) > target:
             blocks.append((first, i))
             first, size = i, 0
@@ -231,11 +231,11 @@ def plan_blocks(encoded: list[bytes], target: int) -> list[tuple[int, int]]:
 def section_meta(meta: dict[str, str]) -> bytes:
     for req in ("title", "language"):
         if not meta.get(req):
-            raise FormatError(f"META needs '{req}'")
+            raise FormatError(f"META trebuie să aibă '{req}'")
     out = bytearray(struct.pack("<H", len(meta)))
     for key, val in meta.items():
         if key not in META_IDS:
-            raise FormatError(f"unknown META key '{key}'")
+            raise FormatError(f"cheie META necunoscută '{key}'")
         b = val.encode("utf-8")
         out += struct.pack("<BH", META_IDS[key], len(b)) + b
     return bytes(out)
@@ -252,7 +252,7 @@ def section_toc(toc: list[TocEntry]) -> bytes:
 def section_cover(c: Cover) -> bytes:
     stride = (c.width + 7) // 8
     if len(c.bits) != stride * c.height:
-        raise FormatError("cover bitmap size does not match width x height")
+        raise FormatError("mărimea bitmapului copertei nu se potrivește cu lățime x înălțime")
     packed = deflate_raw(c.bits)
     method, data = (1, packed) if len(packed) < len(c.bits) else (0, c.bits)
     return struct.pack("<HHBBI", c.width, c.height, method, 0, len(c.bits)) + data
@@ -267,7 +267,7 @@ def book_id(meta_payload: bytes, encoded: list[bytes]) -> bytes:
 
 def write(book: Book, block_target: int = DEFAULT_BLOCK_TARGET, compress: bool = True) -> bytes:
     for i, r in enumerate(book.records):
-        validate_record(r, f"record {i}")
+        validate_record(r, f"înregistrarea {i}")
     encoded = [encode_record(r) for r in book.records]
     meta = section_meta(book.meta)
 
@@ -346,11 +346,11 @@ class Parsed:
         elif b.method == 1:
             raw = inflate_raw(stored, b.raw_len)
         else:
-            raise FormatError(f"block {i}: unknown method {b.method}")
+            raise FormatError(f"blocul {i}: metodă necunoscută {b.method}")
         if len(raw) != b.raw_len:
-            raise FormatError(f"block {i}: raw length {len(raw)}, expected {b.raw_len}")
+            raise FormatError(f"blocul {i}: lungimea decomprimată {len(raw)}, se aștepta {b.raw_len}")
         if crc32(raw) != b.crc:
-            raise FormatError(f"block {i}: CRC mismatch")
+            raise FormatError(f"blocul {i}: CRC greșit")
         return raw
 
     def block_records(self, i: int) -> list[Record]:
@@ -361,7 +361,7 @@ class Parsed:
             r, pos = decode_record(raw, pos)
             out.append(r)
         if pos != len(raw):
-            raise FormatError(f"block {i}: {len(raw) - pos} bytes left after the last record")
+            raise FormatError(f"blocul {i}: rămân {len(raw) - pos} octeți după ultima înregistrare")
         return out
 
     def records(self):
@@ -372,42 +372,42 @@ class Parsed:
 def parse(data: bytes) -> Parsed:
     """Citește antetul, directorul și secțiunile mici. Blocurile se citesc la cerere."""
     if len(data) < HEADER_SIZE or data[:8] != MAGIC:
-        raise FormatError("not a book file (bad magic)")
+        raise FormatError("nu e un fișier de carte (cod magic greșit)")
     major, minor, hsize, flags, bid, npara, tbytes, nsec, _res, dcrc = \
         struct.unpack_from("<BBHI8sIIHHI", data, 8)
     if major != VERSION[0]:
-        raise FormatError(f"version {major}.{minor} not supported")
+        raise FormatError(f"versiunea {major}.{minor} nu e suportată")
     if hsize < HEADER_SIZE or hsize > len(data):
-        raise FormatError("bad header size")
+        raise FormatError("mărime de antet greșită")
     (hcrc,) = struct.unpack_from("<I", data, 40)
     if crc32(data[:40]) != hcrc:
-        raise FormatError("header CRC mismatch")
+        raise FormatError("CRC-ul antetului e greșit")
     if hsize + nsec * DIR_ENTRY_SIZE > len(data):
-        raise FormatError("directory runs past the end of the file")
+        raise FormatError("directorul trece de sfârșitul fișierului")
     if crc32(data[hsize:hsize + nsec * DIR_ENTRY_SIZE]) != dcrc:
-        raise FormatError("directory CRC mismatch")
+        raise FormatError("CRC-ul directorului e greșit")
 
     sections = {}
     for i in range(nsec):
         pos = hsize + i * DIR_ENTRY_SIZE
         if pos + DIR_ENTRY_SIZE > len(data):
-            raise FormatError("directory runs past the end of the file")
+            raise FormatError("directorul trece de sfârșitul fișierului")
         tag, off, length, crc = struct.unpack_from("<4sIII", data, pos)
         name = tag.decode("ascii", "replace")
         if name in sections:
-            raise FormatError(f"duplicate section {name}")
+            raise FormatError(f"secțiunea {name} apare de două ori")
         if off + length > len(data):
-            raise FormatError(f"section {name} runs past the end of the file")
+            raise FormatError(f"secțiunea {name} trece de sfârșitul fișierului")
         sections[name] = (off, length, crc)
     for req in ("META", "BLKS", "TEXT"):
         if req not in sections:
-            raise FormatError(f"missing section {req}")
+            raise FormatError(f"lipsește secțiunea {req}")
 
     def payload(name: str, check: bool = True) -> bytes:
         off, length, crc = sections[name]
         p = data[off:off + length]
         if check and crc32(p) != crc:
-            raise FormatError(f"section {name}: CRC mismatch")
+            raise FormatError(f"secțiunea {name}: CRC greșit")
         return p
 
     m = payload("META")
@@ -416,7 +416,7 @@ def parse(data: bytes) -> Parsed:
         key, length = struct.unpack_from("<BH", m, pos)
         pos += 3
         if key in seen:
-            raise FormatError(f"duplicate META key {key}")
+            raise FormatError(f"cheia META {key} apare de două ori")
         seen.add(key)
         val = m[pos:pos + length].decode("utf-8")
         pos += length
@@ -452,49 +452,49 @@ def validate(data: bytes) -> Parsed:
     p = parse(data)
     off, length, crc = p.sections["TEXT"]
     if crc32(data[off:off + length]) != crc:
-        raise FormatError("section TEXT: CRC mismatch")
+        raise FormatError("secțiunea TEXT: CRC greșit")
     for need in ("title", "language"):
         if not p.meta.get(need):
-            raise FormatError(f"META has no {need}")
+            raise FormatError(f"META nu are {need}")
 
     expect_off, expect_para, expect_text = off, 0, 0
     if not p.blocks:
-        raise FormatError("no blocks")
+        raise FormatError("niciun bloc")
     meta_payload = data[p.sections["META"][0]:p.sections["META"][0] + p.sections["META"][1]]
     h = hashlib.sha256(meta_payload)
     for i, b in enumerate(p.blocks):
         if b.offset != expect_off:
-            raise FormatError(f"block {i}: offset {b.offset}, expected {expect_off} (gap or overlap)")
+            raise FormatError(f"blocul {i}: offset {b.offset}, se aștepta {expect_off} (gol sau suprapunere)")
         if b.first_para != expect_para:
-            raise FormatError(f"block {i}: first_para {b.first_para}, expected {expect_para}")
+            raise FormatError(f"blocul {i}: first_para {b.first_para}, se aștepta {expect_para}")
         if b.text_start != expect_text:
-            raise FormatError(f"block {i}: text_start {b.text_start}, expected {expect_text}")
+            raise FormatError(f"blocul {i}: text_start {b.text_start}, se aștepta {expect_text}")
         if b.raw_len > MAX_BLOCK_RAW:
-            raise FormatError(f"block {i}: raw_len {b.raw_len} > {MAX_BLOCK_RAW}")
+            raise FormatError(f"blocul {i}: raw_len {b.raw_len} > {MAX_BLOCK_RAW}")
         recs = p.block_records(i)
         if not recs:
-            raise FormatError(f"block {i}: no records")
+            raise FormatError(f"blocul {i}: nicio înregistrare")
         for j, r in enumerate(recs):
-            validate_record(r, f"paragraph {b.first_para + j}")
+            validate_record(r, f"paragraful {b.first_para + j}")
             h.update(encode_record(r))
             expect_text += len(r.text.encode("utf-8"))
         expect_off += b.stored_len
         expect_para += len(recs)
     if expect_off != off + length:
-        raise FormatError("TEXT has bytes no block points to")
+        raise FormatError("TEXT are octeți spre care nu arată niciun bloc")
     if expect_para != p.paragraph_count:
-        raise FormatError(f"blocks hold {expect_para} paragraphs, header says {p.paragraph_count}")
+        raise FormatError(f"blocurile au {expect_para} paragrafe, antetul spune {p.paragraph_count}")
     if expect_text != p.text_bytes:
-        raise FormatError(f"blocks hold {expect_text} text bytes, header says {p.text_bytes}")
+        raise FormatError(f"blocurile au {expect_text} octeți de text, antetul spune {p.text_bytes}")
     if h.digest()[:8] != p.book_id:
-        raise FormatError("book_id does not match the content")
+        raise FormatError("book_id nu se potrivește cu conținutul")
     last = -1
     for e in p.toc:
         if e.para <= last or e.para >= p.paragraph_count or not 1 <= e.level <= 4:
-            raise FormatError(f"TOC entry '{e.title}' out of order, out of range or bad level")
+            raise FormatError(f"intrarea din cuprins '{e.title}' nu e în ordine, iese din carte sau are un nivel greșit")
         last = e.para
     if p.cover and (p.cover.width > 240 or p.cover.height > 416):
-        raise FormatError("cover larger than 240x416")
+        raise FormatError("coperta e mai mare de 240x416")
     return p
 
 
@@ -538,7 +538,7 @@ def from_lines(lines: list[str], meta: dict[str, str]) -> Book:
             if records and records[-1].kind not in (BREAK, HEADING):
                 records.append(Record(BREAK))
         else:
-            raise ValueError(f"unknown line tag {tag!r}")
+            raise ValueError(f"etichetă de rând necunoscută {tag!r}")
     while records and records[-1].kind == BREAK:
         records.pop()
     return Book(meta, records, toc)
@@ -547,23 +547,23 @@ def from_lines(lines: list[str], meta: dict[str, str]) -> Book:
 # ---------------------------------------------------------------- linia de comandă
 
 def dump(p: Parsed, n_records: int) -> str:
-    out = [f"version {p.version[0]}.{p.version[1]}  book_id {p.book_id.hex()}  "
-           f"paragraphs {p.paragraph_count}  text {p.text_bytes} B  file {len(p.data)} B"]
-    out.append("sections:")
+    out = [f"versiunea {p.version[0]}.{p.version[1]}  book_id {p.book_id.hex()}  "
+           f"paragrafe {p.paragraph_count}  text {p.text_bytes} B  fișier {len(p.data)} B"]
+    out.append("secțiuni:")
     for name, (off, length, crc) in p.sections.items():
         out.append(f"  {name}  @{off:<8} {length:>8} B  crc {crc:08x}")
     out.append("meta: " + ", ".join(f"{k}={v!r}" for k, v in p.meta.items()))
-    out.append(f"toc: {len(p.toc)} entries")
+    out.append(f"cuprins: {len(p.toc)} intrări")
     for e in p.toc[:10]:
         out.append(f"  [{e.para:>5}] {'  ' * (e.level - 1)}{e.title}")
     raw = sum(b.raw_len for b in p.blocks)
     stored = sum(b.stored_len for b in p.blocks)
-    out.append(f"blocks: {len(p.blocks)}  raw {raw} B  stored {stored} B  ({stored / raw:.1%})")
+    out.append(f"blocuri: {len(p.blocks)}  decomprimat {raw} B  stocat {stored} B  ({stored / raw:.1%})")
     for i, b in enumerate(p.blocks[:8]):
-        out.append(f"  #{i:<3} @{b.offset:<8} stored {b.stored_len:>6}  raw {b.raw_len:>6}  "
-                   f"m{b.method}  para {b.first_para:<5} text {b.text_start:<8} crc {b.crc:08x}")
+        out.append(f"  #{i:<3} @{b.offset:<8} stocat {b.stored_len:>6}  decomprimat {b.raw_len:>6}  "
+                   f"m{b.method}  parag {b.first_para:<5} text {b.text_start:<8} crc {b.crc:08x}")
     if p.cover:
-        out.append(f"cover: {p.cover.width}x{p.cover.height}")
+        out.append(f"coperta: {p.cover.width}x{p.cover.height}")
     for i, r in enumerate(p.records()):
         if i >= n_records:
             break
@@ -574,19 +574,19 @@ def dump(p: Parsed, n_records: int) -> str:
 
 
 def main(argv: list[str]) -> int:
-    ap = argparse.ArgumentParser(prog="ibv")
+    ap = argparse.ArgumentParser(prog="ibv", description="Codecul de referință IBV: scriere din formatul pe rânduri, validare, structură.")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    a = sub.add_parser("from-lines")
+    a = sub.add_parser("from-lines", help="scrie un .ibv din formatul pe rânduri (vezi from_lines)")
     a.add_argument("src")
     a.add_argument("dst")
     a.add_argument("--title", required=True)
     a.add_argument("--author")
     a.add_argument("--lang", required=True)
     a.add_argument("--block", type=int, default=DEFAULT_BLOCK_TARGET)
-    a.add_argument("--stored", action="store_true", help="no compression")
-    v = sub.add_parser("validate")
+    a.add_argument("--stored", action="store_true", help="fără compresie")
+    v = sub.add_parser("validate", help="verifică fișiere .ibv")
     v.add_argument("files", nargs="+")
-    d = sub.add_parser("dump")
+    d = sub.add_parser("dump", help="afișează structura unui fișier .ibv")
     d.add_argument("file")
     d.add_argument("--records", type=int, default=5)
     args = ap.parse_args(argv)
@@ -601,13 +601,13 @@ def main(argv: list[str]) -> int:
         validate(data)
         with open(args.dst, "wb") as f:
             f.write(data)
-        print(f"{args.dst}: {len(book.records)} paragraphs, {len(data)} B")
+        print(f"{args.dst}: {len(book.records)} paragrafe, {len(data)} B")
     elif args.cmd == "validate":
         bad = 0
         for path in args.files:
             try:
                 p = validate(open(path, "rb").read())
-                print(f"{path}: OK ({p.paragraph_count} paragraphs, {len(p.blocks)} blocks)")
+                print(f"{path}: OK ({p.paragraph_count} paragrafe, {len(p.blocks)} blocuri)")
             except FormatError as e:
                 print(f"{path}: INVALID: {e}")
                 bad += 1

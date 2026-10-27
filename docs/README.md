@@ -45,8 +45,8 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 ### 2026-10-26: macheta carcasei (3D, mărime reală)
 - Machetă 3D interactivă a trei variante de carcasă pe un covoraș de tăiere A3 lângă o banană de 19 cm: A butoane jos (58 × 132 × 12 mm), B butoane lateral (82 × 110 × 12 mm, recomandată), C butoane pe margine (58 × 110 × 13 mm).
 - Geometria ecranului e din desenele GDEY037T03 / WeAct. Mărimile carcaselor sunt estimări până se proiectează PCB-ul.
-- Ecranele sunt desenate cu codul gfx și de fonturi al firmware-ului (`docs/mockup/mock.c`). Paginile de lectură folosesc cratime moi din pyphen și o rupere în rânduri pe tot paragraful, o previzualizare timpurie a direcției LAYOUT. Ecranele Sleep și Bring-up sunt exact ce desenează firmware-ul de azi, cu valori hardware de exemplu.
-- Refacerea: comenzile din antetul `docs/mockup/mock.c`, apoi `python3 docs/mockup/build.py docs/mockup/screens docs/mockup/template.html docs/mockup/eink-mockup.html`.
+- Ecranele sunt desenate cu codul gfx și de fonturi al firmware-ului (`docs/mockup/mock.c`). Paginile de lectură folosesc cratime moi din pyphen și o rupere în rânduri pe tot paragraful, o previzualizare timpurie a direcției LAYOUT. Ecranele Somn și Verificare sunt exact ce desenează firmware-ul de azi, cu valori hardware de exemplu.
+- Refacerea: comenzile din antetul `docs/mockup/mock.c` (două compilări, fonturile machetei sunt în formatul de dinainte de IBF), apoi `python3 docs/mockup/build.py docs/mockup/screens docs/mockup/template.html docs/mockup/eink-mockup.html`.
 - Urmează: alegerea unei carcase, apoi ENC-1 (CAD) și conturul PCB-ului.
 
 ### 2026-10-26: specificația formatului de carte v0.1 (SPEC-1)
@@ -66,6 +66,15 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 - Teste: `test_convert.py`, 51 de teste pe intrări sintetice EPUB/FB2/TXT plus `TestCorpus`; 66 cu `test_ibv.py`, toate trec.
 - Corpusul (MEAS-1, parțial): `corpus/fetch.sh` descarcă 15 fișiere / 13 cărți (EN 6, RO 5, RU 4, cu tot cu copiile TXT). Toate se convertesc și se validează în 0,4–3,2 s fiecare; tabelul e în `corpus/README.md`. Moby-Dick: 7 litere grecești/ebraice lipsă din font.
 - Încă deschis: o carte FB2 reală și un TXT românesc CP1250 pentru corpus; încă ~5 cărți până la 20; CONV-8 (fonttool) separat; deschiderea cărților pe dispozitiv are nevoie de LAY/FW.
+
+### 2026-10-27: textele dispozitivului și ale uneltelor în română (pasul 3 din 3)
+- Ecranul de verificare, ecranul de somn și jurnalele firmware-ului sunt în română. Butoanele se numesc ÎNAPOI, ÎNAINTE și MENIU, iar tensiunile și capacitățile se scriu cu virgulă zecimală („3,92 V”, „15,9 GB”). Fiecare text de pe ecran a fost măsurat cu fontul interfeței ca să încapă în cei 224 px dintre margini; cel mai lung, „subtensiune · nr. 1234”, are exact 224 px. Liniile PERF și etichetele de jurnal (TAG) au rămas neschimbate, fiindcă le citesc scripturile.
+- Mesajele, erorile și ajutorul (`-h`) din simulator, convertor, `ibv.py`, fonttool, `ibf.py` și scripturile de descărcare sunt în română. Argumentele care nu aveau ajutor au primit unul.
+- Coloanele din `sim stats` au nume noi: miss→lipsă, hyph→cr, 2hy→2cr, loose→larg, ovhg→dep, wid→văd, orph→orf, prev→înap, mean→medie, lines→min. Intrările mai vechi din jurnal păstrează numele vechi. Rândurile de date folosesc în continuare punctul zecimal, ca să poată fi citite de scripturi.
+- Fonturile C ale interfeței (`font_ui16.c`, `font_ui12.c`) au fost regenerate: s-a schimbat doar antetul. Fonturile machetei au fost generate în formatul de dinainte de IBF, așa că doar antetele lor au fost traduse de mână.
+- Schema KiCad (`gen.py`) are acum în română titlurile blocurilor, notele, valorile butoanelor și cartușul. Am refăcut PDF-ul și SVG-ul; ERC: 0 încălcări.
+- Pagina machetei, etichetele din scena 3D și comentariile din `template.html` sunt în română. Ecranele de verificare și de somn au fost redesenate cu firmware-ul de acum, iar biblioteca are subsolul „MENIU deschide”. Paginile de lectură au ieșit identice octet cu octet. Rețeta celor două compilări e în antetul `mock.c`.
+- Golden-urile simulatorului nu s-au schimbat. Firmware-ul se compilează, cele 69 de teste ale convertorului și cele 23 ale fonttool trec, iar `sim/test/run.sh` trece. Au rămas în engleză: identificatorii, textul de test din `make_fixture.py` (e conținut de carte, legat de golden-uri) și textele argparse din biblioteca standard.
 
 ### 2026-10-27: comentariile din cod în română (pasul 2 din 3)
 - Toate comentariile din C (firmware, simulator, machetă), Python (convertor, fonttool, schemă, scripturi), shell, CMake, Kconfig, `sdkconfig.defaults` și tabela de partiții sunt acum în română. Meniul din `menuconfig` se numește „Placa cititorului e-ink”, iar `board.h` dă „Nicio placă aleasă” dacă lipsește placa.

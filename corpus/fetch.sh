@@ -11,7 +11,7 @@ get() {   # get NAME URL
   curl -sSL --fail -A "eink-reader-corpus/0.1" -o "files/$name.part" "$url"
   if head -c 512 "files/$name.part" | grep -qi "<!doctype html\|<html"; then
     rm "files/$name.part"
-    echo "FAILED $name: got an HTML page from $url" >&2
+    echo "EȘUAT $name: s-a primit o pagină HTML de la $url" >&2
     return 1
   fi
   mv "files/$name.part" "files/$name"

@@ -17,13 +17,13 @@ const char *ibv_strerror(ibv_err_t err)
 {
     switch (err) {
     case IBV_OK: return "ok";
-    case IBV_ERR_IO: return "read error or file too short";
-    case IBV_ERR_MAGIC: return "not an IBV book";
-    case IBV_ERR_VERSION: return "unsupported version";
-    case IBV_ERR_CRC: return "CRC mismatch";
-    case IBV_ERR_FORMAT: return "malformed book";
-    case IBV_ERR_NOMEM: return "out of memory";
-    case IBV_ERR_RANGE: return "paragraph out of range";
+    case IBV_ERR_IO: return "eroare de citire sau fișier prea scurt";
+    case IBV_ERR_MAGIC: return "nu e o carte IBV";
+    case IBV_ERR_VERSION: return "versiune nesuportată";
+    case IBV_ERR_CRC: return "CRC greșit";
+    case IBV_ERR_FORMAT: return "carte deteriorată";
+    case IBV_ERR_NOMEM: return "memorie insuficientă";
+    case IBV_ERR_RANGE: return "paragraf în afara cărții";
     }
     return "?";
 }

@@ -13,13 +13,13 @@ const char *font_strerror(font_err_t err)
 {
     switch (err) {
     case FONT_OK: return "ok";
-    case FONT_ERR_SHORT: return "file too short or a table outside it";
-    case FONT_ERR_MAGIC: return "not an IBF font";
-    case FONT_ERR_VERSION: return "unsupported version, header size or bpp";
-    case FONT_ERR_CRC: return "CRC mismatch";
-    case FONT_ERR_ALIGN: return "misaligned data or table";
-    case FONT_ERR_TABLES: return "inconsistent tables";
-    case FONT_ERR_REQUIRED: return "U+0020, U+002D or U+FFFD missing";
+    case FONT_ERR_SHORT: return "fișier prea scurt sau un tabel în afara lui";
+    case FONT_ERR_MAGIC: return "nu e un font IBF";
+    case FONT_ERR_VERSION: return "versiune, mărime de antet sau bpp nesuportate";
+    case FONT_ERR_CRC: return "CRC greșit";
+    case FONT_ERR_ALIGN: return "date sau tabel nealiniate";
+    case FONT_ERR_TABLES: return "tabele care nu se potrivesc";
+    case FONT_ERR_REQUIRED: return "lipsește U+0020, U+002D sau U+FFFD";
     }
     return "?";
 }

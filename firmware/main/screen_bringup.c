@@ -19,15 +19,15 @@ void screen_bringup_draw(gfx_t *g, const bringup_info_t *info)
     gfx_clear(g, GFX_WHITE);
 
     gfx_fill_rect(g, 0, 0, g->width, f->line_height + 8, GFX_BLACK);
-    gfx_text(g, f, MARGIN, 4 + f->ascent, "E-ink reader: bring-up", GFX_WHITE);
+    gfx_text(g, f, MARGIN, 4 + f->ascent, "Cititor e-ink: verificare", GFX_WHITE);
 
     int y = f->line_height + 8 + 6 + f->ascent;
-    y = line(g, y, "Board:", info->board);
-    y = line(g, y, "Chip:", info->chip);
-    y = line(g, y, "Mem:", info->memory);
+    y = line(g, y, "Placa:", info->board);
+    y = line(g, y, "Cip:", info->chip);
+    y = line(g, y, "Mem.:", info->memory);
     y = line(g, y, "SD:", info->sd);
-    y = line(g, y, "Battery:", info->battery);
-    y = line(g, y, "Wake:", info->wake);
+    y = line(g, y, "Baterie:", info->battery);
+    y = line(g, y, "Trezire:", info->wake);
 
     y += 4;
     gfx_hline(g, MARGIN, y - f->ascent, g->width - 2 * MARGIN, GFX_BLACK);
@@ -40,8 +40,8 @@ void screen_bringup_draw(gfx_t *g, const bringup_info_t *info)
 
     int fy = g->height - MARGIN - 2 * f->line_height + f->ascent;
     gfx_hline(g, MARGIN, fy - f->ascent - 4, g->width - 2 * MARGIN, GFX_BLACK);
-    gfx_text(g, f, MARGIN, fy, "PREV/NEXT: partial refresh", GFX_BLACK);
-    gfx_text(g, f, MARGIN, fy + f->line_height, "MENU: full · hold: sleep", GFX_BLACK);
+    gfx_text(g, f, MARGIN, fy, "ÎNAPOI, ÎNAINTE: parțial", GFX_BLACK);
+    gfx_text(g, f, MARGIN, fy + f->line_height, "MENIU: complet · lung: somn", GFX_BLACK);
 }
 
 void screen_bringup_draw_counter(gfx_t *g, const bringup_info_t *info)
@@ -50,7 +50,7 @@ void screen_bringup_draw_counter(gfx_t *g, const bringup_info_t *info)
     char buf[64];
     gfx_fill_rect(g, MARGIN, COUNTER_Y, g->width - 2 * MARGIN, COUNTER_H, GFX_WHITE);
     gfx_rect(g, MARGIN, COUNTER_Y, g->width - 2 * MARGIN, COUNTER_H, GFX_BLACK);
-    snprintf(buf, sizeof buf, "%s  ·  count %d", info->last_button, info->counter);
+    snprintf(buf, sizeof buf, "%s  ·  nr. %d", info->last_button, info->counter);
     gfx_text(g, f, MARGIN + 6, COUNTER_Y + 4 + f->ascent, buf, GFX_BLACK);
     gfx_text(g, f, MARGIN + 6, COUNTER_Y + 4 + f->ascent + f->line_height, info->last_timing, GFX_BLACK);
 }
@@ -59,8 +59,8 @@ void screen_sleep_draw(gfx_t *g)
 {
     const font_t *f = &font_ui16;
     gfx_clear(g, GFX_WHITE);
-    const char *a = "Sleeping";
-    const char *b = "Press any button to wake";
+    const char *a = "Doarme";
+    const char *b = "Apasă orice buton";
     int y = g->height / 2;
     gfx_text(g, f, (g->width - gfx_text_width(f, a)) / 2, y, a, GFX_BLACK);
     gfx_text(g, f, (g->width - gfx_text_width(f, b)) / 2, y + f->line_height, b, GFX_BLACK);

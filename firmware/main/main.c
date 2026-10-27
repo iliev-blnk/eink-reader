@@ -56,7 +56,7 @@ static void describe_chip(void)
 {
     esp_chip_info_t chip;
     esp_chip_info(&chip);
-    snprintf(s_chip, sizeof s_chip, "ESP32-S3 v%d.%d, %d cores", chip.revision / 100, chip.revision % 100,
+    snprintf(s_chip, sizeof s_chip, "ESP32-S3 v%d.%d, %d nuclee", chip.revision / 100, chip.revision % 100,
              chip.cores);
 
     uint32_t flash = 0;
@@ -65,24 +65,24 @@ static void describe_chip(void)
         snprintf(s_memory, sizeof s_memory, "%" PRIu32 "M flash, %uM PSRAM", flash >> 20,
                  (unsigned)(esp_psram_get_size() >> 20));
     } else {
-        snprintf(s_memory, sizeof s_memory, "%" PRIu32 "M flash, no PSRAM", flash >> 20);
+        snprintf(s_memory, sizeof s_memory, "%" PRIu32 "M flash, fără PSRAM", flash >> 20);
     }
 }
 
 static const char *reset_reason(void)
 {
     switch (esp_reset_reason()) {
-    case ESP_RST_POWERON: return "power-on";
-    case ESP_RST_EXT: return "reset pin";
-    case ESP_RST_SW: return "restart";
-    case ESP_RST_PANIC: return "crash";
+    case ESP_RST_POWERON: return "alimentare";
+    case ESP_RST_EXT: return "pin de reset";
+    case ESP_RST_SW: return "repornire";
+    case ESP_RST_PANIC: return "eroare";
     case ESP_RST_INT_WDT:
     case ESP_RST_TASK_WDT:
     case ESP_RST_WDT: return "watchdog";
-    case ESP_RST_DEEPSLEEP: return "deep sleep";
-    case ESP_RST_BROWNOUT: return "brownout";
-    case ESP_RST_USB: return "USB reset";
-    default: return "other reset";
+    case ESP_RST_DEEPSLEEP: return "somn adânc";
+    case ESP_RST_BROWNOUT: return "subtensiune";
+    case ESP_RST_USB: return "reset USB";
+    default: return "alt reset";
     }
 }
 
@@ -93,9 +93,9 @@ static void describe_wake(void)
     const char *cause = reset_reason();
     if (esp_sleep_get_wakeup_causes() & BIT(ESP_SLEEP_WAKEUP_EXT1)) {
         int b = buttons_from_wake_mask(esp_sleep_get_ext1_wakeup_status());
-        cause = b >= 0 ? button_name(b) : "button";
+        cause = b >= 0 ? button_name(b) : "buton";
     }
-    snprintf(s_wake, sizeof s_wake, "%s · boot %" PRIu32, cause, s_boot_count);
+    snprintf(s_wake, sizeof s_wake, "%s · nr. %" PRIu32, cause, s_boot_count);
 }
 
 static void read_battery(void)
@@ -103,12 +103,12 @@ static void read_battery(void)
     int mv = battery_read_mv();
     printf("PERF,battery,mv=%d\n", mv);
     if (mv < 0) {
-        snprintf(s_battery, sizeof s_battery, "ADC error");
+        snprintf(s_battery, sizeof s_battery, "eroare ADC");
     } else if (mv < 2500) {
         // Sub orice tensiune utilizabilă de Li-ion: nimic pe divizor.
-        snprintf(s_battery, sizeof s_battery, "none (%d.%02d V)", mv / 1000, mv % 1000 / 10);
+        snprintf(s_battery, sizeof s_battery, "lipsă (%d,%02d V)", mv / 1000, mv % 1000 / 10);
     } else {
-        snprintf(s_battery, sizeof s_battery, "%d.%02d V", mv / 1000, mv % 1000 / 10);
+        snprintf(s_battery, sizeof s_battery, "%d,%02d V", mv / 1000, mv % 1000 / 10);
     }
 }
 
@@ -129,10 +129,10 @@ static void log_boot_to_sd(void)
 {
     FILE *f = fopen(MOUNT_POINT "/bringup.txt", "a");
     if (!f) {
-        ESP_LOGW(TAG, "can't open bringup.txt for writing");
+        ESP_LOGW(TAG, "nu se poate deschide bringup.txt pentru scriere");
         return;
     }
-    fprintf(f, "boot %" PRIu32 ", wake %s, battery %s\n", s_boot_count, s_wake, s_battery);
+    fprintf(f, "pornirea %" PRIu32 ", trezire: %s, baterie: %s\n", s_boot_count, s_wake, s_battery);
     fclose(f);
 }
 
@@ -146,17 +146,17 @@ static void mount_sd(void)
 
     s_sd_ok = err == ESP_OK;
     if (err == ESP_FAIL) {
-        snprintf(s_sd, sizeof s_sd, "not FAT32 formatted");
+        snprintf(s_sd, sizeof s_sd, "nu e formatat FAT32");
     } else if (err == ESP_ERR_TIMEOUT) {
-        snprintf(s_sd, sizeof s_sd, "no card (timeout)");
+        snprintf(s_sd, sizeof s_sd, "niciun card (timp depășit)");
     } else if (err != ESP_OK) {
-        snprintf(s_sd, sizeof s_sd, "failed: 0x%x", err);
+        snprintf(s_sd, sizeof s_sd, "eroare: 0x%x", err);
     } else {
         unsigned gb10 = (unsigned)(sd.capacity_bytes / 100000000);  // zecimi de GB
-        snprintf(s_sd, sizeof s_sd, "OK, %u.%u GB, %d files", gb10 / 10, gb10 % 10, count_root_files());
+        snprintf(s_sd, sizeof s_sd, "OK, %u,%u GB, %d fișiere", gb10 / 10, gb10 % 10, count_root_files());
         log_boot_to_sd();
     }
-    if (err != ESP_OK) ESP_LOGE(TAG, "SD card: %s", esp_err_to_name(err));
+    if (err != ESP_OK) ESP_LOGE(TAG, "cardul SD: %s", esp_err_to_name(err));
 }
 
 // ---- ecranul ----
@@ -165,7 +165,7 @@ static void log_refresh(esp_err_t err)
 {
     const epd_timing_t *t = epd_last_timing();
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "refresh failed: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "reîmprospătarea a eșuat: %s", esp_err_to_name(err));
         return;
     }
     printf("PERF,%s,x=%d,y=%d,w=%d,h=%d,write_us=%" PRIu32 ",on_us=%" PRIu32 ",refresh_us=%" PRIu32
@@ -173,7 +173,7 @@ static void log_refresh(esp_err_t err)
            t->full ? "epd_full" : "epd_partial", t->x, t->y, t->w, t->h, t->write_us, t->power_on_us,
            t->refresh_us, t->power_off_us, t->total_us);
     // Se arată la următoarea actualizare: un ecran nu-și poate arăta propriul timp de reîmprospătare.
-    snprintf(s_timing, sizeof s_timing, "prev: %s %" PRIu32 " ms", t->full ? "full" : "partial",
+    snprintf(s_timing, sizeof s_timing, "ultima: %s %" PRIu32 " ms", t->full ? "completă" : "parțială",
              t->total_us / 1000);
 }
 
@@ -201,7 +201,7 @@ static void draw_all(void)
 
 static void go_to_sleep(void)
 {
-    ESP_LOGI(TAG, "going to deep sleep");
+    ESP_LOGI(TAG, "intră în somn adânc");
     screen_sleep_draw(&s_gfx);
     show_full();
     if (s_epd_ok) epd_sleep();
@@ -215,7 +215,7 @@ static void go_to_sleep(void)
     esp_err_t err = buttons_enable_wakeup();
     if (err != ESP_OK) {
         // Fără o sursă de trezire, doar butonul de reset l-ar mai aduce înapoi.
-        ESP_LOGE(TAG, "can't arm button wake-up (%s), restarting instead", esp_err_to_name(err));
+        ESP_LOGE(TAG, "trezirea din butoane nu se poate activa (%s), se repornește", esp_err_to_name(err));
         esp_restart();
     }
     fflush(stdout);
@@ -235,13 +235,13 @@ void app_main(void)
     ESP_ERROR_CHECK(buttons_init(pins));
     describe_chip();
     describe_wake();
-    snprintf(s_button, sizeof s_button, "ready");
-    snprintf(s_timing, sizeof s_timing, "prev: none yet");
+    snprintf(s_button, sizeof s_button, "gata");
+    snprintf(s_timing, sizeof s_timing, "ultima: încă niciuna");
 
     if (battery_init(BOARD_BAT_ADC_GPIO, BOARD_BAT_DIVIDER) == ESP_OK) {
         read_battery();
     } else {
-        snprintf(s_battery, sizeof s_battery, "ADC error");
+        snprintf(s_battery, sizeof s_battery, "eroare ADC");
     }
 
     // CS-ul cardului SD trebuie să fie în 1 înaintea oricărui trafic pentru
@@ -271,40 +271,40 @@ void app_main(void)
     esp_err_t err = epd_init(&epd);
     s_epd_ok = err == ESP_OK;
     if (!s_epd_ok) {
-        ESP_LOGE(TAG, "e-paper not answering (%s). Check BUSY=GPIO%d, RST=GPIO%d, DC=GPIO%d, CS=GPIO%d, "
-                      "SCK=GPIO%d, MOSI=GPIO%d, 3V3, GND, and the module's 4-wire SPI setting.",
+        ESP_LOGE(TAG, "panoul e-paper nu răspunde (%s). Verifică BUSY=GPIO%d, RST=GPIO%d, DC=GPIO%d, CS=GPIO%d, "
+                      "SCK=GPIO%d, MOSI=GPIO%d, 3V3, GND și setarea SPI pe 4 fire a modulului.",
                  esp_err_to_name(err), BOARD_EPD_BUSY, BOARD_EPD_RST, BOARD_EPD_DC, BOARD_EPD_CS, BOARD_SPI_SCK,
                  BOARD_SPI_MOSI);
     }
 
     mount_sd();
 
-    ESP_LOGI(TAG, "%s | %s | %s | SD %s | battery %s | wake %s", s_info.board, s_chip, s_memory, s_sd, s_battery,
+    ESP_LOGI(TAG, "%s | %s | %s | SD %s | baterie %s | trezire %s", s_info.board, s_chip, s_memory, s_sd, s_battery,
              s_wake);
 
     gfx_init(&s_gfx, s_fb, EPD_WIDTH, EPD_HEIGHT);
     draw_all();
-    ESP_LOGI(TAG, "ready: PREV/NEXT count (hold = 10), MENU redraws, hold MENU to sleep");
+    ESP_LOGI(TAG, "gata: ÎNAPOI/ÎNAINTE numără (lung = 10), MENIU redesenează, MENIU lung adoarme");
 
     for (;;) {
         button_event_t ev;
         if (!buttons_wait(&ev, portMAX_DELAY)) continue;
         bool hold = ev.press == PRESS_LONG;
-        ESP_LOGI(TAG, "%s %s", button_name(ev.button), hold ? "long" : "short");
+        ESP_LOGI(TAG, "%s %s", button_name(ev.button), hold ? "lung" : "scurt");
 
         if (ev.button == BUTTON_MENU) {
             if (hold) go_to_sleep();  // nu se întoarce
             // Se verifică din nou ce s-ar fi putut schimba: bateria și un card pus după pornire.
             read_battery();
             if (!s_sd_ok) mount_sd();
-            snprintf(s_button, sizeof s_button, "MENU");
+            snprintf(s_button, sizeof s_button, "MENIU");
             draw_all();
             continue;
         }
 
         int step = hold ? 10 : 1;
         s_info.counter += ev.button == BUTTON_NEXT ? step : -step;
-        snprintf(s_button, sizeof s_button, "%s%s", button_name(ev.button), hold ? " long" : "");
+        snprintf(s_button, sizeof s_button, "%s%s", button_name(ev.button), hold ? " lung" : "");
         screen_bringup_draw_counter(&s_gfx, &s_info);
         show_partial();
     }

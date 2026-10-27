@@ -81,12 +81,12 @@ def write(font: Font) -> bytes:
     glyphs = sorted(font.glyphs, key=lambda g: g.cp)
     cps = [g.cp for g in glyphs]
     if len(set(cps)) != len(cps):
-        raise FormatError("duplicate codepoints")
+        raise FormatError("coduri Unicode repetate")
     if len(glyphs) > 0xFFFF:
-        raise FormatError("more than 65535 glyphs")
+        raise FormatError("mai mult de 65535 de glife")
     for cp in REQUIRED:
         if cp not in cps:
-            raise FormatError(f"required glyph U+{cp:04X} missing")
+            raise FormatError(f"lipsește glifa obligatorie U+{cp:04X}")
     index = {cp: i for i, cp in enumerate(cps)}
     by_cp = {g.cp: g for g in glyphs}
     ranges = _ranges(cps)
@@ -95,7 +95,7 @@ def write(font: Font) -> bytes:
     for g in glyphs:
         bm = g.bitmap()
         if len(bm) != g.height * ((g.width + 7) // 8):
-            raise FormatError(f"U+{g.cp:04X}: bitmap size doesn't match its box")
+            raise FormatError(f"U+{g.cp:04X}: mărimea bitmapului nu se potrivește cu cutia")
         if bm not in seen:                 # bitmapurile identice se stochează o singură dată
             seen[bm] = len(bitmaps)
             bitmaps += bm
@@ -105,7 +105,7 @@ def write(font: Font) -> bytes:
     for g in glyphs:
         k = g.cp if g.kern_as is None else g.kern_as
         if k not in index or (k != g.cp and by_cp[k].kern_as not in (None, k)):
-            raise FormatError(f"U+{g.cp:04X}: kern_as U+{k:04X} missing or not a kerning glyph")
+            raise FormatError(f"U+{g.cp:04X}: kern_as U+{k:04X} lipsește sau nu e o glifă cu kerning")
         kern_as.append(index[k])
     # O pereche poate fi 0: o excepție care anulează perechea pe care glifa ar împrumuta-o.
     kerns = sorted((index[a], index[b], v) for (a, b), v in font.kerns.items()
@@ -123,12 +123,12 @@ def write(font: Font) -> bytes:
                                 ("height", g.height, 0, 255), ("x_off", g.x_off, -128, 127),
                                 ("y_off", g.y_off, -128, 127)):
             if not lo <= v <= hi:
-                raise FormatError(f"U+{g.cp:04X}: {name} {v} out of range")
+                raise FormatError(f"U+{g.cp:04X}: {name} {v} în afara limitelor")
         GLYPH.pack_into(body, glyphs_off - HEADER_SIZE + i * GLYPH.size,
                         off, g.advance, g.width, g.height, g.x_off, g.y_off, kern_as[i])
     for i, (a, b, v) in enumerate(kerns):
         if not -0x8000 <= v <= 0x7FFF:
-            raise FormatError("kerning value out of range")
+            raise FormatError("valoare de kerning în afara limitelor")
         KERN.pack_into(body, kerns_off - HEADER_SIZE + i * KERN.size, a, b, v)
     body += bitmaps
 
@@ -153,57 +153,57 @@ class Parsed:
 def parse(data: bytes) -> Parsed:
     """Citește și verifică în întregime un fișier de font (toate regulile validatorului)."""
     if len(data) < HEADER_SIZE:
-        raise FormatError("file shorter than the header")
+        raise FormatError("fișierul e mai scurt decât antetul")
     (magic, vmaj, vmin, hsize, bpp, style, render, threshold, pixel_size, line_height, ascent,
      descent, x_height, nranges, nglyphs, nkerns, ranges_off, glyphs_off, kerns_off, bitmaps_off,
      bitmaps_len, name, data_crc, header_crc) = HEADER.unpack_from(data)
     if magic != MAGIC:
-        raise FormatError("not an IBF file (bad magic)")
+        raise FormatError("nu e un fișier IBF (semnătură greșită)")
     if zlib.crc32(data[:92]) != header_crc:
-        raise FormatError("header CRC mismatch")
+        raise FormatError("CRC-ul antetului nu se potrivește")
     if vmaj != VERSION[0]:
-        raise FormatError(f"unsupported major version {vmaj}")
+        raise FormatError(f"versiunea majoră {vmaj} nu e suportată")
     if hsize != HEADER_SIZE:
-        raise FormatError(f"header_size {hsize}, expected {HEADER_SIZE}")
+        raise FormatError(f"header_size {hsize}, se aștepta {HEADER_SIZE}")
     if bpp != 1:
-        raise FormatError(f"bpp {bpp} not supported")
+        raise FormatError(f"bpp {bpp} nu e suportat")
     if zlib.crc32(data[hsize:]) != data_crc:
-        raise FormatError("data CRC mismatch")
+        raise FormatError("CRC-ul datelor nu se potrivește")
     if nglyphs > 0xFFFF:
-        raise FormatError("glyph_count over 65535")
+        raise FormatError("glyph_count peste 65535")
     tables = [("ranges", ranges_off, RANGE.size * nranges), ("glyphs", glyphs_off, GLYPH.size * nglyphs),
               ("kerns", kerns_off, KERN.size * nkerns), ("bitmaps", bitmaps_off, bitmaps_len)]
     end = hsize
     for tname, off, length in tables:
         if tname != "bitmaps" and off % 4:
-            raise FormatError(f"{tname} offset {off} not aligned")
+            raise FormatError(f"{tname}: offsetul {off} nu e aliniat")
         if off < end or off + length > len(data):
-            raise FormatError(f"{tname} table overlaps or lies outside the file")
+            raise FormatError(f"tabelul {tname} se suprapune sau iese în afara fișierului")
         end = off + length
     if bitmaps_off + bitmaps_len != len(data):
-        raise FormatError("bitmaps don't end at the end of the file")
+        raise FormatError("bitmapurile nu se termină la sfârșitul fișierului")
 
     ranges = [RANGE.unpack_from(data, ranges_off + i * RANGE.size) for i in range(nranges)]
     cps, prev_end = [], -1
     for first, count, first_glyph in ranges:
         if count < 1 or first <= prev_end or first + count - 1 > 0x10FFFF:
-            raise FormatError(f"range U+{first:04X} unsorted, overlapping or empty")
+            raise FormatError(f"range U+{first:04X} nesortat, suprapus sau gol")
         if first_glyph != len(cps):
-            raise FormatError(f"range U+{first:04X}: first_glyph {first_glyph}, expected {len(cps)}")
+            raise FormatError(f"range U+{first:04X}: first_glyph {first_glyph}, se aștepta {len(cps)}")
         cps.extend(range(first, first + count))
         prev_end = first + count - 1
     if len(cps) != nglyphs:
-        raise FormatError(f"ranges cover {len(cps)} glyphs, glyph_count is {nglyphs}")
+        raise FormatError(f"intervalele acoperă {len(cps)} glife, glyph_count e {nglyphs}")
 
     glyphs, used, kern_as = [], set(), []
     for i, cp in enumerate(cps):
         off, adv, w, h, xo, yo, ka = GLYPH.unpack_from(data, glyphs_off + i * GLYPH.size)
         if ka >= nglyphs:
-            raise FormatError(f"U+{cp:04X}: kern_as {ka} out of range")
+            raise FormatError(f"U+{cp:04X}: kern_as {ka} în afara limitelor")
         kern_as.append(ka)
         stride = (w + 7) // 8
         if off + stride * h > bitmaps_len:
-            raise FormatError(f"U+{cp:04X}: bitmap outside the bitmap area")
+            raise FormatError(f"U+{cp:04X}: bitmapul iese din zona bitmapurilor")
         start = bitmaps_off + off
         rows = [bytes(data[start + r * stride:start + (r + 1) * stride]) for r in range(h)]
         if stride * h:
@@ -211,18 +211,18 @@ def parse(data: bytes) -> Parsed:
         glyphs.append(Glyph(cp, adv, w, h, xo, yo, rows, None if ka == i else cps[ka]))
     for i, ka in enumerate(kern_as):
         if kern_as[ka] != ka:
-            raise FormatError(f"U+{cps[i]:04X}: kern_as points at a glyph that kerns as another")
+            raise FormatError(f"U+{cps[i]:04X}: kern_as arată spre o glifă care împrumută și ea kerningul")
     for cp in REQUIRED:
         if cp not in set(cps):
-            raise FormatError(f"required glyph U+{cp:04X} missing")
+            raise FormatError(f"lipsește glifa obligatorie U+{cp:04X}")
 
     kerns, prev = {}, (-1, -1)
     for i in range(nkerns):
         a, b, v = KERN.unpack_from(data, kerns_off + i * KERN.size)
         if (a, b) <= prev:
-            raise FormatError(f"kerning pair {i} unsorted or duplicate")
+            raise FormatError(f"perechea de kerning {i} nesortată sau repetată")
         if a >= nglyphs or b >= nglyphs:
-            raise FormatError(f"kerning pair {i} out of range")
+            raise FormatError(f"perechea de kerning {i} în afara limitelor")
         prev = (a, b)
         kerns[(cps[a], cps[b])] = v
 
@@ -249,24 +249,24 @@ def validate(data: bytes) -> Parsed:
 
 def dump(p: Parsed, sample: str = "") -> str:
     f = p.font
-    style = {0: "regular", BOLD: "bold", ITALIC: "italic", BOLD | ITALIC: "bold italic"}[f.style & 3]
-    render = "hinted mono" if f.render == RENDER_MONO else f"grey, threshold {f.threshold}/255"
+    style = {0: "normal", BOLD: "aldin", ITALIC: "cursiv", BOLD | ITALIC: "aldin cursiv"}[f.style & 3]
+    render = "mono cu hinting" if f.render == RENDER_MONO else f"gri, prag {f.threshold}/255"
     bm = sum(len(g.bitmap()) for g in f.glyphs)
     borrowed = sum(1 for g in f.glyphs if g.kern_as is not None)
     lines = [f"{f.name} {style}, {f.pixel_size} px ({render}), {p.size:,} B",
-             f"  line height {f.line_height}, ascent {f.ascent}, descent {f.descent}, x-height {f.x_height}",
-             f"  {len(f.glyphs)} glyphs in {len(p.ranges)} ranges, {len(f.kerns)} kerning pairs "
-             f"({borrowed} glyphs kern as another), "
-             f"{bm:,} B of bitmaps ({p.shared_bitmaps} shared)"]
+             f"  înălțimea rândului {f.line_height}, ascent {f.ascent}, descent {f.descent}, x-height {f.x_height}",
+             f"  {len(f.glyphs)} glife în {len(p.ranges)} intervale, {len(f.kerns)} perechi de kerning "
+             f"({borrowed} glife împrumută kerningul altora), "
+             f"{bm:,} B de bitmapuri ({p.shared_bitmaps} comune)"]
     for first, count, fg in p.ranges:
-        lines.append(f"    U+{first:04X}–U+{first + count - 1:04X}  {count:4}  from glyph {fg}")
+        lines.append(f"    U+{first:04X}–U+{first + count - 1:04X}  {count:4}  de la glifa {fg}")
     for ch in sample:
         g = f.glyph(ord(ch))
         if not g:
-            lines.append(f"  {ch!r}: missing")
+            lines.append(f"  {ch!r}: lipsește")
             continue
-        lines.append(f"  {ch!r} U+{g.cp:04X}: advance {g.advance / UNIT:.3f} px, box {g.width}×{g.height} "
-                     f"at ({g.x_off}, {g.y_off})" + (f", kerns as U+{g.kern_as:04X}" if g.kern_as else ""))
+        lines.append(f"  {ch!r} U+{g.cp:04X}: avans {g.advance / UNIT:.3f} px, cutie {g.width}×{g.height} "
+                     f"la ({g.x_off}, {g.y_off})" + (f", kerning ca U+{g.kern_as:04X}" if g.kern_as else ""))
         for r in g.rows:
             bits = "".join("#" if r[x // 8] & (0x80 >> (x % 8)) else "." for x in range(g.width))
             lines.append("      " + bits)

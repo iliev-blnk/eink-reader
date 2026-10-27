@@ -599,7 +599,7 @@ class TestFinish(unittest.TestCase):
         b.text("copilărie"); b.end()
         book, rep = doc.finish(b, {"title": "T", "language": "xx"})
         self.assertNotIn(SHY, book.records[0].text)
-        self.assertTrue(any("no hyphenation patterns" in w for w in rep.warnings))
+        self.assertTrue(any("nu există modele de despărțire" in w for w in rep.warnings))
 
     def test_toc_anchor_survives_dropped_items(self):
         b = doc.Builder()
@@ -612,7 +612,7 @@ class TestFinish(unittest.TestCase):
         b.toc_entry("missing", 2, "Nu există")
         book, rep = doc.finish(b, {"title": "T", "language": "ro"})
         self.assertEqual([(t.para, t.title) for t in book.toc], [(1, "Cap")])
-        self.assertTrue(any("not found" in w for w in rep.warnings))
+        self.assertTrue(any("ținta 'missing' nu există" in w for w in rep.warnings))
 
     def test_meta(self):
         b = doc.Builder()
@@ -646,7 +646,7 @@ class TestConvert(unittest.TestCase):
         self.assertEqual(one, two)
 
 
-@unittest.skipUnless(CORPUS.is_dir() and any(CORPUS.iterdir()), "no corpus in corpus/files")
+@unittest.skipUnless(CORPUS.is_dir() and any(CORPUS.iterdir()), "niciun corpus în corpus/files")
 class TestCorpus(unittest.TestCase):
     """CONV-10: fiecare carte din corpus se convertește și se validează."""
 

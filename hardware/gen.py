@@ -52,19 +52,19 @@ def jtype(n): return PI if n in ('3V3', '5V', 'G') else (IN if n == 'RST' else B
 CUSTOM = {}
 def add(key, *a):
     CUSTOM[key] = module(key, *a)
-add('ESP32-S3-DevKitC-1', 'Espressif ESP32-S3-DevKitC-1 (N16R8), headers J1/J3',
+add('ESP32-S3-DevKitC-1', 'Espressif ESP32-S3-DevKitC-1 (N16R8), conectorii J1/J3',
     [(f'J1.{i+1}', n, jtype(n)) for i, n in enumerate(J1)],
     [(f'J3.{i+1}', n, jtype(n)) for i, n in enumerate(J3)], 30.48, 27.94, 5.08)
-add('WeAct_EPD_3.7', 'WeAct Studio 3.7in e-paper module, 416x240, UC8253, SPI',
+add('WeAct_EPD_3.7', 'Modul e-paper WeAct Studio de 3,7 țoli, 416x240, UC8253, SPI',
     [('1', 'BUSY', OUT), ('2', 'RES', IN), ('3', 'D/C', IN), ('4', 'CS', IN),
      ('5', 'SCL', IN), ('6', 'SDA', IN), ('7', 'GND', PI), ('8', 'VCC', PI)], [], 20.32, 8.89)
-add('MicroSD_Module', 'microSD card breakout, SPI mode',
+add('MicroSD_Module', 'Modul pentru card microSD, mod SPI',
     [('1', 'GND', PI), ('2', 'VCC', PI), ('3', 'MISO', OUT), ('4', 'MOSI', IN),
      ('5', 'SCK', IN), ('6', 'CS', IN)], [], 20.32, 6.35)
-add('TP4056_Module', 'TP4056 1A Li-ion charger with DW01 protection',
+add('TP4056_Module', 'Încărcător Li-ion TP4056 de 1 A, cu protecție DW01',
     [('1', 'IN+', PAS), ('2', 'IN-', PAS), None, ('3', 'B+', PAS), ('4', 'B-', PAS)],
     [None, ('5', 'OUT+', PO), None, ('6', 'OUT-', PAS)], 20.32, 5.08)
-add('TPS63020_Module', 'TPS63020 buck-boost module, fixed 3.3 V out',
+add('TPS63020_Module', 'Modul buck-boost TPS63020, ieșire fixă de 3,3 V',
     [('1', 'VIN', PI), None, ('2', 'GND', PI)], [('3', 'VOUT', PO)], 20.32, 2.54)
 
 LIBS = {'Device:R': ('Device', 'R'), 'Device:C': ('Device', 'C'),
@@ -162,24 +162,24 @@ def mod(key, ref, X, Y):
                  ref_at=(X - hw, Y - top - P - 1.27, 'left'), val_at=(X - hw, Y - bottom + P + 1.27, 'left'))
 
 # ================================================================= ALIMENTAREA
-box(15.24, 20.32, 160.02, 125.73, 'POWER')
+box(15.24, 20.32, 160.02, 125.73, 'ALIMENTARE')
 bt = place('Device:Battery_Cell', 'BT1', 'LiPo 3.7 V', 30.48, 68.58,
            ref_at=(27.94, 66.04, 'right'), val_at=(27.94, 68.58, 'right'))
 u2 = mod('TP4056_Module', 'U2', 63.5, 60.96)
-sw1 = place('Switch:SW_SPST', 'SW1', 'POWER', 88.9, 58.42, ref_at=(88.9, 50.8), val_at=(88.9, 53.975))
+sw1 = place('Switch:SW_SPST', 'SW1', 'PORNIRE', 88.9, 58.42, ref_at=(88.9, 50.8), val_at=(88.9, 53.975))
 u3 = mod('TPS63020_Module', 'U3', 119.38, 60.96)
 
 wire(bt['1'], u2['3'])                                            # BAT+ -> B+
 wire(u2['4'], (40.64, u2['4'][1]), (40.64, bt['2'][1]), bt['2'])  # B- -> BAT-
 nc(u2['1']); nc(u2['2'])
-text('Charging input:\nUSB port on the\nTP4056 module', 25.4, 45.72)
+text('Intrare de încărcare:\nportul USB al\nmodulului TP4056', 25.4, 45.72)
 wire(u2['5'], sw1['1'])                                           # OUT+ -> întrerupător
 stub_pwr(u2['6'], 'gnd', 'right', 2.54)
 wire(sw1['2'], (101.6, 58.42), u3['1']); label('VSYS', 95.25, 58.42, 'right')
 pwr('flag', 101.6, 58.42, 'up'); junction((101.6, 58.42))
 stub_pwr(u3['2'], 'gnd', 'left', 2.54)
 stub_pwr(u3['3'], '3v3', 'right', 5.08)
-text('Charger GND = OUT−, not B−\n(B− sits behind the protection FETs)', 50.8, 76.2)
+text('GND-ul încărcătorului = OUT−, nu B−\n(B− e în spatele tranzistoarelor de protecție)', 50.8, 76.2)
 
 # divizorul pentru măsurarea bateriei
 r1 = place('Device:R', 'R1', '100k', 127, 91.44, ref_at=(129.54, 90.17, 'left'), val_at=(129.54, 92.71, 'left'))
@@ -193,7 +193,7 @@ junction(node); junction((137.16, 97.79))
 label('VBAT_SENSE', 144.78, 97.79, 'right')
 pwr('gnd', *r2['2']); pwr('gnd', *c1['2'])
 pwr('gnd', 152.4, 107.95); pwr('flag', 152.4, 107.95, 'up')
-text('Battery sense: VSYS/2 → IO1 (ADC1_CH0)\n4.2 V full → 2.1 V at the pin.\nAfter SW1, so it draws nothing when off.', 50.8, 92.71)
+text('Măsurarea bateriei: VSYS/2 → IO1 (ADC1_CH0)\n4,2 V plină → 2,1 V la pin.\nDupă SW1, deci nu consumă nimic când e oprit.', 50.8, 92.71)
 
 # ================================================================= MICROCONTROLERUL
 box(165.1, 20.32, 279.4, 139.7, 'MCU')
@@ -219,54 +219,54 @@ c, d = u1['J3.21'], u1['J3.22']
 wire(d, (d[0] + 5.08, d[1])); wire((d[0] + 5.08, d[1]), (c[0] + 5.08, c[1]))
 
 # ================================================================= ECRANUL
-box(289.56, 20.32, 403.86, 72.39, 'DISPLAY')
+box(289.56, 20.32, 403.86, 72.39, 'AFIȘAJ')
 u4 = mod('WeAct_EPD_3.7', 'U4', 354.33, 45.72)
 for num, net in zip('123456', ['EPD_BUSY', 'EPD_RST', 'EPD_DC', 'EPD_CS', 'SPI_SCK', 'SPI_MOSI']):
     stub_label(u4[num], net, 'left', 15.24)
 stub_pwr(u4['7'], 'gnd', 'left', 5.08)
 stub_pwr(u4['8'], '3v3', 'left', 5.08)
-text('3.7" 416×240, UC8253\nVCC 3.3–5 V, logic 3.3 V\nWrite-only: no MISO', 370.84, 34.29)
+text('3,7" 416×240, UC8253\nVCC 3,3–5 V, logică 3,3 V\nDoar scriere: fără MISO', 370.84, 34.29)
 
 # ================================================================= STOCAREA
-box(289.56, 80.01, 403.86, 125.73, 'STORAGE')
+box(289.56, 80.01, 403.86, 125.73, 'STOCARE')
 u5 = mod('MicroSD_Module', 'U5', 354.33, 104.14)
 stub_pwr(u5['1'], 'gnd', 'left', 5.08)
 stub_pwr(u5['2'], '3v3', 'left', 5.08)
 for num, net in zip('3456', ['SPI_MISO', 'SPI_MOSI', 'SPI_SCK', 'SD_CS']):
     stub_label(u5[num], net, 'left', 15.24)
-text('microSDHC, FAT32\nShares SPI2 with the\ndisplay, own CS', 370.84, 95.25)
+text('microSDHC, FAT32\nÎmparte SPI2 cu\nafișajul, CS propriu', 370.84, 95.25)
 
 # ================================================================= BUTOANELE
-box(15.24, 133.35, 160.02, 196.85, 'BUTTONS')
-BTNS = [('SW2', 'BTN_PREV', 'PREV PAGE'), ('SW3', 'BTN_NEXT', 'NEXT PAGE'), ('SW4', 'BTN_MENU', 'MENU / OK')]
+box(15.24, 133.35, 160.02, 196.85, 'BUTOANE')
+BTNS = [('SW2', 'BTN_PREV', 'PAGINA ÎNAPOI'), ('SW3', 'BTN_NEXT', 'PAGINA ÎNAINTE'), ('SW4', 'BTN_MENU', 'MENIU / OK')]
 for k, (ref, net, fn) in enumerate(BTNS):
     X = 55.88; Y = 152.4 + k * 12.7
     s = place('Switch:SW_Push', ref, fn, X, Y, ref_at=(X, Y - 5.08), val_at=(X, Y + 2.54))
     stub_label(s['1'], net, 'left')
     stub_pwr(s['2'], 'gnd', 'right', 2.54)
-text('Active-low to GND, internal pull-ups (no resistors).\nAll on RTC GPIOs: any button can wake from deep sleep (ext1).',
+text('Activ pe 0 la GND, rezistențe pull-up interne (fără rezistori).\nToate pe GPIO-uri RTC: orice buton trezește din somnul adânc (ext1).',
      22.86, 184.15)
 
 # ================================================================= NOTE
-box(165.1, 147.32, 403.86, 196.85, 'NOTES')
-text('Parts not in the kit: SW1 slide switch, SW2–SW4 tactile buttons, R1/R2 100k, C1 100nF.\n\n'
-     '1.  Never power the board from the DevKit USB while SW1 is ON. Espressif lists USB, the 5V pin and the 3V3 pin\n'
-     '     as mutually exclusive supplies, and here TPS63020 drives 3V3 directly. Switch off before flashing.\n'
-     '2.  TP4056: use the 6-pad version with DW01 protection. System ground is OUT−. Charge through its own USB port;\n'
-     '     the device can run while charging (OUT+ follows the charger).\n'
-     '3.  microSD module: if it carries an AMS1117 regulator it expects 5 V. At 3.3 V either buy a 3.3 V-direct module\n'
-     '     or bridge the regulator IN to OUT.\n'
-     '4.  Left unconnected on purpose: IO35–37 (octal PSRAM on N16R8), IO0/IO3/IO45/IO46 (strapping),\n'
-     '     IO19/IO20 (native USB), IO43/IO44 (UART0 console), IO38 (on-board RGB LED).\n'
-     '5.  Display and microSD share SPI2: SCK IO12, MOSI IO11, MISO IO13. Separate chip selects IO10 / IO14.\n'
-     '     Keep the SD on its own CS and deselect both before init.\n'
-     '6.  Battery: 1S LiPo, 3.0–4.2 V. TPS63020 runs from 1.8–5.5 V, so the 3.3 V rail holds\n'
-     '     all the way down to cut-off.',
+box(165.1, 147.32, 403.86, 196.85, 'NOTE')
+text('Piese care nu sunt în kit: comutatorul glisant SW1, butoanele SW2–SW4, R1/R2 100k, C1 100nF.\n\n'
+     '1.  Nu alimentați placa prin USB-ul DevKit-ului cât SW1 e PORNIT. Espressif dă USB-ul, pinul 5V și pinul 3V3\n'
+     '     ca surse care se exclud reciproc, iar aici TPS63020 alimentează direct 3V3. Opriți-l înainte de programare.\n'
+     '2.  TP4056: varianta cu 6 pini și protecție DW01. Masa sistemului e OUT−. Se încarcă prin portul lui USB;\n'
+     '     dispozitivul poate merge în timpul încărcării (OUT+ urmează încărcătorul).\n'
+     '3.  Modulul microSD: dacă are regulator AMS1117, așteaptă 5 V. La 3,3 V luați un modul direct pe 3,3 V\n'
+     '     sau legați IN cu OUT la regulator.\n'
+     '4.  Lăsate neconectate intenționat: IO35–37 (PSRAM octal pe N16R8), IO0/IO3/IO45/IO46 (pini de configurare),\n'
+     '     IO19/IO20 (USB nativ), IO43/IO44 (consola UART0), IO38 (LED-ul RGB de pe placă).\n'
+     '5.  Afișajul și microSD-ul împart SPI2: SCK IO12, MOSI IO11, MISO IO13. Chip select separat: IO10 / IO14.\n'
+     '     SD-ul rămâne pe CS-ul lui; ambele se dezactivează înainte de inițializare.\n'
+     '6.  Bateria: LiPo 1S, 3,0–4,2 V. TPS63020 merge de la 1,8–5,5 V, deci linia de 3,3 V se ține\n'
+     '     până la tensiunea de deconectare.',
      170.18, 156.21)
 SIG = ['SPI_SCK', 'SPI_MOSI', 'SPI_MISO', 'EPD_CS', 'EPD_DC', 'EPD_RST', 'EPD_BUSY', 'SD_CS',
        'BTN_PREV', 'BTN_NEXT', 'BTN_MENU', 'VBAT_SENSE']
 GP = ['12', '11', '13', '10', '9', '8', '18', '14', '4', '5', '6', '1']
-text('GPIO MAP', 350.52, 156.21, 1.27, True)
+text('HARTA GPIO', 350.52, 156.21, 1.27, True)
 text('\n'.join(SIG), 350.52, 160.02)
 text('\n'.join('IO' + g for g in GP), 378.46, 160.02)
 
@@ -276,16 +276,16 @@ for k, (sym, _, _) in CUSTOM.items():
     lib_syms.append(sym.replace(f'(symbol {q(k)}', f'(symbol {q("EinkReader:" + k)}', 1))
 sch = (f'(kicad_sch (version 20250114) (generator "eeschema") (generator_version "10.0")\n'
        f'(uuid {q(ROOT)})\n(paper "A3")\n'
-       f'(title_block (title "E-ink reader") (date "2026-10-25") (rev "1.0") (company "Diploma project")\n'
-       f'  (comment 1 "Module-level wiring: ESP32-S3-DevKitC-1, WeAct 3.7in EPD, microSD, TP4056, TPS63020")\n'
-       f'  (comment 2 "Author: Ilie Beleniuc"))\n'
+       f'(title_block (title "Cititor e-ink") (date "2026-10-25") (rev "1.0") (company "Proiect de diplomă")\n'
+       f'  (comment 1 "Schema modulelor: ESP32-S3-DevKitC-1, WeAct 3.7in EPD, microSD, TP4056, TPS63020")\n'
+       f'  (comment 2 "Autor: Ilie Beleniuc"))\n'
        f'(lib_symbols\n' + '\n'.join(lib_syms) + '\n)\n' + '\n'.join(items) +
        f'\n(sheet_instances (path "/" (page "1")))\n(embedded_fonts no)\n)\n')
 open(f'{PROJECT}.kicad_sch', 'w').write(sch)
 open('eink-reader.kicad_sym', 'w').write('(kicad_symbol_lib (version 20241209) (generator "eink-reader-gen")\n'
                                        + '\n'.join(s for s, _, _ in CUSTOM.values()) + '\n)\n')
 open('sym-lib-table', 'w').write('(sym_lib_table (version 7)\n  (lib (name "EinkReader")(type "KiCad")'
-                                 '(uri "${KIPRJMOD}/eink-reader.kicad_sym")(options "")(descr "E-ink reader modules"))\n'
+                                 '(uri "${KIPRJMOD}/eink-reader.kicad_sym")(options "")(descr "Modulele cititorului e-ink"))\n'
                                  + ''.join(f'  (lib (name "{n}")(type "KiCad")(uri "${{KICAD10_SYMBOL_DIR}}/{n}.kicad_sym")(options "")(descr ""))\n'
                                            for n in ('Device', 'Switch', 'power')) + ')\n')
 import json

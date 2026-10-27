@@ -110,7 +110,7 @@ def finish(b: Builder, meta: dict[str, str], *, hyphenate: bool = True,
         sample = "".join(it.st.text for it in b.items[:2000])
         ro_legacy = lang.lower().startswith(("ro", "mo")) and textnorm.detect_ro_legacy(sample)
     if ro_legacy:
-        rep.warnings.append("Romanian typed with ã/º/þ for ă/ș/ț: mapped back")
+        rep.warnings.append("text românesc scris cu ã/º/þ în loc de ă/ș/ț: corectat")
     charset = charset if charset is not None else glyphs.charset_for(lang)
 
     # 1. curățarea textului; fiecare element sursă devine zero sau mai multe elemente
@@ -147,7 +147,7 @@ def finish(b: Builder, meta: dict[str, str], *, hyphenate: bool = True,
     # 3. despărțirea în silabe
     hy = Hyphenator.for_language(lang) if hyphenate else None
     if hyphenate and hy is None:
-        rep.warnings.append(f"no hyphenation patterns for language '{lang}': not hyphenated")
+        rep.warnings.append(f"nu există modele de despărțire pentru limba '{lang}': cuvintele nu se despart")
     rep.hyphenation = "off" if not hyphenate else ("none" if hy is None else lang)
     if hy:
         for it in keep:
@@ -168,7 +168,7 @@ def finish(b: Builder, meta: dict[str, str], *, hyphenate: bool = True,
             records.append(ibv.Record(it.kind, part.text, flags, _runs(part)))
     rep.paragraphs = len(records)
     if not records:
-        raise ibv.FormatError("no text found in the input")
+        raise ibv.FormatError("intrarea nu conține text")
     rep.chapter_levels, rep.chapter_pages = _chapter_pages(records)
 
     toc = _resolve_toc(b, new_index, first_record, keep, lang, ro_legacy, rep)
@@ -269,7 +269,7 @@ def _resolve_toc(b: Builder, new_index, first_record, keep, lang, ro_legacy, rep
     for ref in refs:
         idx = ref.target if isinstance(ref.target, int) else b.anchors.get(ref.target)
         if idx is None:
-            rep.warnings.append(f"TOC entry {ref.title!r}: target {ref.target!r} not found")
+            rep.warnings.append(f"intrarea din cuprins {ref.title!r}: ținta {ref.target!r} nu există")
             continue
         if idx >= len(new_index):
             idx = len(new_index) - 1

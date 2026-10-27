@@ -14,6 +14,6 @@ print(f'{out}: {len(images)} screens, {len(page) // 1024} KB')
 if len(sys.argv) > 4:
     # doar pentru previzualizarea locală: gazda adaugă singură scheletul documentului
     pathlib.Path(sys.argv[4]).write_text(
-        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<!doctype html><html lang="ro"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1"></head><body>'
         + page + '</body></html>')

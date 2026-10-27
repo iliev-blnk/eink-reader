@@ -11,7 +11,7 @@
 static const char *TAG = "battery";
 
 #define SAMPLES 16
-#define ATTEN ADC_ATTEN_DB_12  // full scale ~3.1 V calibrated, enough for 4.2 V / 2
+#define ATTEN ADC_ATTEN_DB_12  // cap de scală ~3,1 V calibrat, destul pentru 4,2 V / 2
 
 static adc_oneshot_unit_handle_t s_adc;
 static adc_cali_handle_t s_cali;
@@ -21,11 +21,11 @@ static float s_divider;
 esp_err_t battery_init(gpio_num_t pin, float divider)
 {
     adc_unit_t unit;
-    ESP_RETURN_ON_ERROR(adc_oneshot_io_to_channel(pin, &unit, &s_chan), TAG, "GPIO%d has no ADC", pin);
+    ESP_RETURN_ON_ERROR(adc_oneshot_io_to_channel(pin, &unit, &s_chan), TAG, "GPIO%d nu are ADC", pin);
     const adc_oneshot_unit_init_cfg_t unit_cfg = {.unit_id = unit};
-    ESP_RETURN_ON_ERROR(adc_oneshot_new_unit(&unit_cfg, &s_adc), TAG, "adc unit");
+    ESP_RETURN_ON_ERROR(adc_oneshot_new_unit(&unit_cfg, &s_adc), TAG, "unitatea ADC");
     const adc_oneshot_chan_cfg_t chan_cfg = {.atten = ATTEN, .bitwidth = ADC_BITWIDTH_DEFAULT};
-    ESP_RETURN_ON_ERROR(adc_oneshot_config_channel(s_adc, s_chan, &chan_cfg), TAG, "adc channel");
+    ESP_RETURN_ON_ERROR(adc_oneshot_config_channel(s_adc, s_chan, &chan_cfg), TAG, "canalul ADC");
 
     const adc_cali_curve_fitting_config_t cali_cfg = {
         .unit_id = unit,
@@ -34,7 +34,7 @@ esp_err_t battery_init(gpio_num_t pin, float divider)
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
     if (adc_cali_create_scheme_curve_fitting(&cali_cfg, &s_cali) != ESP_OK) {
-        ESP_LOGW(TAG, "no ADC calibration in eFuse, readings are approximate");
+        ESP_LOGW(TAG, "ADC-ul nu are calibrare în eFuse, citirile sunt aproximative");
         s_cali = NULL;
     }
     s_divider = divider;

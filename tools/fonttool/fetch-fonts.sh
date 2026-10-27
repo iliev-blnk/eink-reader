@@ -28,7 +28,7 @@ mkdir -p fonts/notoserif
 for s in Regular Bold Italic BoldItalic; do
   src=/usr/share/fonts/noto/NotoSerif-$s.ttf
   if [ -s "$src" ]; then cp -n "$src" fonts/notoserif/; else
-    echo "Noto Serif not installed: install noto-fonts or copy NotoSerif-$s.ttf here" >&2; fi
+    echo "Noto Serif nu e instalat: instalați noto-fonts sau copiați aici NotoSerif-$s.ttf" >&2; fi
 done
 get notoserif OFL.txt "$GF/notoserif/OFL.txt"
 # Libron: fontul pentru cititoare al lui Nico Verbruggen (din Readerly / Newsreader).

@@ -96,6 +96,9 @@ typedef struct {
 } ibv_t;
 
 ibv_err_t ibv_open(ibv_t *b, const char *path);
+// Doar antetul, directorul și META (specificația, secțiunea 5: biblioteca), plus
+// coperta la cerere. ibv_record și cuprinsul nu merg pe o carte deschisă așa.
+ibv_err_t ibv_open_meta(ibv_t *b, const char *path);
 void ibv_close(ibv_t *b);
 const char *ibv_strerror(ibv_err_t err);
 

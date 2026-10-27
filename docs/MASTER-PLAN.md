@@ -141,13 +141,15 @@ Limbajul și stiva (decizia mea): **C pe ESP-IDF** (ultima versiune stabilă), c
 - [ ] FW-3 Grafica: framebuffer de 1 bpp, rotație (portret 240×416), urmărirea dreptunghiurilor modificate pentru reîmprospătarea parțială. *v0: framebuffer, text UTF-8 cu un font compilat în program, dreptunghiuri modificate. Încă fără rotație.*
 - [ ] FW-4 Stocarea: SD pe SPI + montarea FATFS și recuperarea, API de fișiere folosit de servicii. *v0: montare la 20 MHz cu revenire la 5 MHz; nu formatează niciodată. Încă fără recuperare sau API de fișiere.*
 - [ ] FW-5 Intrarea: butoane cu debounce, apăsare scurtă și lungă, o coadă de evenimente. *v0: toate (interogare la 10 ms, debounce de 30 ms, apăsare lungă de 800 ms). Încă nerulat pe hardware.*
-- [ ] FW-6 Managerul de aplicații: ciclul de viață al unei aplicații (intrare, eveniment, desenare, ieșire) și împărțirea pe taskuri FreeRTOS (task de interfață, task de intrare, task de fundal pentru paginare).
+- [ ] FW-6 Managerul de aplicații: ciclul de viață al unei aplicații (intrare, eveniment, desenare, ieșire) și împărțirea pe taskuri FreeRTOS (task de interfață, task de intrare, task de fundal pentru paginare). *v0 2026-10-27 (`components/ui`): stiva de aplicații (`enter`/`resume`/`leave`/`key`/`draw`/`idle`), reîmprospătarea parțială calculată din diferența de framebuffer, cea completă la N. Fără task de paginare separat: lucrul de fundal e cooperativ, în taskul interfeței (de ce: Jurnalul). Verificat în `sim ui`; încă nerulat pe hardware.*
 - [ ] FW-7 Managerul de energie:
   - somn ușor în timpul lecturii, somn adânc după o perioadă de inactivitate, trezire din orice buton (ext1 ANY_LOW, pull-up RTC activate). *Trezirea din buton merge deja în aplicația de punere în funcțiune.*
   - ecran de baterie descărcată și oprire sub pragul de tăiere
   - fiecare schimbare de stare marcată în timp, pentru măsurători
-- [ ] FW-8 Bateria: calibrarea ADC (curba din eFuse), corecția divizorului, o curbă tensiune→% pentru LiPo, netezire. *v0: calibrarea și corecția divizorului. Încă fără procent sau netezire.*
-- [ ] FW-9 Setările în NVS: mărimea fontului, spațierea rândurilor, marginile, intervalul N de reîmprospătare completă, timpul până la somn, despărțirea în silabe pornită/oprită.
+
+  *v0 2026-10-27: somn adânc după inactivitate (setarea „Somn după”) și la MENIU lung, coperta pe ecran, trezirea redeschide cartea; ecranul de baterie descărcată sub 3,40 V; linii PERF la apăsare, paginare, reîmprospătare și somn. Încă fără somn ușor.*
+- [ ] FW-8 Bateria: calibrarea ADC (curba din eFuse), corecția divizorului, o curbă tensiune→% pentru LiPo, netezire. *v0: calibrarea și corecția divizorului. 2026-10-27: procentul dintr-o curbă LiPo pe 11 puncte (`ui_battery_pct`). Încă fără netezire.*
+- [ ] FW-9 Setările în NVS: mărimea fontului, spațierea rândurilor, marginile, intervalul N de reîmprospătare completă, timpul până la somn, despărțirea în silabe pornită/oprită. *v0 2026-10-27: toate, plus alinierea; blob în NVS, aplicația Setări, paginarea refăcută la aceeași poziție.*
 - [ ] FW-10 Aplicațiile:
   - ecranul de pornire
   - lansatorul
@@ -156,7 +158,9 @@ Limbajul și stiva (decizia mea): **C pe ESP-IDF** (ultima versiune stabilă), c
   - setările
   - ecranul de somn: coperta sau titlul, afișat pe un panou nealimentat
   - diagnosticul: tensiuni, timpi, versiuni
-- [ ] FW-11 Progresul și semnele de carte: fișiere însoțitoare lângă fiecare carte (vezi SPEC).
+
+  *v0 2026-10-27: toate, plus cuprinsul și lista semnelor de carte. Punerea în funcțiune rămâne, cu MENIU ținut la o pornire la rece.*
+- [ ] FW-11 Progresul și semnele de carte: fișiere însoțitoare lângă fiecare carte (vezi SPEC). *v0 2026-10-27: `.pos`, `.bm` (până la 64), `.pg` și `/.ibv/recent`, scrise prin `.tmp` + ștergere + redenumire.*
 - [ ] FW-12 Stocare de masă USB pe USB nativ (TinyUSB MSC): conectat la un PC, cardul SD apare ca disc și se copiază cărțile. Pe dispozitiv FATFS e demontat cât USB-ul e activ.
 - [ ] FW-13 Puncte de măsurare: un jurnal `perf` de marcaje de timp (frontul butonului, începutul/sfârșitul paginării, transferul SPI, BUSY jos/sus) scris pe SD ca CSV, plus un mod de test cu „întoarcere automată a paginii”.
 - [ ] FW-14 Scrierea în flash și testarea pe prototip după fiecare funcție. Raportează și fotografiază orice e ciudat.
@@ -223,9 +227,11 @@ Deciziile mele de proiectare (de justificat în specificație):
   Parțial făcut 2026-10-26 (`layout_page`): paginare înainte, margini, spații între rânduri și paragrafe, alineat, titluri centrate și ținute cu ce urmează, capitole pe pagină nouă, separatoare și ornamente, alineat agățat la versuri, marginile citatelor, subsol cu capitolul și procentul. Încă deschis: rândurile văduve/orfane, pagina înapoi (are nevoie de indexul paginilor din LAY-4).
 
   Făcut 2026-10-27: controlul rândurilor văduve și orfane (`keep_lines`), un titlu rămas jos pe pagină trece pe următoarea, BREAK-urile de la capătul paginii se sar ca începuturile de pagină să fie canonice. Pagina înapoi (`layout_prev`) și găsirea paginii care conține o poziție (`layout_locate`) paginează înainte de la cel mai apropiat punct de sincronizare: începutul cărții sau o înregistrare cu indicatorul `PAGE` (nou în format, pus de convertor pe titlurile de capitol).
-- [ ] LAY-4 Cache-ul paginării plus un task de paginare în fundal, pentru numerele paginilor și „x din y”. Saltul la un capitol trece prin deplasamentele capitolelor.
+- [x] LAY-4 Cache-ul paginării plus un task de paginare în fundal, pentru numerele paginilor și „x din y”. Saltul la un capitol trece prin deplasamentele capitolelor.
 
   Parțial făcut 2026-10-27 (`pageidx.c`): indexul paginilor (8 B pe pagină, construit câte câteva pagini, căutare binară) și fișierul lui însoțitor `.pg` (salvare, încărcare, reluare, verificări de CRC și de hash al paginării); subsolul din simulator arată „n / total” după ce e complet. Încă deschis: taskul de fundal care îl conduce pe dispozitiv (cu FW-5).
+
+  Făcut 2026-10-27: lectorul construiește indexul în fundal, câte 8 pagini între apăsări (`ui_idle`, cooperativ, nu un task separat), îl salvează și îl reia; saltul la capitol trece prin cuprins și index. Rămâne timpul pe dispozitiv (E6).
 - [x] LAY-5 Ruperea în rânduri v2: Knuth–Plass (încadrare totală) pe paragraf, cu o limită de memorie și revenire la greedy pentru paragrafele uriașe. Făcut 2026-10-27: `layout.c` (zonă de lucru `layout_fit_t` ~66 KB, max 2048 puncte de rupere, altfel greedy); față de greedy mai puține cratime, de 2–10× mai puține cratime consecutive, spații cu ~30 % mai puțin lățite (vezi Jurnalul). Rămâne timpul pe dispozitiv (E6).
 - [x] LAY-6 Simulatorul: desenarea oricărei cărți sau pagini în PNG la orice setare, un mod în lot pentru experimente și teste cu imagini de referință. Făcut 2026-10-26 (`sim/`): `pages`, `stats` (cărți întregi: înlănțuire, depășire, timpi, hash-uri de pagini), `compare` (foi de fonturi), testul de referință `test/run.sh` pe o carte de test cu fiecare tip de înregistrare.
 - [x] LAY-7 Verificarea vizuală: foi de comparație, judecate pe ecranul real. Candidați: Literata, PT Serif, Noto Serif și Libron (adăugat 2026-10-27: doar latin, deci îi trebuie o rezervă pentru chirilică). Decis 2026-10-27 (tu, după foi): **Libron pentru cărțile în alfabet latin, PT Serif pentru chirilică, ales automat după limba cărții** (`fontsel.c`), cinci trepte de mărime potrivite între cele două (spec/font-format.md, secțiunea 4). Rămâne de confirmat pe ecranul real când prototipul merge.

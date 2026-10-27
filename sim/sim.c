@@ -8,6 +8,8 @@
 //                                           (testele cu imagini de referință)
 //   sim compare BOOK.ibv -o OUT.png [--page N] FONT... [opțiuni de paginare]
 //                                           o pagină în mai multe fonturi, una lângă alta
+//   sim ui CARD -o DIR --keys "..."         interfața întreagă, după un scenariu de
+//                                           apăsări (sim_ui.c)
 //
 // Opțiunile de paginare:
 //   -f FONT          fontul textului: FONT-r.ibf, plus FONT-b/-i/-bi.ibf dacă există
@@ -35,6 +37,8 @@
 #include "pageidx.h"
 #include "png.h"
 #include "screen_bringup.h"
+
+int cmd_ui(int argc, char **argv);   // sim_ui.c
 
 #define W 240
 #define H 416
@@ -637,6 +641,7 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "pages")) return cmd_pages(argc - 1, argv + 1);
     if (!strcmp(argv[1], "stats")) return cmd_stats(argc - 1, argv + 1);
     if (!strcmp(argv[1], "compare")) return cmd_compare(argc - 1, argv + 1);
-    fprintf(stderr, "folosire: sim screens|pages|stats|compare ... (vezi sim.c)\n");
+    if (!strcmp(argv[1], "ui")) return cmd_ui(argc - 1, argv + 1);
+    fprintf(stderr, "folosire: sim screens|pages|stats|compare|ui ... (vezi sim.c)\n");
     return 2;
 }

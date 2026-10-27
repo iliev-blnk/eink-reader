@@ -1,13 +1,14 @@
 # Firmware
 
-Proiect ESP-IDF v6.1 pentru ESP32-S3. Deocamdată compilează **aplicația de punere în funcțiune din Faza 0**, care verifică fiecare parte a prototipului și arată rezultatele pe ecran.
+Proiect ESP-IDF v6.1 pentru ESP32-S3. Compilează cititorul: biblioteca, lectorul, setările, somnul și trezirea (`components/ui`, aceeași interfață pe care o rulează `sim ui`). **Cu MENIU ținut apăsat la o pornire la rece** pornește în schimb aplicația de punere în funcțiune din Faza 0, care verifică fiecare parte a prototipului și arată rezultatele pe ecran.
 
 ```
 firmware/
   boards/              hărțile pinilor, câte un header pe placă; placa se alege în menuconfig
-  components/core/     C portabil (fonturi, grafică pe 1 bit); sim/ compilează aceleași fișiere
+  components/core/     C portabil (fonturi, grafică pe 1 bit, cărți IBV, paginare); sim/ compilează aceleași fișiere
+  components/ui/       C portabil: managerul de aplicații și aplicațiile (acasă, biblioteca, lectorul, setările…)
   components/drivers/  epd_uc8253 (ecranul), sdcard, butoane, baterie
-  main/                aplicația de punere în funcțiune și ecranul ei
+  main/                main.c: cititorul pe placă (panou, card, NVS, somn); bringup.c: punerea în funcțiune
 ```
 
 ## Compilare
@@ -48,9 +49,17 @@ DevKitC-1 are două porturi USB-C. Se folosește cel marcat **UART**: rămâne c
 
 Totul merge pe **3V3**, niciodată pe 5V.
 
+## Butoanele cititorului
+
+- **ÎNAINTE / ÎNAPOI**: pagina următoare / precedentă, sau elementul următor / precedent dintr-o listă. Apăsate lung în lector: capitolul următor / precedent. Într-o listă, ÎNAINTE lung sare la pagina următoare a listei, iar ÎNAPOI lung iese din ea.
+- **MENIU**: deschide elementul ales; în lector deschide meniul cărții (cuprins, semn de carte, mărimea textului, setări, bibliotecă, diagnostic).
+- **MENIU ținut apăsat**: somn adânc, cu coperta cărții pe ecran. Orice buton trezește dispozitivul la aceeași pagină. Somnul vine și singur după inactivitate (setarea „Somn după”).
+
+Pe card: cărțile `.ibv` în rădăcină sau în `/books`, fonturile în `/fonts` (din `tools/fonttool/out/fam`). Dispozitivul își scrie starea în `/.ibv/` (specificația, secțiunea 6). Setările sunt în NVS. Pe UART ies linii `PERF,…` pentru apăsări, paginare, reîmprospătări și somn.
+
 ## Ce face aplicația de punere în funcțiune
 
-La pornire citește cipul, flash-ul și PSRAM-ul, tensiunea bateriei și cardul SD, apoi desenează acest ecran cu o reîmprospătare completă. Simulatorul de pe PC desenează același ecran: vezi `sim/`.
+Se pornește ținând MENIU apăsat în timp ce placa se alimentează sau după RST. La pornire citește cipul, flash-ul și PSRAM-ul, tensiunea bateriei și cardul SD, apoi desenează acest ecran cu o reîmprospătare completă. Simulatorul de pe PC desenează același ecran: vezi `sim/`.
 
 - **PREV / NEXT**: numără în jos / în sus și redesenează doar caseta contorului cu o reîmprospătare parțială. O apăsare lungă sare cu 10. Caseta arată cât a durat reîmprospătarea anterioară.
 - **MENU**: recitește bateria, reîncearcă cardul SD dacă a eșuat și redesenează tot cu o reîmprospătare completă.

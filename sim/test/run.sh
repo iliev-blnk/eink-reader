@@ -2,9 +2,11 @@
 # Testul cu imagini de referință pentru paginare (LAY-6): desenează layout.ibv
 # (fiecare tip de înregistrare și caracter special, vezi make_fixture.py) cu
 # fontul încorporat în două configurații și compară fiecare pagină cu golden/.
-# Apoi, dacă s-a convertit corpusul, paginează fiecare carte și eșuează la erori
-# de paginare, o dată cu fontul încorporat și o dată cu fonturile dispozitivului,
-# dacă le-a construit fonttool.
+# Apoi interfața (`sim ui`): un scenariu de apăsări pe aceeași carte, comparat
+# cadru cu cadru și cu jurnalul reîmprospătărilor. Apoi, dacă s-a convertit
+# corpusul, paginează fiecare carte și eșuează la erori de paginare, o dată cu
+# fontul încorporat și o dată cu fonturile dispozitivului, dacă le-a construit
+# fonttool.
 #
 #   sim/test/run.sh            testul
 #   sim/test/run.sh --update   acceptă ieșirea curentă ca referință (întâi uită-te la ea)
@@ -40,6 +42,25 @@ for cfg in default ragged; do
         echo "ok    $cfg: $(ls "$out/$cfg" | wc -l) pagini identice"
     fi
 done
+
+# Biblioteca, cartea, pagini, un semn de carte, somnul cu coperta, trezirea la
+# aceeași pagină, lista semnelor și saltul la semn, somnul din nou.
+mkdir -p "$out/card" "$out/ui"
+cp "$here/layout.ibv" "$out/card/"
+"$sim" ui "$out/card" -o "$out/ui" --idle --keys "m m n n m n n m M n m n n n m m p M n" >/dev/null
+if [ "$1" = --update ]; then
+    rm -rf "$here/golden/ui"
+    cp -r "$out/ui" "$here/golden/ui"
+    echo "golden/ui: $(ls "$out/ui" | wc -l) fișiere actualizate"
+elif ! diff -r -q "$here/golden/ui" "$out/ui" >"$out/diff.txt"; then
+    echo "EȘUAT ui:"
+    sed "s|$out/||; s|$here/||" "$out/diff.txt"
+    echo "  cadrele noi sunt în $out/ui (păstrate)"
+    trap - EXIT
+    fail=1
+else
+    echo "ok    ui: $(grep -c '^[0-9]' "$out/ui/jurnal.txt") reîmprospătări identice"
+fi
 
 books=$(ls "$here"/../../corpus/out/*.ibv 2>/dev/null || true)
 if [ -n "$books" ] && [ "$1" != --update ]; then

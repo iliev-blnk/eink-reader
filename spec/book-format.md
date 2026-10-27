@@ -328,7 +328,7 @@ Dispozitivul scrie starea fiecărei cărți lângă cărți, dar niciodată în 
 
 Fișierele însoțitoare stau în `/.ibv/` pe card și sunt numite după `book_id` în hex, nu după numele fișierului cărții. Redenumirea sau mutarea unei cărți pe PC îi păstrează progresul, iar dosarul cărților rămâne curat când răsfoiești cardul. *(Asta schimbă planul, care avea `<book>.pos` lângă fiecare carte.)* Numele lungi de fișier din FATFS trebuie activate; ESP-IDF le suportă.
 
-Fiecare fișier însoțitor începe cu un cod magic de 4 octeți și cu `book_id` de 8 octeți și se termină cu un CRC32 al tuturor octeților dinainte. Dacă CRC-ul sau `book_id` nu se potrivesc, dispozitivul ignoră fișierul: mai bine niciun progres decât o poziție greșită.
+Fiecare fișier însoțitor începe cu un cod magic de 4 octeți și (în afară de `recent`, care nu ține de o carte) cu `book_id` de 8 octeți și se termină cu un CRC32 al tuturor octeților dinainte. Dacă CRC-ul sau `book_id` nu se potrivesc, dispozitivul ignoră fișierul: mai bine niciun progres decât o poziție greșită.
 
 **Scrierile nu lasă niciodată un fișier greșit:** dispozitivul scrie `<nume>.tmp`, șterge fișierul vechi și îl redenumește pe cel nou în locul lui. (FATFS nu poate redenumi peste un fișier existent, deci sunt doi pași.) O cădere de curent în timpul scrierii pierde cel mult acel fișier însoțitor, nu-l corupe niciodată: un `.tmp` e ignorat, iar un `.pg` lipsă se reface.
 
@@ -336,7 +336,10 @@ Fiecare fișier însoțitor începe cu un cod magic de 4 octeți și cu `book_id
 |---|---|---|
 | `<id>.pos` | `"IPOS"`, book_id, u32 para, u32 byte, crc32 → 24 B | la somn, la închiderea cărții și la fiecare N pagini întoarse |
 | `<id>.bm` | `"IBMK"`, book_id, u16 count, count × {u32 para, u32 byte}, crc32 | la adăugarea sau ștergerea unui semn de carte |
+| `recent` | `"IREC"`, u8 versiune = 1, u8 reading, u8 count, 1 B rezervat, count × {book_id, u8 len, len B calea față de rădăcină, fără NUL}, crc32 | la deschiderea unei cărți și la somn |
 | `<id>-<layout>.pg` | `"IPGC"`, book_id, u32 layout_hash, u32 page_count, u8 complete, 3 B rezervați, page_count × {u32 para, u32 byte}, crc32 | de paginatorul de fundal, pe măsură ce avansează |
+
+`recent` ține ultimele cel mult 16 cărți deschise, cea mai recentă prima. Biblioteca le pune primele, iar `reading = 1` înseamnă că dispozitivul a adormit cu prima deschisă, deci o trezire o redeschide. Calea servește ca să se deschidă cartea fără citirea întregului card. Dacă acolo nu mai e cartea cu acel `book_id` (a fost mutată pe PC), acasă nu mai apare „Continuă”, dar biblioteca o recunoaște tot după `book_id` și o pune printre cele recente. Numele `<id>-<layout>.pg` folosește `layout_hash` în hex, 8 cifre.
 
 `layout_hash` acoperă tot ce schimbă unde se rup paginile:
 - fonturile (fiecare stil de text și fontul titlurilor) și mărimile lor
@@ -345,7 +348,7 @@ Fiecare fișier însoțitor începe cu un cod magic de 4 octeți și cu `book_id
 - justificarea, despărțirea în silabe, capitolele pe pagină nouă, controlul rândurilor văduve și orfane, ruperea greedy sau prin încadrare totală
 - numărul de versiune al motorului de paginare (`LAYOUT_VERSION`)
 
-Orice schimbare de setare înseamnă alt fișier `.pg`. Dispozitivul le păstrează pe ultimele câteva și le șterge pe celelalte. `complete = 0` înseamnă că paginarea încă rulează: subsolul arată un procent până se termină. Un index incomplet se reia prin paginarea din nou a ultimei lui pagini. Încărcătorul respinge începuturile de pagină care nu cresc strict sau nu pornesc de la {0, 0}.
+Orice schimbare de setare înseamnă alt fișier `.pg`. Dispozitivul le păstrează pe ultimele câteva și le șterge pe celelalte *(încă neimplementat: deocamdată rămân toate)*. `complete = 0` înseamnă că paginarea încă rulează: subsolul arată un procent până se termină. Un index incomplet se reia prin paginarea din nou a ultimei lui pagini. Încărcătorul respinge începuturile de pagină care nu cresc strict sau nu pornesc de la {0, 0}.
 
 ## 7. Regulile validatorului
 
@@ -420,3 +423,4 @@ Mărimile sunt în octeți. Textul simplu înseamnă sursa fără cratimele moi.
 - **0.1** (2026-10-26, aceeași zi) Numit IBV (Q5): codul magic `\x89IBV`, extensia `.ibv`, fișiere însoțitoare în `/.ibv/` cu codurile magice `IPOS`, `IBMK`, `IPGC`. `book_id` nu s-a schimbat, pentru că nu acoperă antetul.
 - **0.1** (2026-10-27) Bitul de indicator 6 e acum `PAGE` (capitolul începe o pagină), pus de convertor după o euristică pe nivelul capitolelor; face ieftină pagina înapoi. Secțiunea 6: scrierile fișierelor însoțitoare sunt ștergere + redenumire pe FATFS. Lista `layout_hash` adusă la zi cu codul.
 - **0.1** (2026-10-27) `layout_hash` include și modul de rupere în rânduri (greedy sau încadrare totală, LAY-5).
+- **0.1** (2026-10-27) Secțiunea 6: fișierul `/.ibv/recent` (cărțile recente și ce se citea la somn), scris de interfață (FW-10).

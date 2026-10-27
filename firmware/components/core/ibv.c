@@ -122,7 +122,7 @@ static ibv_err_t parse_blocks(ibv_t *b, const uint8_t *p, uint32_t len)
     return IBV_OK;
 }
 
-ibv_err_t ibv_open(ibv_t *b, const char *path)
+static ibv_err_t open_book(ibv_t *b, const char *path, bool full)
 {
     memset(b, 0, sizeof *b);
     for (int i = 0; i < IBV_CACHE_SLOTS; i++) b->cache[i].block = -1;
@@ -174,6 +174,7 @@ ibv_err_t ibv_open(ibv_t *b, const char *path)
     uint8_t *p;
     if ((err = load_section(b, meta, &p)) != IBV_OK) goto fail;
     if ((err = parse_meta(b, p, b->sections[meta].length)) != IBV_OK) { free(p); goto fail; }
+    if (!full) return IBV_OK;
     if (toc >= 0) {
         if ((err = load_section(b, toc, &p)) != IBV_OK) goto fail;
         if ((err = parse_toc(b, p, b->sections[toc].length)) != IBV_OK) {
@@ -190,6 +191,9 @@ fail:
     ibv_close(b);
     return err;
 }
+
+ibv_err_t ibv_open(ibv_t *b, const char *path) { return open_book(b, path, true); }
+ibv_err_t ibv_open_meta(ibv_t *b, const char *path) { return open_book(b, path, false); }
 
 void ibv_close(ibv_t *b)
 {
@@ -237,6 +241,7 @@ static bool decode(const uint8_t **p, const uint8_t *end, ibv_record_t *r)
     return true;
 }
 
+// Apelantul verifică întâi b->block_count (0 pentru o carte deschisă cu ibv_open_meta).
 static uint32_t block_of(const ibv_t *b, uint32_t para)
 {
     uint32_t lo = 0, hi = b->block_count - 1;
@@ -297,6 +302,7 @@ static ibv_err_t load_block(ibv_t *b, uint32_t bi, ibv_slot_t **out)
 ibv_err_t ibv_record(ibv_t *b, uint32_t para, ibv_record_t *out)
 {
     if (para >= b->paragraph_count) return IBV_ERR_RANGE;
+    if (!b->block_count) return IBV_ERR_FORMAT;
     uint32_t bi = block_of(b, para);
     ibv_slot_t *s;
     ibv_err_t err = load_block(b, bi, &s);
@@ -308,6 +314,7 @@ ibv_err_t ibv_record(ibv_t *b, uint32_t para, ibv_record_t *out)
 ibv_err_t ibv_text_offset(ibv_t *b, uint32_t para, uint32_t byte, uint32_t *out)
 {
     if (para >= b->paragraph_count) { *out = b->text_bytes; return IBV_OK; }
+    if (!b->block_count) return IBV_ERR_FORMAT;
     uint32_t bi = block_of(b, para);
     uint32_t off = b->blocks[bi].text_start;
     for (uint32_t p = b->blocks[bi].first_para; p < para; p++) {

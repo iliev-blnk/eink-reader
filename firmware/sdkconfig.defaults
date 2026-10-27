@@ -11,9 +11,10 @@ CONFIG_SPIRAM=y
 CONFIG_SPIRAM_MODE_OCT=y
 CONFIG_SPIRAM_IGNORE_NOTFOUND=y
 
-# Tic de 1 ms pentru timpi de așteptare mai fini și citirea butoanelor
+# Tic de 1 ms pentru timpi de așteptare mai fini și citirea butoanelor. Interfața
+# rulează în taskul principal: 16 KB de stivă (ecranul de diagnostic arată cât rămâne).
 CONFIG_FREERTOS_HZ=1000
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=16384
 
 # FAT pe cardul SD: nume lungi de fișiere, nume UTF-8
 CONFIG_FATFS_LFN_HEAP=y

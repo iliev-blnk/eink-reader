@@ -52,7 +52,7 @@ Totul merge pe **3V3**, niciodată pe 5V.
 ## Butoanele cititorului
 
 - **ÎNAINTE / ÎNAPOI**: pagina următoare / precedentă, sau elementul următor / precedent dintr-o listă. Apăsate lung în lector: capitolul următor / precedent. Într-o listă, ÎNAINTE lung sare la pagina următoare a listei, iar ÎNAPOI lung iese din ea.
-- **MENIU**: deschide elementul ales; în lector deschide meniul cărții (cuprins, semn de carte, mărimea textului, setări, bibliotecă, diagnostic).
+- **MENIU**: deschide elementul ales; în lector deschide meniul cărții (cuprins, semn de carte, mărimea textului, setări, bibliotecă, întoarcerea automată, diagnostic).
 - **MENIU ținut apăsat**: somn adânc, cu coperta cărții pe ecran. Orice buton trezește dispozitivul la aceeași pagină. Somnul vine și singur după inactivitate (setarea „Somn după”).
 
 Pe card: cărțile `.ibv` în rădăcină sau în `/books`, fonturile în `/fonts` (din `tools/fonttool/out/fam`). Dispozitivul își scrie starea în `/.ibv/` (specificația, secțiunea 6). Setările sunt în NVS. Pe UART ies linii `PERF,…` pentru apăsări, paginare, reîmprospătări și somn.
@@ -79,6 +79,17 @@ PERF,battery,mv=…
 ```
 
 Salvarea jurnalului într-un fișier: în monitor, `Ctrl+T` apoi `Ctrl+L`. Se scrie `log.eink-reader.<timp>.txt` în dosarul curent. Aceleași taste din nou opresc salvarea. Apoi se filtrează cu `grep ^PERF log.eink-reader.*.txt`.
+
+## Jurnalul de măsurători (E1, E2, E4, E6)
+
+Dacă pe card există dosarul `/perf`, fiecare pornire a cititorului scrie fișierul următor, `perf/0001.csv`, `perf/0002.csv`…, cu rândurile `t_us,event,a,b`. Timpul e `esp_timer`, în µs de la pornire. Evenimentele: frontul butonului (`btn_edge`), apăsarea (`key`), paginarea (`layout_begin`, `layout_end`), fiecare reîmprospătare (`refresh` cu durata totală, `refresh_io` cu scrierea SPI și BUSY, `refresh_rect`), bateria la fiecare minut, întoarcerile automate, indexul în fundal, somnul. Rândurile stau în memorie (256) și se scriu pe card doar când bucla așteaptă o apăsare, ca scrierea să nu intre în timpii măsurați. Fiecare scriere are și ea un rând (`perf_flush`, câte rânduri și cât a durat). Fără dosarul `/perf` nu se scrie nimic. Starea jurnalului apare în Diagnostic.
+
+**Întoarcerea automată**: din meniul cărții, „Întoarcere automată”, cu MENIU ciclezi între oprită, la 5 s și la 1 min. Pornește când ieși din meniu, cu „auto” în subsol. De la ultima pagină o ia de la început. Cât e pornită, dispozitivul nu adoarme de la sine, dar se oprește tot sub 3,40 V, adică la capătul experimentului E4. Prima apăsare în lector o oprește și nu face altceva. Nu se păstrează peste somn.
+
+- **E1, E2**: la 5 s, câteva sute de pagini, apoi și cu butonul. Pentru timpii exacți ai frontului și ai BUSY se pune în paralel analizorul logic pe pinul butonului și pe BUSY: frontul din jurnal e cu precizia citirii butoanelor (10 ms).
+- **E4**: încărcat complet, la 1 min, până se oprește singur.
+
+Analiza: `tools/perf/perf.py /sd/perf/0003.csv --pagini pagini.csv --baterie baterie.csv` (vezi `tools/perf/README.md`).
 
 ## Dacă ceva nu merge
 

@@ -17,6 +17,10 @@ typedef enum { PRESS_SHORT, PRESS_LONG } press_t;
 typedef struct {
     button_t button;
     press_t press;
+    // Frontul care a încheiat apăsarea (esp_timer, µs): eliberarea pentru una
+    // scurtă, apăsarea pentru una lungă. Cu precizia citirii, 10 ms; pentru E2
+    // timpul exact îl dă analizorul logic pe pin.
+    int64_t edge_us;
 } button_event_t;
 
 // Pornește taskul care citește butoanele. Un buton deja apăsat (cel care a

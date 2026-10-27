@@ -16,7 +16,7 @@
 015  n      parțială  0,32 240x66
 016  n      parțială  0,64 240x67
 017  n      parțială  0,97 240x67
-018  m      parțială  0,8 240x282
+018  m      parțială  0,8 240x315
 019  m      parțială  0,0 240x413
 020  p      parțială  8,0 232x409
 021  M      completă

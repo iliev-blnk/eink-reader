@@ -2,6 +2,7 @@
 
 #include "driver/rtc_io.h"
 #include "esp_check.h"
+#include "esp_timer.h"
 #include "esp_sleep.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
@@ -20,15 +21,17 @@ typedef struct {
     int held_ms;
     bool long_sent;  // s-a raportat o apăsare lungă: fără apăsare scurtă la eliberare
     bool ignore;     // era apăsat la inițializare: ignorat până e eliberat
+    int64_t edge_us; // ultima schimbare a citirii
+    int64_t press_us;
 } btn_t;
 
 static btn_t s_btn[BUTTON_COUNT];
 static QueueHandle_t s_queue;
 static TaskHandle_t s_task;
 
-static void post(button_t b, press_t p)
+static void post(button_t b, press_t p, int64_t edge_us)
 {
-    const button_event_t ev = {.button = b, .press = p};
+    const button_event_t ev = {.button = b, .press = p, .edge_us = edge_us};
     xQueueSend(s_queue, &ev, 0);  // se pierde când nu citește nimeni
 }
 
@@ -43,6 +46,7 @@ static void poll_task(void *arg)
             if (raw != b->raw) {
                 b->raw = raw;
                 b->stable_ms = 0;
+                b->edge_us = esp_timer_get_time();
             } else if (b->stable_ms < DEBOUNCE_MS) {
                 b->stable_ms += POLL_MS;
             }
@@ -52,8 +56,9 @@ static void poll_task(void *arg)
                 if (raw) {
                     b->held_ms = 0;
                     b->long_sent = false;
+                    b->press_us = b->edge_us;
                 } else {
-                    if (!b->ignore && !b->long_sent) post(i, PRESS_SHORT);
+                    if (!b->ignore && !b->long_sent) post(i, PRESS_SHORT, b->edge_us);
                     b->ignore = false;
                 }
             }
@@ -61,7 +66,7 @@ static void poll_task(void *arg)
                 b->held_ms += POLL_MS;
                 if (!b->ignore && !b->long_sent && b->held_ms >= LONG_MS) {
                     b->long_sent = true;
-                    post(i, PRESS_LONG);
+                    post(i, PRESS_LONG, b->press_us);
                 }
             }
         }

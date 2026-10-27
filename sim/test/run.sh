@@ -3,7 +3,8 @@
 # (fiecare tip de înregistrare și caracter special, vezi make_fixture.py) cu
 # fontul încorporat în două configurații și compară fiecare pagină cu golden/.
 # Apoi interfața (`sim ui`): un scenariu de apăsări pe aceeași carte, comparat
-# cadru cu cadru și cu jurnalul reîmprospătărilor. Apoi, dacă s-a convertit
+# cadru cu cadru și cu jurnalul reîmprospătărilor, și întoarcerea automată,
+# cu jurnalul de măsurători citit de tools/perf/perf.py. Apoi, dacă s-a convertit
 # corpusul, paginează fiecare carte și eșuează la erori de paginare, o dată cu
 # fontul încorporat și o dată cu fonturile dispozitivului, dacă le-a construit
 # fonttool.
@@ -43,23 +44,47 @@ for cfg in default ragged; do
     fi
 done
 
+# Un scenariu `sim ui` pe layout.ibv, comparat cadru cu cadru și cu jurnalul
+# reîmprospătărilor; cardul rămâne în $out/NAME-card.
+ui_case() {
+    name=$1 keys=$2
+    mkdir -p "$out/$name-card/perf" "$out/$name"
+    cp "$here/layout.ibv" "$out/$name-card/"
+    "$sim" ui "$out/$name-card" -o "$out/$name" --idle --keys "$keys" >/dev/null
+    if [ "$update" = 1 ]; then
+        rm -rf "$here/golden/$name"
+        cp -r "$out/$name" "$here/golden/$name"
+        echo "golden/$name: $(ls "$out/$name" | wc -l) fișiere actualizate"
+    elif ! diff -r -q "$here/golden/$name" "$out/$name" >"$out/diff.txt"; then
+        echo "EȘUAT $name:"
+        sed "s|$out/||; s|$here/||" "$out/diff.txt"
+        echo "  cadrele noi sunt în $out/$name (păstrate)"
+        trap - EXIT
+        fail=1
+    else
+        echo "ok    $name: $(grep -c '^[0-9]' "$out/$name/jurnal.txt") reîmprospătări identice"
+    fi
+}
+update=0
+[ "$1" = --update ] && update=1
+
 # Biblioteca, cartea, pagini, un semn de carte, somnul cu coperta, trezirea la
 # aceeași pagină, lista semnelor și saltul la semn, somnul din nou.
-mkdir -p "$out/card" "$out/ui"
-cp "$here/layout.ibv" "$out/card/"
-"$sim" ui "$out/card" -o "$out/ui" --idle --keys "m m n n m n n m M n m n n n m m p M n" >/dev/null
-if [ "$1" = --update ]; then
-    rm -rf "$here/golden/ui"
-    cp -r "$out/ui" "$here/golden/ui"
-    echo "golden/ui: $(ls "$out/ui" | wc -l) fișiere actualizate"
-elif ! diff -r -q "$here/golden/ui" "$out/ui" >"$out/diff.txt"; then
-    echo "EȘUAT ui:"
-    sed "s|$out/||; s|$here/||" "$out/diff.txt"
-    echo "  cadrele noi sunt în $out/ui (păstrate)"
-    trap - EXIT
-    fail=1
-else
-    echo "ok    ui: $(grep -c '^[0-9]' "$out/ui/jurnal.txt") reîmprospătări identice"
+ui_case ui "m m n n m n n m M n m n n n m m p M n"
+
+# Întoarcerea automată la 5 s (FW-13): un minut de pagini, de la capăt din nou
+# după ultima, o apăsare care o oprește, o pagină obișnuită, apoi bateria
+# descărcată. Jurnalul de măsurători al acestei rulări trebuie să-l citească
+# tools/perf/perf.py: 12 întoarceri automate și una de la buton.
+ui_case auto "m m m n n n n n n m P t:60 n n b:3350 t:200"
+if [ "$update" = 0 ]; then
+    if python3 "$here/../../tools/perf/perf.py" "$out/auto-card"/perf/*.csv >"$out/perf.txt" 2>&1 \
+        && grep -q "toate: 13 (auto 12, ÎNAINTE 1)" "$out/perf.txt" \
+        && grep -q "oprit, baterie descărcată" "$out/perf.txt"; then
+        echo "ok    perf: jurnalul simulatorului citit de perf.py"
+    else
+        echo "EȘUAT perf:"; sed 's/^/  /' "$out/perf.txt"; fail=1
+    fi
 fi
 
 books=$(ls "$here"/../../corpus/out/*.ibv 2>/dev/null || true)

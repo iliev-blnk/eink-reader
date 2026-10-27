@@ -5,6 +5,12 @@
 //
 //   sim ui CARD -o DIR --keys "n n N m ..." [--wake] [--battery MV] [--perf]
 //
+// Cu dosarul CARD/perf, jurnalul de măsurători (perflog.h) se scrie ca pe
+// dispozitiv, în CARD/perf/NNNN.csv, un fișier la fiecare pornire. Timpul din
+// el e ceasul simulat, plus timpul real petrecut în pasul curent: duratele
+// paginării sunt cele de pe PC, ale panoului 0. Bun pentru încercat
+// tools/perf/perf.py, nu pentru cifre.
+//
 // CARD e rădăcina cardului: cărțile în CARD/ și CARD/books/, fonturile în
 // CARD/fonts/ (vezi sim/make_card.sh). Indexurile, pozițiile și semnele de carte
 // se scriu în CARD/.ibv/, ca pe dispozitiv; setările (NVS pe dispozitiv) în
@@ -23,8 +29,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "gfx.h"
+#include "perflog.h"
 #include "png.h"
 #include "ui.h"
 
@@ -42,6 +50,30 @@ typedef struct {
 } sim_ui_t;
 
 static uint32_t now_ms(void *ctx) { return ((sim_ui_t *)ctx)->now; }
+
+static sim_ui_t *s_sim;
+static uint64_t s_tick_real, s_last_us;    // timpul real la ultima schimbare a ceasului simulat
+
+static uint64_t real_us(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000000u + (uint64_t)ts.tv_nsec / 1000u;
+}
+
+static void set_now(sim_ui_t *s, uint32_t now)
+{
+    s->now = now;
+    s_tick_real = real_us();
+}
+
+// Crește mereu, chiar când un pas real ține mai mult decât pasul simulat.
+static uint64_t perf_us(void)
+{
+    uint64_t t = (uint64_t)s_sim->now * 1000u + (real_us() - s_tick_real);
+    if (t <= s_last_us) t = s_last_us + 1;
+    return s_last_us = t;
+}
 static int battery_mv(void *ctx) { return ((sim_ui_t *)ctx)->battery; }
 
 static void show(void *ctx, const gfx_t *g, ui_refresh_t kind, gfx_rect_t r)
@@ -51,6 +83,10 @@ static void show(void *ctx, const gfx_t *g, ui_refresh_t kind, gfx_rect_t r)
     s->shown++;
     snprintf(path, sizeof path, "%s/%03d.png", s->outdir, s->shown);
     png_write(g, path);
+    uint64_t t = perf_us();
+    perflog_add(t, "refresh", kind == UI_REFRESH_FULL, 0);
+    perflog_add(t, "refresh_io", 0, 0);
+    perflog_add(t, "refresh_rect", (uint32_t)r.x << 16 | (uint16_t)r.y, (uint32_t)r.w << 16 | (uint16_t)r.h);
     if (kind == UI_REFRESH_FULL)
         fprintf(s->log, "%03d  %-6s completă\n", s->shown, s->key);
     else
@@ -84,6 +120,7 @@ static void do_sleep(void *ctx)
 {
     sim_ui_t *s = ctx;
     s->slept = true;
+    perflog_flush(perf_us);
     fprintf(s->log, "     %-6s somn\n", s->key);
 }
 
@@ -93,12 +130,15 @@ static int diag(void *ctx, char (*lines)[UI_DIAG_LINE], int max)
     if (max < 2) return 0;
     snprintf(lines[0], UI_DIAG_LINE, "Platformă: simulator");
     snprintf(lines[1], UI_DIAG_LINE, "Ceas: %u s", (unsigned)(s->now / 1000));
-    return 2;
+    if (max < 3 || !perflog_on()) return 2;
+    snprintf(lines[2], UI_DIAG_LINE, "Jurnal: %s, %d în memorie", perflog_file(), perflog_pending());
+    return 3;
 }
 
 static void perf(void *ctx, const char *event, uint32_t a, uint32_t b)
 {
     sim_ui_t *s = ctx;
+    perflog_add(perf_us(), event, a, b);
     if (s->perf) fprintf(stderr, "perf %8u %-14s %u %u\n", (unsigned)s->now, event, (unsigned)a, (unsigned)b);
 }
 
@@ -110,7 +150,9 @@ static void idle_all(ui_t *ui)
 int cmd_ui(int argc, char **argv)
 {
     static uint8_t buf[GFX_BUF_SIZE(W, H)];
-    sim_ui_t s = {.outdir = ".", .battery = 3900, .now = 1000};
+    sim_ui_t s = {.outdir = ".", .battery = 3900};
+    s_sim = &s;
+    set_now(&s, 1000);
     const char *keys = "";
     bool wake = false, idle = false;
     for (int i = 1; i < argc; i++) {
@@ -137,6 +179,7 @@ int cmd_ui(int argc, char **argv)
         .perf = perf,
     };
     strcpy(s.key, "start");
+    perflog_open(s.root, perf_us());
     ui_t *ui = ui_init(&p, &g);
     ui_start(ui, wake ? UI_BOOT_WAKE : UI_BOOT_COLD);
     if (idle) idle_all(ui);
@@ -149,8 +192,9 @@ int cmd_ui(int argc, char **argv)
             // Ca platforma: ui_idle la fiecare termen dat de ui_wait_ms, până trec secundele sau doarme.
             while (!s.slept && s.now < end) {
                 uint32_t step = ui_wait_ms(ui);
-                s.now = step && s.now + step < end ? s.now + step : end;
+                set_now(&s, step && s.now + step < end ? s.now + step : end);
                 idle_all(ui);
+                perflog_flush(perf_us);
             }
             continue;
         }
@@ -158,9 +202,10 @@ int cmd_ui(int argc, char **argv)
             s.battery = atoi(tok + 2);
             continue;
         }
-        s.now += 1000;
+        set_now(&s, s.now + 1000);
         if (s.slept) {
             s.slept = false;
+            perflog_open(s.root, perf_us());     // o pornire nouă, un fișier nou
             ui = ui_init(&p, &g);
             ui_start(ui, UI_BOOT_WAKE);
             if (idle) idle_all(ui);
@@ -178,7 +223,9 @@ int cmd_ui(int argc, char **argv)
         }
         ui_key(ui, (ui_key_t)(c - k), tok[0] >= 'a' ? UI_SHORT : UI_LONG);
         if (idle && !s.slept) idle_all(ui);
+        perflog_flush(perf_us);
     }
+    perflog_flush(perf_us);
     free(script);
     fclose(s.log);
     printf("%d reîmprospătări în %s (jurnal.txt)\n", s.shown, s.outdir);

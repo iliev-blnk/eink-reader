@@ -162,7 +162,7 @@ Limbajul și stiva (decizia mea): **C pe ESP-IDF** (ultima versiune stabilă), c
   *v0 2026-10-27: toate, plus cuprinsul și lista semnelor de carte. Punerea în funcțiune rămâne, cu MENIU ținut la o pornire la rece.*
 - [ ] FW-11 Progresul și semnele de carte: fișiere însoțitoare lângă fiecare carte (vezi SPEC). *v0 2026-10-27: `.pos`, `.bm` (până la 64), `.pg` și `/.ibv/recent`, scrise prin `.tmp` + ștergere + redenumire.*
 - [ ] FW-12 Stocare de masă USB pe USB nativ (TinyUSB MSC): conectat la un PC, cardul SD apare ca disc și se copiază cărțile. Pe dispozitiv FATFS e demontat cât USB-ul e activ.
-- [ ] FW-13 Puncte de măsurare: un jurnal `perf` de marcaje de timp (frontul butonului, începutul/sfârșitul paginării, transferul SPI, BUSY jos/sus) scris pe SD ca CSV, plus un mod de test cu „întoarcere automată a paginii”.
+- [ ] FW-13 Puncte de măsurare: un jurnal `perf` de marcaje de timp (frontul butonului, începutul/sfârșitul paginării, transferul SPI, BUSY jos/sus) scris pe SD ca CSV, plus un mod de test cu „întoarcere automată a paginii”. *v0 2026-10-28: `perflog.c` (pornit de dosarul `/perf`, scris doar când bucla așteaptă), frontul butonului în evenimentul din coadă, reîmprospătarea cu SPI și BUSY separate, întoarcerea automată la 5 s / 1 min din meniul cărții; analiza în `tools/perf/perf.py` (E1, E2, E4, E6), încercată pe jurnalul simulatorului. Încă nefolosit pe hardware.*
 - [ ] FW-14 Scrierea în flash și testarea pe prototip după fiecare funcție. Raportează și fotografiază orice e ciudat.
 
 **Gata când:** poți citi un roman întreg pe prototip folosind doar dispozitivul (bibliotecă → carte → lectură → somn → trezire → aceeași pagină), fără căderi și fără SD corupt după 100 de cicluri somn/trezire.

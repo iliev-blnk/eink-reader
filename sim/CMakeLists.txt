@@ -22,6 +22,7 @@ add_executable(sim
     ${CORE}/fonts/font_ui16.c
     ${CORE}/fonts/font_ui12.c
     ${UI}/ui.c
+    ${UI}/perflog.c
     ${UI}/settings.c
     ${UI}/sidecar.c
     ${UI}/app_library.c

@@ -3,6 +3,7 @@
 // Butoanele în lector: ÎNAINTE / ÎNAPOI = pagina următoare / dinainte;
 // ÎNAINTE lung = capitolul următor; ÎNAPOI lung = începutul capitolului (sau
 // cel dinainte, dacă ești deja la început); MENIU = meniul; MENIU lung = somn.
+// Cu întoarcerea automată pornită (din meniu), prima apăsare doar o oprește.
 //
 // O singură carte e deschisă odată, cu fonturile ei încărcate de pe card în
 // memorie (Libron sau PT Serif după limbă, fontsel.c). Poziția se salvează în
@@ -273,6 +274,14 @@ static void chapter(ui_t *ui, int dir)
     if (dir < 0) go_to_containing(ui, target);
 }
 
+void reader_auto_turn(ui_t *ui)
+{
+    if (!R.open) return;
+    ui_perf(ui, "auto_turn", R.page.start.para, (uint32_t)(ui->battery_mv > 0 ? ui->battery_mv : 0));
+    if (R.page.at_end) go_to(ui, (layout_pos_t){0, 0});   // o ia de la capăt, cât ține bateria (E4)
+    else next_page(ui);
+}
+
 static void reader_key(ui_t *ui, ui_key_t k, ui_press_t p)
 {
     if (k == UI_KEY_NEXT) p == UI_SHORT ? next_page(ui) : chapter(ui, 1);
@@ -282,18 +291,18 @@ static void reader_key(ui_t *ui, ui_key_t k, ui_press_t p)
 
 static void draw_footer(ui_t *ui, gfx_t *g)
 {
-    (void)ui;
     const font_t *f = &font_ui12;
     int y = UI_H - 7;
-    char right[24];
+    char right[32];
+    const char *mark = ui->auto_ms ? "auto · " : "";     // întoarcerea automată e pornită
     int32_t n = R.idx.complete ? pageidx_find(&R.idx, R.page.start) : -1;
     if (n >= 0) {
-        snprintf(right, sizeof right, "%d / %u", (int)n + 1, (unsigned)R.idx.count);
+        snprintf(right, sizeof right, "%s%d / %u", mark, (int)n + 1, (unsigned)R.idx.count);
     } else {
         uint32_t off = 0;
         ibv_text_offset(&R.book, R.page.start.para, R.page.start.byte, &off);
         unsigned pct = R.page.at_end ? 100u : (unsigned)((uint64_t)off * 100 / (R.book.text_bytes ? R.book.text_bytes : 1));
-        snprintf(right, sizeof right, "%u%%", pct);
+        snprintf(right, sizeof right, "%s%u%%", mark, pct);
     }
     int rw = gfx_text_width(f, right);
     gfx_text(g, f, UI_W - R.margin - rw, y, right, GFX_BLACK);
@@ -370,8 +379,20 @@ int reader_diag(char (*lines)[UI_DIAG_LINE], int max)
 
 // ---- meniul lectorului ----
 
-enum { M_BACK, M_TOC, M_MARK, M_MARKS, M_SIZE, M_SETTINGS, M_LIBRARY, M_DIAG };
-static int s_menu[9], s_menu_count;
+enum { M_BACK, M_TOC, M_MARK, M_MARKS, M_SIZE, M_SETTINGS, M_LIBRARY, M_AUTO, M_DIAG };
+static int s_menu[10], s_menu_count;
+
+// Întoarcerea automată, pentru măsurători: la 5 s pentru timpii unei pagini
+// (E1, E2), la un minut pentru autonomie (E4).
+static const uint32_t s_auto_ms[] = {0, 5000, 60000};
+static const char *const s_auto_name[] = {"oprită", "la 5 s", "la 1 min"};
+
+static int auto_option(const ui_t *ui)
+{
+    for (int i = 1; i < 3; i++)
+        if (ui->auto_ms == s_auto_ms[i]) return i;
+    return 0;
+}
 
 static void menu_item(ui_t *ui, int i, char *label, char *value, char *sub)
 {
@@ -392,6 +413,10 @@ static void menu_item(ui_t *ui, int i, char *label, char *value, char *sub)
         break;
     case M_SETTINGS: strcpy(label, "Setări"); break;
     case M_LIBRARY: strcpy(label, "Biblioteca"); break;
+    case M_AUTO:
+        strcpy(label, "Întoarcere automată");
+        strcpy(value, s_auto_name[auto_option(ui)]);
+        break;
     case M_DIAG: strcpy(label, "Diagnostic"); break;
     }
 }
@@ -406,6 +431,7 @@ static void menu_build(ui_t *ui, int sel)
     s_menu[s_menu_count++] = M_SIZE;
     s_menu[s_menu_count++] = M_SETTINGS;
     s_menu[s_menu_count++] = M_LIBRARY;
+    s_menu[s_menu_count++] = M_AUTO;
     s_menu[s_menu_count++] = M_DIAG;     // cu rândurile lectorului: fontul, indexul, timpul paginii
     const char *t = R.book.meta[IBV_TITLE];
     ui_list_reset(ui_my_list(ui), t && *t ? t : "Cartea", s_menu_count, sel, false, menu_item);
@@ -443,6 +469,13 @@ static void menu_key(ui_t *ui, ui_key_t k, ui_press_t p)
         ui_redraw(ui, false);
         break;
     case M_SETTINGS: ui_push(ui, &app_settings); break;
+    case M_AUTO:
+        // Pornește la ieșirea din meniu: prima pagină vine după o perioadă întreagă.
+        ui->auto_ms = s_auto_ms[(auto_option(ui) + 1) % 3];
+        ui->auto_at = ui_now(ui) + ui->auto_ms;
+        ui_perf(ui, "auto_set", ui->auto_ms, 0);
+        ui_redraw(ui, false);
+        break;
     case M_DIAG: ui_push(ui, &app_diag); break;
     case M_LIBRARY:
         if (!ui_pop_to(ui, &app_library)) {

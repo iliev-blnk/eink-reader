@@ -62,7 +62,8 @@ ui_t *ui_init(const ui_platform_t *p, gfx_t *g);
 // trezire, cartea citită înainte de somn, la aceeași pagină, dacă există.
 void ui_start(ui_t *ui, ui_boot_t boot);
 void ui_key(ui_t *ui, ui_key_t key, ui_press_t press);
-// Lucrul de fundal și temporizatoarele (somnul după inactivitate, bateria).
+// Lucrul de fundal și temporizatoarele (somnul după inactivitate, bateria,
+// întoarcerea automată a paginilor).
 // Întoarce true dacă mai e lucru de fundal: platforma îl apelează din nou
 // imediat ce nu așteaptă nicio apăsare.
 bool ui_idle(ui_t *ui);
@@ -72,5 +73,5 @@ uint32_t ui_wait_ms(ui_t *ui);
 void ui_sleep(ui_t *ui);
 
 // Procentul unei baterii LiPo după tensiunea ei în repaus (FW-8). Curba e una
-// tipică; se calibrează după descărcarea măsurată în E5.
+// tipică; se calibrează după descărcarea măsurată în E4.
 int ui_battery_pct(int mv);

@@ -55,6 +55,9 @@ struct ui {
     uint32_t last_key_ms;
     uint32_t last_battery_ms;
     int battery_mv;
+    // Întoarcerea automată a paginilor (FW-13, pentru E1, E2, E4): perioada în
+    // ms, 0 = oprită, și când vine următoarea. Nu se păstrează peste somn.
+    uint32_t auto_ms, auto_at;
     settings_t set;
     bool settings_dirty;
     recent_t recent;
@@ -103,6 +106,8 @@ void reader_close(ui_t *ui);
 bool reader_is_open(void);
 const ibv_t *reader_book(void);
 void reader_save(ui_t *ui);                    // poziția în .pos și indexul, dacă s-a schimbat
+// Pagina următoare, pentru întoarcerea automată; de la ultima pagină, prima.
+void reader_auto_turn(ui_t *ui);
 // Rândurile lectorului pentru ecranul de diagnostic.
 int reader_diag(char (*lines)[UI_DIAG_LINE], int max);
 

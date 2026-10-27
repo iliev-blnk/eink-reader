@@ -1,0 +1,30 @@
+001  start  completă
+002  start  parțială  0,0 240x413
+003  m      parțială  8,8 224x220
+004  m      completă
+005  m      parțială  192,400 40x9
+006  m      parțială  0,0 240x413
+007  n      parțială  0,32 240x66
+008  n      parțială  0,64 240x67
+009  n      parțială  0,97 240x67
+010  n      parțială  0,130 240x67
+011  n      parțială  0,163 240x67
+012  n      parțială  0,196 240x67
+013  m      parțială  176,241 56x16
+014  P      completă
+015  t:60   parțială  8,18 224x391
+016  t:60   parțială  8,18 224x391
+017  t:60   parțială  8,18 224x391
+018  t:60   parțială  8,18 224x391
+019  t:60   parțială  8,18 224x391
+020  t:60   parțială  8,18 224x394
+021  t:60   parțială  8,18 224x394
+022  t:60   parțială  8,18 224x391
+023  t:60   parțială  8,18 224x394
+024  t:60   completă
+025  t:60   parțială  8,18 224x391
+026  t:60   parțială  8,18 224x391
+027  n      parțială  160,400 72x9
+028  n      parțială  8,18 224x391
+029  t:200  completă
+     t:200  somn

@@ -250,6 +250,12 @@ static void low_battery(ui_t *ui, gfx_t *g) { draw_low_battery(g, ui->battery_mv
 
 static bool battery_low(const ui_t *ui) { return ui->battery_mv > NO_BATTERY_MV && ui->battery_mv < LOW_MV; }
 
+// Se întoarce doar cu lectorul deasupra: în meniu sau în cuprins pagina stă.
+static bool auto_due(const ui_t *ui, uint32_t now)
+{
+    return ui->auto_ms && ui_top(ui) == &app_reader && (int32_t)(now - ui->auto_at) >= 0;
+}
+
 void ui_start(ui_t *ui, ui_boot_t boot)
 {
     if (battery_low(ui)) {
@@ -283,7 +289,14 @@ void ui_key(ui_t *ui, ui_key_t key, ui_press_t press)
         return;
     }
     const app_t *t = ui_top(ui);
-    if (t && t->key) t->key(ui, key, press);
+    if (ui->auto_ms && t == &app_reader) {
+        // Orice apăsare în lector oprește întoarcerea automată, și doar atât.
+        ui->auto_ms = 0;
+        ui_perf(ui, "auto_stop", 0, 0);
+        ui_redraw(ui, false);        // dispare „auto” din subsol
+    } else if (t && t->key) {
+        t->key(ui, key, press);
+    }
     flush(ui);
 }
 
@@ -293,14 +306,22 @@ bool ui_idle(ui_t *ui)
     if (now - ui->last_battery_ms >= BATTERY_EVERY_MS && ui->p.battery_mv) {
         ui->last_battery_ms = now;
         ui->battery_mv = ui->p.battery_mv(ui->p.ctx);
+        ui_perf(ui, "battery", (uint32_t)(ui->battery_mv > 0 ? ui->battery_mv : 0), 0);
         if (battery_low(ui)) {
-            sleep_now(ui, low_battery);
+            sleep_now(ui, low_battery);    // cu întoarcerea automată: capătul lui E4
             return false;
         }
     }
-    if (now - ui->last_key_ms >= (uint32_t)settings_value(&ui->set, SET_SLEEP) * 60000u) {
+    // Cu întoarcerea automată pornită dispozitivul nu adoarme de la sine.
+    if (!ui->auto_ms && now - ui->last_key_ms >= (uint32_t)settings_value(&ui->set, SET_SLEEP) * 60000u) {
         ui_sleep(ui);
         return false;
+    }
+    if (auto_due(ui, now)) {
+        ui->auto_at = now + ui->auto_ms;
+        reader_auto_turn(ui);
+        flush(ui);     // pagina întâi; indexul din fundal abia la apelul următor, ca să nu intre în timpi
+        return true;
     }
     bool more = false;
     for (int i = ui->depth - 1; i >= 0; i--)
@@ -317,7 +338,13 @@ uint32_t ui_wait_ms(ui_t *ui)
     uint32_t a = sleep_at - now, b = battery_at - now;
     if ((int32_t)a < 0) a = 0;
     if ((int32_t)b < 0) b = 0;
-    return a < b ? a : b;
+    if (ui->auto_ms) a = UINT32_MAX;      // fără somn de la sine
+    uint32_t w = a < b ? a : b;
+    if (ui->auto_ms && ui_top(ui) == &app_reader) {
+        uint32_t c = (int32_t)(ui->auto_at - now) < 0 ? 0 : ui->auto_at - now;
+        if (c < w) w = c;
+    }
+    return w;
 }
 
 int ui_battery_pct(int mv)

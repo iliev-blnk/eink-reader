@@ -28,3 +28,10 @@ docs/sessions/
 .DS_Store
 sim/build/
 sim/out/
+# Converter test corpus (downloaded by corpus/fetch.sh, see corpus/README.md)
+corpus/files/
+corpus/out/
+
+# fonttool: downloaded source fonts (fetch-fonts.sh) and built fonts
+tools/fonttool/fonts/
+tools/fonttool/out/

@@ -1,0 +1,303 @@
+"""From parsed input to an ibv.Book.
+
+Every reader (txt.py, epub.py, fb2.py) feeds a `Builder`: text with styles,
+paragraph ends with a kind, breaks, anchors and TOC entries. `finish()` then
+does the work that is the same for every input:
+
+1. clean up the text (textnorm), map characters the font lacks (glyphs);
+2. tidy the structure: paragraphs that are really stanzas (short lines
+   joined by <br>) become VERSE lines; drop empty paragraphs, merge repeated
+   breaks, drop breaks at the edges and next to headings, no indent after a
+   heading;
+3. hyphenate prose (soft hyphens);
+4. split paragraphs too long for one record, mark the rest CONT;
+5. turn styles into byte runs and resolve TOC targets to paragraph numbers.
+"""
+from __future__ import annotations
+
+import datetime
+import re
+from dataclasses import dataclass, field
+
+import glyphs
+import ibv
+import textnorm
+from hyphenate import WORD, Hyphenator, should_hyphenate
+from textnorm import SHY, Styled
+
+CONVERTER = "ibv-convert 0.1"
+SPLIT_BYTES = 8192          # longer paragraphs become several CONT records
+VERSE_MAX_LINE = 80         # a <br>-joined paragraph whose lines all fit is a stanza
+VERSE_MEAN_LINE = 55
+LSEP = textnorm.LSEP
+LSEP_SPACES = re.compile(rf" *{LSEP} *")
+LSEP_RUN = re.compile(rf"{LSEP}{{3,}}")
+HYPHENATED_KINDS = (ibv.PARA, ibv.QUOTE)
+
+
+@dataclass
+class Item:
+    kind: int
+    flags: int = 0
+    st: Styled = field(default_factory=Styled)
+
+
+@dataclass
+class TocRef:
+    target: object          # an anchor key, or an int item index
+    level: int
+    title: str
+
+
+class Builder:
+    def __init__(self) -> None:
+        self.items: list[Item] = []
+        self.cur = Styled()
+        self.anchors: dict[object, int] = {}
+        self.toc: list[TocRef] = []
+
+    # text
+    def text(self, s: str, style: int = 0) -> None:
+        if s:
+            self.cur.append(s, style)
+
+    def line_break(self) -> None:
+        self.cur.append(textnorm.LSEP, 0)
+
+    def has_text(self) -> bool:
+        return bool(self.cur.text.strip(" \t\r\n\u00a0\u2028"))
+
+    # structure
+    def end(self, kind: int = ibv.PARA, flags: int = 0) -> int | None:
+        """Ends the current paragraph. Returns its item index, or None if empty."""
+        st, self.cur = self.cur, Styled()
+        if not st.text.strip(" \t\r\n\u00a0\u2028"):
+            return None
+        self.items.append(Item(kind, flags, st))
+        return len(self.items) - 1
+
+    def brk(self, ornament: bool = False) -> None:
+        self.end()
+        self.items.append(Item(ibv.BREAK, ibv.BREAK_ORNAMENT if ornament else 0))
+
+    def anchor(self, key: object) -> None:
+        """Marks `key` as pointing at the next paragraph to be ended."""
+        self.anchors.setdefault(key, len(self.items))
+
+    def toc_entry(self, target: object, level: int, title: str) -> None:
+        self.toc.append(TocRef(target, level, title))
+
+
+@dataclass
+class Report:
+    paragraphs: int = 0
+    hyphenated_words: int = 0
+    hyphenation: str = ""
+    missing: dict[str, int] = field(default_factory=dict)
+    replaced: dict[str, int] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
+
+
+def finish(b: Builder, meta: dict[str, str], *, hyphenate: bool = True,
+           ro_legacy: bool | None = None, cover: ibv.Cover | None = None,
+           charset: set[int] | None = None) -> tuple[ibv.Book, Report]:
+    lang = meta["language"]
+    rep = Report()
+    if ro_legacy is None:
+        sample = "".join(it.st.text for it in b.items[:2000])
+        ro_legacy = lang.lower().startswith(("ro", "mo")) and textnorm.detect_ro_legacy(sample)
+    if ro_legacy:
+        rep.warnings.append("Romanian typed with ã/º/þ for ă/ș/ț: mapped back")
+    charset = charset if charset is not None else glyphs.default_charset()
+
+    # 1. text clean-up; each source item becomes zero or more items
+    groups: list[list[Item]] = []
+    for it in b.items:
+        if it.kind == ibv.BREAK:
+            groups.append([it])
+            continue
+        st = textnorm.normalize(it.st, lang, ro_legacy)
+        st = glyphs.apply(st, charset, rep.missing, rep.replaced)
+        st = textnorm.strip(textnorm.sub(st, textnorm.DOUBLE_SPACE, " "))
+        st = _tidy_line_breaks(st)
+        if not st.text.strip(" "):
+            groups.append([])
+        elif it.kind == ibv.PARA and _is_stanza(st.text):
+            groups.append(_stanza(st, it.flags & ibv.ALIGN_MASK))
+        else:
+            groups.append([Item(it.kind, it.flags, st)])
+
+    # 2. structure
+    keep: list[Item] = []
+    new_index: list[int] = []            # old item index -> index in keep (next surviving)
+    for group in groups:
+        new_index.append(len(keep))
+        for it in group:
+            _place(it, keep, new_index)
+    while keep and keep[-1].kind == ibv.BREAK:
+        keep.pop()
+    new_index = [min(i, len(keep) - 1) for i in new_index]
+    for prev, it in zip([None] + keep, keep):
+        if it.kind == ibv.PARA and prev is not None and prev.kind in (ibv.HEADING, ibv.BREAK):
+            it.flags |= ibv.NO_INDENT
+
+    # 3. hyphenation
+    hy = Hyphenator.for_language(lang) if hyphenate else None
+    if hyphenate and hy is None:
+        rep.warnings.append(f"no hyphenation patterns for language '{lang}': not hyphenated")
+    rep.hyphenation = "off" if not hyphenate else ("none" if hy is None else lang)
+    if hy:
+        for it in keep:
+            if it.kind in HYPHENATED_KINDS:
+                it.st, n = _hyphenate(it.st, hy)
+                rep.hyphenated_words += n
+
+    # 4 + 5. records
+    records: list[ibv.Record] = []
+    first_record: list[int] = []          # keep index -> first record index
+    for it in keep:
+        first_record.append(len(records))
+        if it.kind == ibv.BREAK:
+            records.append(ibv.Record(ibv.BREAK, "", it.flags))
+            continue
+        for k, part in enumerate(_split(it.st, SPLIT_BYTES)):
+            flags = it.flags if k == 0 else (it.flags & ~ibv.NO_INDENT) | ibv.CONT
+            records.append(ibv.Record(it.kind, part.text, flags, _runs(part)))
+    rep.paragraphs = len(records)
+    if not records:
+        raise ibv.FormatError("no text found in the input")
+
+    toc = _resolve_toc(b, new_index, first_record, keep, lang, ro_legacy, rep)
+    meta = {k: v for k, v in meta.items() if v}
+    for key in ("title", "author", "description"):
+        if key in meta:
+            meta[key] = textnorm.plain(meta[key], lang, ro_legacy)
+    meta.setdefault("converter", CONVERTER)
+    meta.setdefault("converted", datetime.date.today().isoformat())
+    return ibv.Book(meta, records, toc, cover), rep
+
+
+def _place(it: Item, keep: list[Item], new_index: list[int]) -> None:
+    if it.kind == ibv.BREAK:
+        if keep and keep[-1].kind == ibv.BREAK:
+            keep[-1].flags |= it.flags
+            return
+        if not keep or keep[-1].kind == ibv.HEADING:
+            return
+    elif it.kind == ibv.HEADING and keep and keep[-1].kind == ibv.BREAK:
+        keep.pop()
+        new_index[-1] = min(new_index[-1], len(keep))
+    keep.append(it)
+
+
+def _tidy_line_breaks(st: Styled) -> Styled:
+    """No spaces around a line break, at most one empty line in a row."""
+    st = textnorm.sub(st, LSEP_SPACES, LSEP)
+    st = textnorm.sub(st, LSEP_RUN, LSEP * 2)
+    return textnorm.strip(st)
+
+
+def _is_stanza(text: str) -> bool:
+    lines = [l for l in text.split(LSEP) if l]
+    if len(lines) < 2:
+        return False
+    lengths = [len(l) for l in lines]
+    return max(lengths) <= VERSE_MAX_LINE and sum(lengths) / len(lengths) <= VERSE_MEAN_LINE
+
+
+def _stanza(st: Styled, align: int) -> list[Item]:
+    """One VERSE item per line, a BREAK at each empty line and after the stanza."""
+    out, start = [], 0
+    for i in range(len(st.text) + 1):
+        if i == len(st.text) or st.text[i] == LSEP:
+            line = textnorm.strip(Styled(st.text[start:i], st.styles[start:i]))
+            if line.text:
+                out.append(Item(ibv.VERSE, align, line))
+            elif out and out[-1].kind != ibv.BREAK:
+                out.append(Item(ibv.BREAK))
+            start = i + 1
+    out.append(Item(ibv.BREAK))
+    return out
+
+
+def _resolve_toc(b: Builder, new_index, first_record, keep, lang, ro_legacy, rep) -> list[ibv.TocEntry]:
+    refs = b.toc
+    if not refs:   # no TOC in the source: build one from the headings
+        refs = [TocRef(i, 1 + ((it.flags & ibv.LEVEL_MASK) >> ibv.LEVEL_SHIFT), it.st.text)
+                for i, it in enumerate(b.items) if it.kind == ibv.HEADING]
+    out: list[ibv.TocEntry] = []
+    for ref in refs:
+        idx = ref.target if isinstance(ref.target, int) else b.anchors.get(ref.target)
+        if idx is None:
+            rep.warnings.append(f"TOC entry {ref.title!r}: target {ref.target!r} not found")
+            continue
+        if idx >= len(new_index):
+            idx = len(new_index) - 1
+        para = first_record[new_index[idx]] if idx >= 0 else 0
+        title = textnorm.plain(ref.title, lang, ro_legacy).replace(SHY, "")
+        if not title:
+            continue
+        if out and para <= out[-1].para:
+            continue                       # same target as the entry before (e.g. part + chapter)
+        out.append(ibv.TocEntry(para, min(max(ref.level, 1), 4), title[:200]))
+    return out
+
+
+def _hyphenate(st: Styled, hy: Hyphenator) -> tuple[Styled, int]:
+    text, styles = st.text, st.styles
+    out, sty, pos, n = [], [], 0, 0
+    for m in WORD.finditer(text):
+        word = m.group(0)
+        if not should_hyphenate(word):
+            continue
+        pts = hy.points(word)
+        if not pts:
+            continue
+        n += 1
+        a = m.start()
+        for p in pts:
+            out.append(text[pos:a + p])
+            sty.extend(styles[pos:a + p])
+            out.append(SHY)
+            sty.append(styles[a + p - 1])
+            pos = a + p
+    if not n:
+        return st, 0
+    out.append(text[pos:])
+    sty.extend(styles[pos:])
+    return Styled("".join(out), sty), n
+
+
+def _split(st: Styled, limit: int) -> list[Styled]:
+    if len(st.text.encode("utf-8")) <= limit:
+        return [st]
+    parts, start, size, last_space = [], 0, 0, -1
+    for i, ch in enumerate(st.text):
+        if ch == " ":
+            last_space = i
+        size += len(ch.encode("utf-8"))
+        if size > limit and last_space > start:
+            parts.append(Styled(st.text[start:last_space], st.styles[start:last_space]))
+            start = last_space + 1
+            size = len(st.text[start:i + 1].encode("utf-8"))
+            last_space = -1
+    parts.append(Styled(st.text[start:], st.styles[start:]))
+    return parts
+
+
+def _runs(st: Styled) -> list[tuple[int, int, int]]:
+    runs, byte, cur, cur_start = [], 0, 0, 0
+    for ch, s in zip(st.text, st.styles):
+        s &= ibv.STYLE_KNOWN
+        if s != cur:
+            if cur:
+                runs.append((cur_start, byte - cur_start, cur))
+            cur, cur_start = s, byte
+        byte += len(ch.encode("utf-8"))
+    if cur:
+        runs.append((cur_start, byte - cur_start, cur))
+    return runs
+
+
+def heading_flags(level: int, align: int = ibv.ALIGN_CENTER) -> int:
+    return align | ((min(max(level, 1), 4) - 1) << ibv.LEVEL_SHIFT)

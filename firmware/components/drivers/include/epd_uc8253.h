@@ -1,13 +1,13 @@
-// Driver for the UC8253 e-paper controller on the GDEY037T03 panel
-// (WeAct 3.7", 240x416, black/white), 4-wire SPI.
+// Driverul controlerului e-paper UC8253 de pe panoul GDEY037T03
+// (WeAct 3,7", 240x416, alb-negru), SPI pe 4 fire.
 //
-// Written for this project from the UC8253 command set. The command values and
-// timings were cross-checked against Good Display's sample code and GxEPD2
-// (GPL-3.0, Jean-Marc Zingg); no code is copied from either.
+// Scris pentru proiectul ăsta după setul de comenzi UC8253. Valorile comenzilor
+// și timpii au fost verificați față de codul exemplu de la Good Display și față
+// de GxEPD2 (GPL-3.0, Jean-Marc Zingg); nu e copiat cod din niciunul.
 //
-// The framebuffer is in the panel's native format and orientation: 240 px wide,
-// 416 rows, 8 px per byte, MSB = leftmost, bit 1 = white (the same as gfx_t).
-// Not thread-safe: call from one task.
+// Framebufferul e în formatul și orientarea native ale panoului: 240 px lățime,
+// 416 rânduri, 8 px pe octet, MSB = cel mai din stânga, bitul 1 = alb (la fel ca
+// gfx_t). Nu e sigur pentru mai multe fire: se apelează dintr-un singur task.
 #pragma once
 
 #include <stdbool.h>
@@ -22,45 +22,47 @@
 #define EPD_FB_SIZE (EPD_WIDTH / 8 * EPD_HEIGHT)
 
 typedef struct {
-    spi_host_device_t host;  // the bus must already be initialized
+    spi_host_device_t host;  // magistrala trebuie să fie deja inițializată
     gpio_num_t cs, dc, rst, busy;
     int clock_hz;
-    // Full refresh with a forced-temperature waveform: ~1 s instead of ~3 s,
-    // but outside the panel's specified low-temperature range.
+    // Reîmprospătare completă cu forma de undă pentru o temperatură forțată:
+    // ~1 s în loc de ~3 s, dar în afara domeniului specificat al panoului la
+    // temperaturi joase.
     bool fast_full;
 } epd_config_t;
 
-// What the last refresh did and how long each phase took (for PERF logs and
-// experiment E1). The window is the area actually refreshed after alignment.
+// Ce a făcut ultima reîmprospătare și cât a durat fiecare fază (pentru
+// jurnalele PERF și experimentul E1). Fereastra e zona reîmprospătată efectiv,
+// după aliniere.
 typedef struct {
     bool full;
     int x, y, w, h;
-    uint32_t write_us;      // SPI transfer of image data (both RAMs)
-    uint32_t power_on_us;   // BUSY time after POWER ON
-    uint32_t refresh_us;    // BUSY time after DISPLAY REFRESH: the visible update
-    uint32_t power_off_us;  // BUSY time after POWER OFF
-    uint32_t total_us;      // the whole call
+    uint32_t write_us;      // transferul SPI al imaginii (ambele RAM-uri)
+    uint32_t power_on_us;   // timpul BUSY după POWER ON
+    uint32_t refresh_us;    // timpul BUSY după DISPLAY REFRESH: actualizarea vizibilă
+    uint32_t power_off_us;  // timpul BUSY după POWER OFF
+    uint32_t total_us;      // tot apelul
 } epd_timing_t;
 
-// Adds the SPI device, configures the pins, resets the panel and checks that
-// it answers (one power on/off cycle). Call it before adding other devices to
-// the same bus, so the panel's CS is driven high from the start.
-// Errors: ESP_ERR_INVALID_RESPONSE if BUSY never reacts (wiring or SPI mode),
-// ESP_ERR_TIMEOUT if BUSY stays low.
+// Adaugă dispozitivul SPI, configurează pinii, resetează panoul și verifică dacă
+// răspunde (un ciclu de pornire și oprire). Se apelează înainte de a adăuga alte
+// dispozitive pe aceeași magistrală, ca CS-ul panoului să fie în 1 de la început.
+// Erori: ESP_ERR_INVALID_RESPONSE dacă BUSY nu reacționează deloc (cablajul sau
+// modul SPI), ESP_ERR_TIMEOUT dacă BUSY rămâne în 0.
 esp_err_t epd_init(const epd_config_t *cfg);
 
-// Full refresh: the panel flashes and every pixel is redrawn, clearing ghosting.
+// Reîmprospătare completă: panoul clipește și fiecare pixel se redesenează, ștergând imaginile fantomă.
 esp_err_t epd_full_refresh(const uint8_t *fb);
 
-// Partial refresh of a window, without flashing. x and w are widened to whole
-// bytes. Falls back to a full refresh when the controller doesn't hold the
-// current screen yet (first refresh after init or after epd_sleep).
+// Reîmprospătarea parțială a unei ferestre, fără clipire. x și w se lărgesc la
+// octeți întregi. Trece la o reîmprospătare completă când controlerul încă nu
+// ține ecranul curent (prima reîmprospătare după inițializare sau după epd_sleep).
 esp_err_t epd_partial_refresh(const uint8_t *fb, int x, int y, int w, int h);
 
-// Puts the controller in deep sleep, its lowest-current state, and holds RST
-// high so it stays there while the ESP32 sleeps too. The next refresh wakes it
-// with a hardware reset and is always a full refresh, because the controller's
-// image RAM isn't trusted after deep sleep (to be checked on the real panel).
+// Pune controlerul în somn adânc, starea lui cu cel mai mic curent, și ține RST
+// în 1 ca să rămână acolo cât doarme și ESP32. Următoarea reîmprospătare îl
+// trezește cu un reset hardware și e mereu completă, pentru că după somnul adânc
+// nu ne putem baza pe RAM-ul de imagine al controlerului (de verificat pe panoul real).
 esp_err_t epd_sleep(void);
 
 const epd_timing_t *epd_last_timing(void);

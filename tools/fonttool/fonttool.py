@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
-"""fonttool: TTF/OTF -> IBF bitmap fonts for the e-reader (CONV-8).
+"""fonttool: TTF/OTF -> fonturi bitmap IBF pentru cititorul e-ink (CONV-8).
 
     fonttool.py build --ttf FONT.ttf --size 18 [--style b] [--axes wght=700]
                       [--render mono|gray] [--threshold 128] [--name "PT Serif"] -o out.ibf
-    fonttool.py family ptserif --sizes 16,18,20 -o DIR     # all four faces per size, from FAMILIES
-    fonttool.py c --ttf FONT.ttf --size 16 --name font_ui16 --out font_ui16.c   # compiled-in font
+    fonttool.py family ptserif --sizes 16,18,20 -o DIR     # toate cele patru stiluri pe mărime, din FAMILIES
+    fonttool.py c --ttf FONT.ttf --size 16 --name font_ui16 --out font_ui16.c   # font compilat în firmware
     fonttool.py validate FILE.ibf [...]
     fonttool.py dump FILE.ibf [--sample "Șa"]
     fonttool.py sheet FILE.ibf [...] -o sheet.png [--text "..."] [--width 240]
 
-The format is spec/font-format.md, implemented by ibf.py.
+Formatul e spec/font-format.md, implementat de ibf.py.
 
-Bitmaps come from FreeType through Pillow, one of two ways:
-  mono  FreeType's hinted monochrome rendering. Best for fonts with good
-        TrueType hinting (PT Serif, Noto Serif).
-  gray  antialiased rendering, then ink where coverage >= threshold. Better
-        for unhinted fonts, such as variable fonts (Literata).
-Advances and kerning are the font's exact (unhinted) values in 1/64 px, from
-HarfBuzz (Pillow's raqm layout) with ligatures off.
+Bitmapurile vin de la FreeType prin Pillow, în unul din două feluri:
+  mono  randarea monocromă cu hinting a lui FreeType. Cea mai bună pentru
+        fonturile cu hinting TrueType bun (PT Serif, Noto Serif).
+  gray  randare cu antialiasing, apoi cerneală unde acoperirea >= prag. Mai
+        bună pentru fonturile fără hinting, ca fonturile variabile (Literata).
+Avansurile și kerningul sunt valorile exacte (fără hinting) ale fontului în
+1/64 px, de la HarfBuzz (paginarea raqm din Pillow), cu ligaturile oprite.
 """
 from __future__ import annotations
 
@@ -31,22 +31,22 @@ from PIL import Image, ImageDraw, ImageFont
 
 import ibf
 
-# Latin basic + Latin-1 + Latin Extended-A (ă â î ş ţ ...), Romanian comma-below
-# ș ț (U+0218–U+021B), Cyrillic (Russian + Ukrainian), typographic punctuation.
+# Latin de bază + Latin-1 + Latin Extended-A (ă â î ş ţ ...), ș ț românești cu
+# virgulă dedesubt (U+0218–U+021B), chirilice (rusă + ucraineană), punctuație tipografică.
 DEFAULT_RANGES = (
     "0x20-0x7E,0xA0-0xFF,0x100-0x17F,0x218-0x21B,0x400-0x45F,"
     "0x2010-0x2014,0x2018-0x201E,0x2022,0x2026,0x2039-0x203A,0x20AC,0xFFFD"
 )
-# Not drawn from the font: layout controls, and U+00AD (the layout draws '-').
+# Nedesenate din font: caracterele de control ale paginării și U+00AD (paginarea desenează '-').
 SKIP = {0xAD}
-# Missing punctuation drawn as a look-alike. Missing accented letters use their base letter.
+# Punctuația lipsă se desenează cu un semn asemănător. Literele accentuate lipsă folosesc litera de bază.
 STAND_INS = {0x2010: 0x2D, 0x2011: 0x2D, 0x2012: 0x2013, 0x201B: 0x2019, 0x201F: 0x201D}
-KERN_MIN = 16                 # u; smaller pairs are dropped (spec 3.4)
-SCREEN_DPI = 130              # 3.7" panel, 240 x 416: sets Literata's optical size
+KERN_MIN = 16                 # u; perechile mai mici se scot (specificația, 3.4)
+SCREEN_DPI = 130              # panoul de 3,7", 240 x 416: dă mărimea optică a Literatei
 HERE = pathlib.Path(__file__).resolve().parent
 STYLES = {"r": 0, "b": ibf.BOLD, "i": ibf.ITALIC, "bi": ibf.BOLD | ibf.ITALIC}
 
-# Candidate book fonts (fetch-fonts.sh downloads them). Paths are under fonts/.
+# Fonturile candidate pentru cărți (le descarcă fetch-fonts.sh). Căile sunt sub fonts/.
 FAMILIES = {
     "literata": {
         "name": "Literata", "render": "gray", "threshold": 128, "opsz": True,
@@ -65,7 +65,7 @@ FAMILIES = {
         "faces": {s: (f"notoserif/NotoSerif-{n}.ttf", {}) for s, n in
                   (("r", "Regular"), ("b", "Bold"), ("i", "Italic"), ("bi", "BoldItalic"))},
     },
-    # Latin only: a Cyrillic book in Libron gets U+FFFD boxes.
+    # Doar latin: o carte chirilică în Libron ar primi căsuțe U+FFFD.
     "libron": {
         "name": "Libron", "render": "gray", "threshold": 128,
         "faces": {s: (f"libron/Libron_R-{n}.ttf", {}) for s, n in
@@ -88,10 +88,10 @@ def parse_ranges(spec: str) -> list[int]:
 
 
 def open_font(path, size: int, axes: dict[str, float] | None = None, opsz: bool = False):
-    """The font at `size` px with its variation axes set. Bitmaps and advances
-    both go through HarfBuzz (RAQM): fonts like Literata swap glyphs by optical
-    size (feature variations), which FreeType alone doesn't apply, so the
-    bitmaps and advances would come from different glyphs."""
+    """Fontul la `size` px, cu axele de variație fixate. Și bitmapurile, și avansurile
+    trec prin HarfBuzz (RAQM): fonturi ca Literata schimbă glifele după mărimea
+    optică (feature variations), pe care FreeType singur nu le aplică, deci
+    bitmapurile și avansurile ar veni de la glife diferite."""
     f = ImageFont.truetype(str(path), size, layout_engine=ImageFont.Layout.RAQM)
     if axes or opsz:
         names = [a["name"].decode() if isinstance(a["name"], bytes) else a["name"]
@@ -110,9 +110,9 @@ def open_font(path, size: int, axes: dict[str, float] | None = None, opsz: bool 
 
 
 def render(font, ch: str, mode: str, threshold: int):
-    """Returns (rows, w, h, x_off, y_off): the glyph's ink box, 1 = ink."""
+    """Întoarce (rows, w, h, x_off, y_off): cutia cu cerneala glifei, 1 = cerneală."""
     x0, y0, x1, y1 = font.getbbox(ch, anchor="ls", mode="1" if mode == "mono" else "L")
-    x0, y0, x1, y1 = x0 - 1, y0 - 1, x1 + 1, y1 + 1        # room for antialiasing spill
+    x0, y0, x1, y1 = x0 - 1, y0 - 1, x1 + 1, y1 + 1        # loc pentru ce iese din antialiasing
     w, h = x1 - x0, y1 - y0
     if w <= 0 or h <= 0:
         return [], 0, 0, 0, 0
@@ -143,8 +143,8 @@ def measure(f, text: str) -> int:
 
 
 def _kern_set(cps: list[int]) -> list[list[int]]:
-    """Groups of codepoints worth kerning against each other: one script's
-    letters plus all punctuation. Latin–Cyrillic pairs don't occur in text."""
+    """Grupuri de coduri Unicode pentru care merită kerning între ele: literele unei
+    scrieri plus toată punctuația. Perechile latin–chirilic nu apar în text."""
     punct = [c for c in cps if unicodedata.category(chr(c))[0] in "PS" and c < 0x2100]
     latin = [c for c in cps if unicodedata.category(chr(c))[0] == "L" and c < 0x250]
     cyr = [c for c in cps if unicodedata.category(chr(c))[0] == "L" and 0x400 <= c < 0x500]
@@ -155,7 +155,7 @@ def build(path, size: int, *, style: int = 0, axes=None, opsz=False, mode="mono"
           name: str | None = None, ranges: str = DEFAULT_RANGES, kern: bool = True,
           log=print) -> ibf.Font:
     font = open_font(path, size, axes, opsz)
-    notdef = render(font, chr(0x10FFFD), mode, threshold)   # a codepoint no font has
+    notdef = render(font, chr(0x10FFFD), mode, threshold)   # un cod Unicode pe care nu-l are niciun font
     glyphs, missing = [], []
     for cp in parse_ranges(ranges):
         if cp in SKIP:
@@ -167,7 +167,7 @@ def build(path, size: int, *, style: int = 0, axes=None, opsz=False, mode="mono"
         glyphs.append(ibf.Glyph(cp, measure(font, chr(cp)), w, h, xo, yo, rows))
     have = {g.cp: g for g in glyphs}
     substituted = []
-    for cp in missing[:]:                 # stand-ins: the same glyph (U+2010 -> '-') or the base letter
+    for cp in missing[:]:                 # înlocuitori: aceeași glifă (U+2010 -> '-') sau litera de bază
         sub = STAND_INS.get(cp) or ord(unicodedata.normalize("NFD", chr(cp))[0])
         if sub != cp and sub in have:
             s = have[sub]
@@ -177,7 +177,7 @@ def build(path, size: int, *, style: int = 0, axes=None, opsz=False, mode="mono"
             substituted.append(cp)
     if 0xFFFD in have and not have[0xFFFD].rows:
         missing.append(0xFFFD)
-    if 0xFFFD not in have or not have[0xFFFD].rows:     # the font has no U+FFFD: draw a box
+    if 0xFFFD not in have or not have[0xFFFD].rows:     # fontul nu are U+FFFD: se desenează o căsuță
         adv = have[0x20].advance * 2 if 0x20 in have else size * ibf.UNIT // 2
         w, h = max(adv // ibf.UNIT - 2, 3), max(size * 7 // 10, 4)
         have[0xFFFD] = ibf.Glyph(0xFFFD, adv, w, h, 1, -h, _box(w, h))
@@ -185,23 +185,23 @@ def build(path, size: int, *, style: int = 0, axes=None, opsz=False, mode="mono"
 
     kerns: dict[tuple[int, int], int] = {}
     if kern:
-        for g in glyphs:                  # accented letters kern like their base letter
+        for g in glyphs:                  # literele accentuate au kerningul literei de bază
             base = ord(unicodedata.normalize("NFD", chr(g.cp))[0])
             if g.kern_as is None and base != g.cp and base in have:
                 g.kern_as = base
-        for g in glyphs:                  # point straight at the glyph that has the pairs
+        for g in glyphs:                  # arată direct spre glifa care are perechile
             while g.kern_as is not None and have[g.kern_as].kern_as is not None:
                 g.kern_as = have[g.kern_as].kern_as
         ka = {g.cp: g.cp if g.kern_as is None else g.kern_as for g in glyphs}
-        exact = {}                        # stand-ins aren't in the source font: they only borrow
+        exact = {}                        # înlocuitorii nu sunt în fontul sursă: doar împrumută
         for group in _kern_set([cp for cp in have if cp not in substituted]):
             for a in group:
                 for b in group:
                     exact[(a, b)] = measure(font, chr(a) + chr(b)) - have[a].advance - have[b].advance
-        for (a, b), v in exact.items():           # pairs of glyphs that kern as themselves
+        for (a, b), v in exact.items():           # perechi de glife cu kerningul lor propriu
             if ka[a] == a and ka[b] == b and abs(v) >= KERN_MIN:
                 kerns[(a, b)] = v
-        for (a, b), v in exact.items():           # exceptions where borrowing is off by >= 1/4 px
+        for (a, b), v in exact.items():           # excepțiile unde împrumutul greșește cu >= 1/4 px
             if (ka[a] != a or ka[b] != b) and abs(v - kerns.get((ka[a], ka[b]), 0)) >= KERN_MIN:
                 kerns[(a, b)] = v
     ascent, descent = font.getmetrics()
@@ -219,7 +219,7 @@ def build(path, size: int, *, style: int = 0, axes=None, opsz=False, mode="mono"
 
 
 def _box(w: int, h: int) -> list[bytes]:
-    """An outlined rectangle, the stand-in for U+FFFD."""
+    """Un dreptunghi conturat, înlocuitorul pentru U+FFFD."""
     stride = (w + 7) // 8
     rows = []
     for y in range(h):
@@ -232,8 +232,8 @@ def _box(w: int, h: int) -> list[bytes]:
 
 
 def write_c(font: ibf.Font, symbol: str, source: str) -> str:
-    """The font as C tables, for fonts compiled into the firmware (the UI font)."""
-    data = ibf.write(font)            # also checks the font
+    """Fontul ca tabele C, pentru fonturile compilate în firmware (fontul interfeței)."""
+    data = ibf.write(font)            # verifică și fontul
     p = ibf.parse(data)
     f = p.font
     cps = [g.cp for g in f.glyphs]
@@ -284,8 +284,8 @@ def write_c(font: ibf.Font, symbol: str, source: str) -> str:
 
 
 def draw_text(img: Image.Image, font: ibf.Font, x: int, y: int, text: str) -> int:
-    """Draws with the font's own bitmaps, advances and kerning, as the device
-    does: the pen in 1/64 px, each glyph at the pen rounded. Returns the pen x."""
+    """Desenează cu bitmapurile, avansurile și kerningul fontului, ca dispozitivul:
+    penița în 1/64 px, fiecare glifă la poziția rotunjită a peniței. Întoarce x-ul peniței."""
     by_cp = {g.cp: g for g in font.glyphs}
     pen, prev = x * ibf.UNIT, None
     px = img.load()

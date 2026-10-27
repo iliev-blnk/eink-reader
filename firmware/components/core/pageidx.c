@@ -6,7 +6,7 @@
 
 #include "crc32.h"
 
-#define HEADER 24                // "IPGC", book_id, layout_hash, page_count, complete, 3 reserved
+#define HEADER 24                // "IPGC", book_id, layout_hash, page_count, complete, 3 rezervați
 
 void pageidx_init(pageidx_t *x, uint32_t layout_hash)
 {
@@ -48,7 +48,7 @@ ibv_err_t pageidx_step(pageidx_t *x, const layout_cfg_t *cfg, ibv_t *book, int m
 int32_t pageidx_find(const pageidx_t *x, layout_pos_t pos)
 {
     if (x->count == 0 || (!x->complete && layout_pos_cmp(pos, x->next) >= 0)) return -1;
-    uint32_t lo = 0, hi = x->count;           // last start <= pos
+    uint32_t lo = 0, hi = x->count;           // ultimul început <= pos
     while (hi - lo > 1) {
         uint32_t mid = lo + (hi - lo) / 2;
         if (layout_pos_cmp(x->starts[mid], pos) <= 0) lo = mid;
@@ -91,9 +91,9 @@ bool pageidx_save(const pageidx_t *x, const uint8_t book_id[8], const char *path
     put32(c, crc);
     ok = ok && fwrite(c, 1, 4, f) == 4;
     ok = (fclose(f) == 0) && ok;
-    // rename() over an existing file isn't atomic on FATFS: it fails, so the
-    // old file goes first. A cut between the two loses the index, which is
-    // rebuilt, never a wrong one.
+    // rename() peste un fișier existent nu e atomic pe FATFS: eșuează, deci
+    // fișierul vechi se șterge întâi. O cădere între cei doi pași pierde indexul,
+    // care se reface, dar nu lasă niciodată unul greșit.
     if (ok) {
         remove(path);
         ok = rename(tmp, path) == 0;
@@ -123,7 +123,7 @@ bool pageidx_load(pageidx_t *x, const uint8_t book_id[8], uint32_t layout_hash, 
         ok = fread(e, 1, sizeof e, f) == sizeof e;
         crc = crc32_update(crc, e, sizeof e);
         x->starts[i] = (layout_pos_t){get32(e), get32(e + 4)};
-        // Starts must increase; the first is the book's start.
+        // Începuturile trebuie să crească; primul e începutul cărții.
         if (ok && i == 0) ok = x->starts[0].para == 0 && x->starts[0].byte == 0;
         if (ok && i > 0) ok = layout_pos_cmp(x->starts[i - 1], x->starts[i]) < 0;
     }
@@ -136,8 +136,8 @@ bool pageidx_load(pageidx_t *x, const uint8_t book_id[8], uint32_t layout_hash, 
     }
     x->count = n;
     x->complete = h[20];
-    // An incomplete index goes on from its last page: lay that page out again
-    // (pageidx_step) to learn where the next one starts.
+    // Un index incomplet continuă de la ultima lui pagină: pagina aceea se
+    // paginează din nou (pageidx_step) ca să se afle unde începe următoarea.
     if (!x->complete) x->next = x->starts[--x->count];
     return true;
 }

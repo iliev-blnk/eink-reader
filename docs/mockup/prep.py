@@ -1,4 +1,4 @@
-# Wikitext -> simple line format for mock.c:  "# heading", "P text", "V verse", "S" (stanza break)
+# Wikitext -> formatul simplu pe rânduri pentru mock.c:  "# titlu", "P text", "V vers", "S" (separator de strofă)
 import html, re, sys
 S = sys.argv[1]
 
@@ -38,7 +38,7 @@ def prose(name, start):
         if line.strip() == "": flush(); continue
         para.append(line.lstrip(":"))
     flush()
-    # Drop everything before the first heading that precedes `start`.
+    # Se scoate tot ce e înaintea primului titlu dinaintea lui `start`.
     i = next(k for k, l in enumerate(out) if start in l)
     while i > 0 and not out[i].startswith("#"): i -= 1
     return out[i:]

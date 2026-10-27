@@ -1,4 +1,4 @@
-// inflate_raw() in the simulator: zlib with a negative window (raw DEFLATE).
+// inflate_raw() în simulator: zlib cu fereastră negativă (DEFLATE brut).
 #include "inflate.h"
 
 #include <zlib.h>

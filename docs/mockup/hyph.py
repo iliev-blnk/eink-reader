@@ -1,13 +1,13 @@
-# Marks hyphenation points in the prepared book files: inserts U+00AD (soft
-# hyphen) into prose words, and ties a mid-sentence dash to the word before it
-# with U+00A0 so no line starts with a dash. The PC-side converter will do the
-# same job; the device only breaks lines.
-#   python hyph.py <dir>   (reads <name>.txt, writes <name>.hy.txt)
+# Marchează punctele de despărțire în fișierele de carte pregătite: pune U+00AD
+# (cratima moale) în cuvintele din proză și leagă o linie din mijlocul frazei de
+# cuvântul dinainte cu U+00A0, ca niciun rând să nu înceapă cu o linie. Convertorul
+# de pe PC va face aceeași treabă; dispozitivul doar rupe rândurile.
+#   python hyph.py <dir>   (citește <name>.txt, scrie <name>.hy.txt)
 import re, sys, pathlib, pyphen
 
 LANG = {"amintiri": "ro_RO", "luceafarul": "ro_RO", "moara": "ro_RO", "belye": "ru_RU"}
 LETTERS = re.compile(r"[^\W\d_]{5,}")
-CAPTION = re.compile(r"\b(thumb|\d+px)\|")  # image captions left over from the wikitext
+CAPTION = re.compile(r"\b(thumb|\d+px)\|")  # legende de imagini rămase din wikitext
 
 def mark(line, dic):
     kind, text = line[:2], line[2:]

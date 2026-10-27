@@ -1,17 +1,17 @@
-"""FictionBook 2 input (CONV-9), the usual format for Russian e-books.
+"""Intrarea FictionBook 2 (CONV-9), formatul obișnuit al cărților electronice rusești.
 
-FB2 is a single XML file (sometimes zipped as .fb2.zip) that already says
-what each part is, so the mapping is direct:
+FB2 e un singur fișier XML (uneori arhivat ca .fb2.zip) care spune deja ce e
+fiecare parte, deci corespondența e directă:
 
-  section/title     HEADING, level = section depth; also a TOC entry
+  section/title     HEADING, nivelul = adâncimea secțiunii; și intrare în cuprins
   p                 PARA
-  epigraph, cite    QUOTE (text-author right-aligned)
-  poem/stanza/v     VERSE per line, BREAK between stanzas
-  subtitle          centred paragraph ("* * *" becomes an ornament BREAK)
+  epigraph, cite    QUOTE (text-author aliniat la dreapta)
+  poem/stanza/v     câte un VERSE pe rând, BREAK între strofe
+  subtitle          paragraf centrat ("* * *" devine un BREAK cu ornament)
   empty-line        BREAK
   emphasis/strong   italic/bold
-  a type="note"     footnote marker, dropped; the notes body is skipped
-  binary            the cover image, when coverpage points at it
+  a type="note"     semnul notei, scos; corpul notelor se sare
+  binary            imaginea copertei, când coverpage arată spre ea
 """
 from __future__ import annotations
 
@@ -57,13 +57,13 @@ class _Walker:
         self.b = b
 
     def inline(self, el, style: int) -> None:
-        """Text of a paragraph-like element with emphasis/strong as styles."""
+        """Textul unui element de tip paragraf, cu emphasis/strong ca stiluri."""
         if el.text:
             self.b.text(el.text, style)
         for c in el:
             name = _local(c.tag)
             if name == "a" and c.get("type") == "note":
-                pass                                   # footnote marker
+                pass                                   # semnul notei de subsol
             elif name == "emphasis":
                 self.inline(c, style | ibv.ITALIC)
             elif name == "strong":
@@ -188,7 +188,7 @@ def parse(data: bytes, name: str = "") -> tuple[Builder, dict[str, str], dict]:
             n = _local(c.tag)
             if n == "title":
                 b.end()
-                # the book's own title page: centred, not a TOC entry
+                # pagina de titlu a cărții: centrată, nu e intrare în cuprins
                 for p in _children(c, "p"):
                     w.para(p, ibv.HEADING, heading_flags(1))
             elif n == "epigraph":

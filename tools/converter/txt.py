@@ -1,17 +1,18 @@
-"""Plain text input (CONV-1).
+"""Intrarea text simplu (CONV-1).
 
-1. Encoding: a BOM, else strict UTF-8, else the legacy code page that reads
-   best (CP1250/ISO-8859-2/-16 for old Romanian files, CP1251/KOI8-R for
-   Russian, CP1252 for Western). "Reads best" is scored per word: words in one
-   script and with normal capitalisation score, mixed-script words like
-   "mгrgea" (CP1250 read as CP1251) and odd-case words like "пРИВЕТ" (KOI8-R
-   read as CP1251) cost.
-2. Project Gutenberg header and licence are cut off; its Title/Author/Language
-   lines become metadata. The same for lib.ru's "Author. Title" line and the
-   source note between dashed lines under it.
-3. Paragraphs: the file is classified as blank-line separated, indented
-   first lines, or one paragraph per line, and lines are joined accordingly.
-4. Inside that: chapter headings, scene breaks (* * *) and verse blocks.
+1. Codificarea: un BOM, altfel UTF-8 strict, altfel pagina de cod veche care
+   se citește cel mai bine (CP1250/ISO-8859-2/-16 pentru fișierele românești
+   vechi, CP1251/KOI8-R pentru rusă, CP1252 pentru limbile occidentale). „Cel
+   mai bine” se punctează pe cuvinte: cuvintele într-o singură scriere și cu
+   majuscule normale aduc puncte, cele cu scrieri amestecate ca "mгrgea"
+   (CP1250 citit ca CP1251) și cele cu majuscule ciudate ca "пРИВЕТ" (KOI8-R
+   citit ca CP1251) costă.
+2. Antetul și licența Project Gutenberg se taie; rândurile lui Title/Author/
+   Language devin metadate. La fel pentru rândul "Autor. Titlu" de pe lib.ru și
+   nota despre sursă dintre liniile punctate de sub el.
+3. Paragrafele: fișierul se încadrează ca despărțit prin rânduri goale, cu
+   primele rânduri retrase sau cu un paragraf pe rând, iar rândurile se unesc după caz.
+4. În interior: titlurile de capitol, separatoarele de scenă (* * *) și blocurile de versuri.
 """
 from __future__ import annotations
 
@@ -104,7 +105,7 @@ LIBRU_TITLE = re.compile(r"^\s*(.*?[^\s.]{2})\.\s+(\S.*?)\s*$")
 
 
 def libru(text: str) -> tuple[str, dict[str, str]]:
-    """lib.ru files start with "Author. Title", then a note between two dashed lines."""
+    """Fișierele de pe lib.ru încep cu "Autor. Titlu", apoi o notă între două linii punctate."""
     lines = text.split("\n", 40)[:40]
     nonblank = [i for i, l in enumerate(lines) if l.strip()]
     if len(nonblank) < 3 or not LIBRU_DASHES.fullmatch(lines[nonblank[1]].strip()):
@@ -131,7 +132,7 @@ def guess_language(text: str) -> str:
     return "ro" if lat and ro / lat > 0.005 else "en"
 
 
-# ---------------------------------------------------------------- structure
+# ---------------------------------------------------------------- structura
 
 HEADING_WORDS = (r"chapter|book|part|volume|canto|act|scene|prologue|epilogue|preface|introduction|"
                  r"capitolul|partea|cartea|volumul|prolog|epilog|prefață|prefata|introducere|"
@@ -162,7 +163,7 @@ def paragraphs_mode(lines: list[str]) -> str:
 
 
 def blocks(lines: list[str], mode: str) -> list[list[str]]:
-    """Groups lines into paragraphs (each a list of its lines)."""
+    """Grupează rândurile în paragrafe (fiecare o listă a rândurilor lui)."""
     out, cur = [], []
     for line in lines:
         if not line.strip():
@@ -170,7 +171,7 @@ def blocks(lines: list[str], mode: str) -> list[list[str]]:
                 out.append(cur)
                 cur = []
             if mode != "blank":
-                out.append([])        # keep blank lines visible as gaps
+                out.append([])        # rândurile goale rămân vizibile ca goluri
             continue
         if mode == "line" or (mode == "indent" and re.match(r"^(\t| {2,})\S", line) and cur):
             if cur:
@@ -232,7 +233,7 @@ def parse(data: bytes, name: str = "") -> tuple[Builder, dict[str, str], dict[st
         if not g:
             continue
         text_ = join(g)
-        marked = LIBRU_HEADING.fullmatch(text_)    # lib.ru wraps headings in \x14 ... \x15
+        marked = LIBRU_HEADING.fullmatch(text_)    # lib.ru pune titlurile între \x14 ... \x15
         text_ = CONTROLS.sub("", text_).strip()
         if not text_:
             continue
@@ -250,7 +251,7 @@ def parse(data: bytes, name: str = "") -> tuple[Builder, dict[str, str], dict[st
             continue
         if (last_heading is not None and len(g) == 1 and len(text_) < 70
                 and not text_.endswith((".", ",", ";", ":", "!", "?", "»", "”", '"'))):
-            # chapter subtitle on its own line: join it to the heading
+            # subtitlul capitolului pe rândul lui: se lipește de titlu
             idx, level = last_heading
             item = b.items[idx]
             item.st.append("\u2028" + text_, 0)
@@ -274,15 +275,15 @@ def parse(data: bytes, name: str = "") -> tuple[Builder, dict[str, str], dict[st
 
 
 def _demote_contents_list(b: Builder) -> None:
-    """A printed table of contents reads as a run of headings. A run of 3+
-    headings (with at most two short lines between neighbours), most of which
-    come back later as headings, is one:
-    its lines become plain unindented paragraphs and leave the TOC."""
+    """Un cuprins tipărit arată ca un șir de titluri. Un șir de 3+ titluri (cu cel
+    mult două rânduri scurte între vecini), dintre care cele mai multe revin
+    mai târziu ca titluri, e un cuprins: rândurile lui devin paragrafe simple,
+    fără alineat, și ies din cuprinsul cărții."""
     def key(i):
         return re.sub(r"\W+", " ", b.items[i].st.text).strip().casefold()
     heads = [i for i, it in enumerate(b.items) if it.kind == ibv.HEADING]
     runs, run = [], []
-    def bridged(a, c):      # only short lines between two headings
+    def bridged(a, c):      # doar rânduri scurte între două titluri
         return c - a <= 3 and all(len(b.items[k].st.text) < 80 for k in range(a + 1, c))
     for i in heads:
         if run and not bridged(run[-1], i):

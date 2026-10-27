@@ -1,4 +1,4 @@
-# PC simulator: builds the portable core and renders screens and book pages to PNG.
+# Simulatorul de pe PC: compilează nucleul portabil și desenează ecrane și pagini de carte în PNG.
 cmake_minimum_required(VERSION 3.16)
 project(eink_sim C)
 set(CMAKE_C_STANDARD 11)

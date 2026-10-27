@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Writes layout.ibv: a small book with every record kind, flag and special
-character the layout handles (LAY-1/2/3/4), for the golden-image test (run.sh).
+"""Scrie layout.ibv: o carte mică cu fiecare tip de înregistrare, indicator și
+caracter special tratat de paginare (LAY-1/2/3/4), pentru testul cu imagini de
+referință (run.sh).
 
-The file is tracked, so the test doesn't depend on the converter; rerun this
-only to change the fixture, then `run.sh --update` and look at the new pages."""
+Fișierul e în depozit, deci testul nu depinde de convertor; se rulează din nou
+doar pentru a schimba fișierul de test, apoi `run.sh --update` și o privire pe
+paginile noi."""
 import pathlib
 import sys
 
@@ -15,7 +17,7 @@ SHY, NBSP, ZWSP, LSEP = "­", " ", "​", " "
 
 
 def styled(*parts):
-    """styled("plain ", ("bold", 1), " more") -> (text, runs)."""
+    """styled("simplu ", ("bold", 1), " mai mult") -> (text, intervale)."""
     text, runs, pos = "", [], 0
     for p in parts:
         s, style = (p, 0) if isinstance(p, str) else p
@@ -72,14 +74,14 @@ records = [
     para(filler(4)),
     para(f"Ро{SHY}ман{SHY}ский и рус{SHY}ский текст: «Кирила Петрович» — "
          f"și țara, în{SHY}tâm{SHY}plă{SHY}tor, ș/ț."),
-    heading("Chapter Two", page=True),   # as the converter marks chapters
+    heading("Chapter Two", page=True),   # cum marchează convertorul capitolele
     para(filler(6)),
     heading("Late Heading", level=2),
     para(filler(3)),
 ]
 toc = [ibv.TocEntry(i, r.level, r.text) for i, r in enumerate(records) if r.kind == ibv.HEADING]
 
-# A 48x64 cover: a frame and a diagonal (bit 1 = white).
+# O copertă de 48x64: un chenar și o diagonală (bitul 1 = alb).
 W, H = 48, 64
 rows = []
 for y in range(H):
@@ -90,7 +92,7 @@ for y in range(H):
     rows.append(bits.to_bytes(W // 8, "big"))
 book = ibv.Book({"title": "Layout fixture", "author": "eink-reader", "language": "en"},
                 records, toc, ibv.Cover(W, H, b"".join(rows)))
-# Small blocks so pages cross block boundaries and the CONT lookahead loads another block.
+# Blocuri mici, ca paginile să treacă peste granițele blocurilor și privirea înainte după CONT să încarce alt bloc.
 data = ibv.write(book, block_target=600)
 ibv.validate(data)
 (HERE / "layout.ibv").write_bytes(data)

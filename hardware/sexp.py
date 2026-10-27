@@ -1,4 +1,4 @@
-"""Tiny s-expression reader/writer for KiCad files."""
+"""Cititor și scriitor minuscul de expresii S pentru fișierele KiCad."""
 import re
 
 TOK = re.compile(r'\s*(\(|\)|"(?:[^"\\]|\\.)*"|[^\s()"]+)')
@@ -39,7 +39,7 @@ def find_lib_symbol(path, name):
     raise KeyError(name)
 
 def pins(sym):
-    """Yield (number, name, x, y) for every pin in a (lib) symbol tree."""
+    """Dă (număr, nume, x, y) pentru fiecare pin dintr-un arbore de simbol (de bibliotecă)."""
     for x in sym:
         if isinstance(x, list):
             if x[0] == 'pin':

@@ -1,4 +1,4 @@
-"""Tests for the reference codec.  python3 -m unittest -v test_ibv  (from tools/converter)"""
+"""Testele codecului de referință.  python3 -m unittest -v test_ibv  (din tools/converter)"""
 import pathlib
 import struct
 import unittest
@@ -84,7 +84,7 @@ class Rejects(unittest.TestCase):
             Record(ibv.PARA, "tab\there"),
             Record(ibv.BREAK, "text"),
             Record(ibv.PARA, "abc", 0x80),
-            Record(ibv.PARA, "ăbc", 0, [(1, 1, ibv.BOLD)]),     # splits "ă"
+            Record(ibv.PARA, "ăbc", 0, [(1, 1, ibv.BOLD)]),     # desparte "ă"
             Record(ibv.PARA, "abcdef", 0, [(2, 2, ibv.BOLD), (3, 2, ibv.ITALIC)]),
             Record(ibv.PARA, "abc", 0, [(0, 3, 0)]),
             Record(ibv.BREAK, "", ibv.PAGE),

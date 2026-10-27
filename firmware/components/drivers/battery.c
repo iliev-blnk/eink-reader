@@ -50,7 +50,7 @@ int battery_read_mv(void)
         esp_err_t err = s_cali ? adc_oneshot_get_calibrated_result(s_adc, s_cali, s_chan, &v)
                                : adc_oneshot_read(s_adc, s_chan, &v);
         if (err != ESP_OK) return -1;
-        if (!s_cali) v = v * 3100 / 4095;  // rough raw-to-mV
+        if (!s_cali) v = v * 3100 / 4095;  // conversie aproximativă din valoarea brută în mV
         sum += v;
     }
     return (int)(sum / SAMPLES * s_divider);

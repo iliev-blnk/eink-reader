@@ -1,9 +1,9 @@
-"""Tests for the IBF codec (ibf.py) and the font builder (fonttool.py).
+"""Testele codecului IBF (ibf.py) și ale constructorului de fonturi (fonttool.py).
 
     cd tools/fonttool && python3 -m unittest test_fonttool
 
-The builder tests use Noto Serif from fonts/ (fetch-fonts.sh) or from the
-system, and are skipped when neither is there.
+Testele constructorului folosesc Noto Serif din fonts/ (fetch-fonts.sh) sau din
+sistem și se sar când nu e în niciunul.
 """
 import pathlib
 import re
@@ -27,7 +27,7 @@ def glyph(cp, adv=512, w=3, h=2, kern_as=None):
 def tiny_font(**kw):
     cps = [0x20, 0x2D, 0x41, 0x56, 0x61, 0x103, 0xFFFD]
     gl = [glyph(cp, w=0 if cp == 0x20 else 3) for cp in cps]
-    gl[cps.index(0x103)].kern_as = 0x61                       # ă kerns like a
+    gl[cps.index(0x103)].kern_as = 0x61                       # ă are kerningul lui a
     kerns = {(0x41, 0x56): -80, (0x56, 0x61): -60, (0x56, 0x103): -20}
     args = dict(name="Tiny", pixel_size=10, line_height=13, ascent=10, descent=3, x_height=5,
                 glyphs=gl, kerns=kerns)
@@ -36,7 +36,7 @@ def tiny_font(**kw):
 
 
 def recrc(data: bytearray) -> bytes:
-    """Fix both CRCs after a deliberate edit, so the validator reaches the other rules."""
+    """Repară ambele CRC-uri după o modificare intenționată, ca validatorul să ajungă la celelalte reguli."""
     struct.pack_into("<I", data, 88, zlib.crc32(data[96:]))
     struct.pack_into("<I", data, 92, zlib.crc32(data[:92]))
     return bytes(data)
@@ -62,7 +62,7 @@ class TestCodec(unittest.TestCase):
         self.assertEqual(ranges_off, 96)
         for off in (ranges_off, glyphs_off, kerns_off):
             self.assertEqual(off % 4, 0)
-        # 0x20, 0x2D, 0x41, 0x56, 0x61, 0x103, 0xFFFD: every one its own range
+        # 0x20, 0x2D, 0x41, 0x56, 0x61, 0x103, 0xFFFD: fiecare cu intervalul lui
         self.assertEqual(h[13], 7)
 
     def test_ranges_merge(self):
@@ -70,7 +70,7 @@ class TestCodec(unittest.TestCase):
 
     def test_shared_bitmaps(self):
         f = tiny_font()
-        f.glyphs.append(glyph(0x410))                        # Cyrillic А, same bitmap as A (0x41 & 0x1F == 0x410 & 0x1F)
+        f.glyphs.append(glyph(0x410))                        # А chirilic, același bitmap ca A (0x41 & 0x1F == 0x410 & 0x1F)
         p = ibf.parse(ibf.write(f))
         self.assertGreaterEqual(p.shared_bitmaps, 1)
 
@@ -85,7 +85,7 @@ class TestCodec(unittest.TestCase):
         f = ibf.parse(ibf.write(tiny_font())).font
         self.assertEqual(ibf.kerning(f, 0x41, 0x56), -80)
         self.assertEqual(ibf.kerning(f, 0x56, 0x61), -60)
-        self.assertEqual(ibf.kerning(f, 0x56, 0x103), -20)    # exception beats the borrowed -60
+        self.assertEqual(ibf.kerning(f, 0x56, 0x103), -20)    # excepția bate -60 împrumutat
         self.assertEqual(ibf.kerning(f, 0x41, 0x103), 0)
         self.assertEqual(ibf.kerning(f, 0x56, 0x41), 0)
 
@@ -97,7 +97,7 @@ class TestCodec(unittest.TestCase):
 
     def test_kern_as_chain_rejected(self):
         f = tiny_font()
-        f.glyphs.append(glyph(0xE2, kern_as=0x103))           # â -> ă -> a: two steps
+        f.glyphs.append(glyph(0xE2, kern_as=0x103))           # â -> ă -> a: doi pași
         with self.assertRaises(ibf.FormatError):
             ibf.write(f)
 
@@ -121,24 +121,24 @@ class TestCodec(unittest.TestCase):
         h = ibf.HEADER.unpack_from(data)
         glyphs_off, kerns_off = h[17], h[18]
 
-        bad = bytearray(data)                                 # misaligned table
+        bad = bytearray(data)                                 # tabel nealiniat
         struct.pack_into("<I", bad, 40, glyphs_off + 2)
         with self.assertRaisesRegex(ibf.FormatError, "aligned"):
             ibf.parse(recrc(bad))
 
-        bad = bytearray(data)                                 # unsorted kerning pairs
+        bad = bytearray(data)                                 # perechi de kerning nesortate
         a = bytes(bad[kerns_off:kerns_off + 6])
         bad[kerns_off:kerns_off + 6] = bad[kerns_off + 6:kerns_off + 12]
         bad[kerns_off + 6:kerns_off + 12] = a
         with self.assertRaisesRegex(ibf.FormatError, "unsorted"):
             ibf.parse(recrc(bad))
 
-        bad = bytearray(data)                                 # bitmap outside the bitmap area
+        bad = bytearray(data)                                 # bitmap în afara zonei bitmapurilor
         struct.pack_into("<I", bad, glyphs_off + 12 * 2, 10_000)
         with self.assertRaisesRegex(ibf.FormatError, "outside"):
             ibf.parse(recrc(bad))
 
-        bad = bytearray(data)                                 # kern_as out of range
+        bad = bytearray(data)                                 # kern_as în afara limitelor
         struct.pack_into("<H", bad, glyphs_off + 10, 99)
         with self.assertRaisesRegex(ibf.FormatError, "kern_as"):
             ibf.parse(recrc(bad))
@@ -156,7 +156,7 @@ class TestCodec(unittest.TestCase):
 
 class TestRanges(unittest.TestCase):
     def test_converter_reads_ranges(self):
-        # glyphs.py in the converter reads DEFAULT_RANGES out of fonttool.py with this regex
+        # glyphs.py din convertor citește DEFAULT_RANGES din fonttool.py cu expresia asta regulată
         src = (HERE / "fonttool.py").read_text(encoding="utf-8")
         m = re.search(r"DEFAULT_RANGES = \((.*?)\)", src, re.S)
         spec = "".join(re.findall(r'"([^"]*)"', m.group(1)))
@@ -172,13 +172,13 @@ LITERATA_I = HERE / "fonts/literata/Literata-Italic[opsz,wght].ttf"
 @unittest.skipUnless(LITERATA_I.exists(), "Literata not found (run fetch-fonts.sh)")
 class TestFeatureVariations(unittest.TestCase):
     def test_bitmap_matches_advance(self):
-        # Literata Italic swaps 'w' for a wider glyph at small optical sizes.
-        # The bitmap must be that glyph too, not the default one with the wide
-        # glyph's advance (which left a gap after every 'w').
+        # Literata Italic înlocuiește 'w' cu o glifă mai lată la mărimile optice mici.
+        # Și bitmapul trebuie să fie al acelei glife, nu al celei implicite cu avansul
+        # glifei late (ceea ce lăsa un gol după fiecare 'w').
         f = fonttool.build(LITERATA_I, 18, axes={"wght": 400}, opsz=True, mode="gray",
                            ranges="0x20,0x2D,0x77,0xFFFD", kern=False, log=lambda *_: None)
         w = next(g for g in f.glyphs if g.cp == ord("w"))
-        # Right side bearing: about 1.4 px with the right glyph, 2.4 px with the wrong one.
+        # Spațiul lateral drept: cam 1,4 px cu glifa bună, 2,4 px cu cea greșită.
         self.assertLess(w.advance - (w.x_off + w.width) * ibf.UNIT, ibf.UNIT * 3 // 2)
 
 
@@ -206,7 +206,7 @@ class TestBuild(unittest.TestCase):
         self.assertTrue(8 <= f.x_height <= 12)
         self.assertEqual(self.by_cp[0x20].width, 0)
         self.assertEqual(self.by_cp[0xA0].advance, self.by_cp[0x20].advance)
-        # advances are fractional: not all whole pixels
+        # avansurile sunt fracționare: nu toate sunt pixeli întregi
         self.assertTrue(any(g.advance % ibf.UNIT for g in f.glyphs))
         m = self.by_cp[ord("m")]
         self.assertTrue(12 * ibf.UNIT < m.advance < 18 * ibf.UNIT)
@@ -217,9 +217,9 @@ class TestBuild(unittest.TestCase):
         f = self.font
         self.assertLess(ibf.kerning(f, ord("A"), ord("V")), -ibf.UNIT // 4)
         self.assertLess(ibf.kerning(f, ord("T"), ord("a")), 0)
-        self.assertEqual(self.by_cp[0x103].kern_as, ord("a"))     # ă kerns like a
-        self.assertEqual(self.by_cp[0x219].kern_as, ord("s"))     # ș kerns like s
-        self.assertEqual(self.by_cp[0x419].kern_as, 0x418)        # Й kerns like И
+        self.assertEqual(self.by_cp[0x103].kern_as, ord("a"))     # ă are kerningul lui a
+        self.assertEqual(self.by_cp[0x219].kern_as, ord("s"))     # ș are kerningul lui s
+        self.assertEqual(self.by_cp[0x419].kern_as, 0x418)        # Й are kerningul lui И
         self.assertTrue(all(abs(v) >= fonttool.KERN_MIN for (a, b), v in f.kerns.items()
                             if self.by_cp[a].kern_as is None and self.by_cp[b].kern_as is None))
 
@@ -233,7 +233,7 @@ class TestBuild(unittest.TestCase):
     def test_stand_in(self):
         f = fonttool.build(NOTO, 12, ranges="0x20,0x2D,0x41,0xFFFD,0x10FFF0", kern=False,
                            log=lambda *_: None)
-        self.assertNotIn(0x10FFF0, {g.cp for g in f.glyphs})     # no stand-in: left out
+        self.assertNotIn(0x10FFF0, {g.cp for g in f.glyphs})     # fără înlocuitor: lăsat pe dinafară
         self.assertEqual(fonttool.STAND_INS[0x2010], 0x2D)
 
     def test_gray(self):

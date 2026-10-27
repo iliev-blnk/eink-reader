@@ -14,7 +14,7 @@
 
 static const char *TAG = "epd";
 
-// UC8253 commands
+// Comenzile UC8253
 #define CMD_PSR 0x00    // panel setting
 #define CMD_POF 0x02    // power off
 #define CMD_PON 0x04    // power on
@@ -29,24 +29,24 @@ static const char *TAG = "epd";
 #define CMD_CCSET 0xE0  // cascade setting; 0x02 = TSFIX: use the TSSET temperature
 #define CMD_TSSET 0xE5  // forced temperature, selects the OTP waveform
 
-// PSR, second byte as in the vendor sample for this panel.
-// 0x1f: LUT from OTP, black/white mode, scan up, shift right, booster on.
-// The same with bit 0 cleared (0x1e) is a soft reset.
+// PSR, al doilea octet ca în exemplul producătorului pentru panoul ăsta.
+// 0x1f: LUT din OTP, mod alb-negru, scanare în sus, deplasare la dreapta, booster pornit.
+// Același lucru cu bitul 0 șters (0x1e) e un reset software.
 #define PSR_NORMAL 0x1f
 #define PSR_SOFT_RESET 0x1e
 #define PSR_2 0x0d
 
-// CDI: 0x97 drives the border white (full refresh), 0xD7 leaves it floating
-// so it doesn't flicker on partial refresh.
+// CDI: 0x97 face marginea albă (reîmprospătare completă), 0xD7 o lasă în aer
+// ca să nu pâlpâie la reîmprospătarea parțială.
 #define CDI_FULL 0x97
 #define CDI_PARTIAL 0xD7
 
-// Forced temperatures for the fast waveforms (full ~1.0 s, partial ~0.35 s).
+// Temperaturile forțate pentru formele de undă rapide (completă ~1,0 s, parțială ~0,35 s).
 #define TSSET_FAST_FULL 0x5A
 #define TSSET_PARTIAL 0x6E
 
-// BUSY is low while the controller works. Typical times: power on/off ~45 ms,
-// fast full ~1.0 s, normal full ~3 s, partial ~0.35 s.
+// BUSY e în 0 cât lucrează controlerul. Timpi obișnuiți: pornire/oprire ~45 ms,
+// completă rapidă ~1,0 s, completă normală ~3 s, parțială ~0,35 s.
 #define BUSY_START_US 5000  // BUSY must go low this soon after a command
 #define TIMEOUT_RESET_MS 100
 #define TIMEOUT_POWER_MS 300
@@ -59,9 +59,9 @@ static struct {
     epd_config_t cfg;
     spi_device_handle_t spi;
     SemaphoreHandle_t busy_sem;
-    uint8_t *scratch;  // DMA buffer for window writes
-    bool asleep;       // in deep sleep: needs a hardware reset
-    bool ram_valid;    // "old" RAM matches the screen, partial refresh possible
+    uint8_t *scratch;  // buffer DMA pentru scrierea ferestrelor
+    bool asleep;       // în somn adânc: îi trebuie un reset hardware
+    bool ram_valid;    // RAM-ul „vechi” se potrivește cu ecranul, se poate face reîmprospătare parțială
     epd_timing_t timing;
 } s;
 
@@ -85,8 +85,9 @@ static esp_err_t send(bool is_data, const uint8_t *buf, size_t len)
     while (len > 0) {
         size_t n = len < SPI_CHUNK ? len : SPI_CHUNK;
         spi_transaction_t t = {.length = n * 8, .tx_buffer = buf};
-        // Interrupt-driven for bulk data so the CPU can idle; polling for the
-        // short command bytes, where the setup would cost more than the transfer.
+        // Cu întreruperi pentru datele mari, ca procesorul să poată sta; prin
+        // interogare pentru octeții scurți de comandă, unde pregătirea ar costa
+        // mai mult decât transferul.
         esp_err_t err = n > 32 ? spi_device_transmit(s.spi, &t) : spi_device_polling_transmit(s.spi, &t);
         ESP_RETURN_ON_ERROR(err, TAG, "spi transfer");
         buf += n;
@@ -113,10 +114,10 @@ static esp_err_t cmd_byte(uint8_t c, uint8_t d)
 
 // ---- BUSY ----
 
-// Waits until BUSY is high (idle), sleeping on the rising-edge interrupt.
+// Așteaptă până BUSY e în 1 (liber), dormind pe întreruperea de front crescător.
 static esp_err_t wait_idle(int64_t deadline)
 {
-    xSemaphoreTake(s.busy_sem, 0);  // drop a stale edge
+    xSemaphoreTake(s.busy_sem, 0);  // se aruncă un front vechi
     gpio_intr_enable(s.cfg.busy);
     esp_err_t err = ESP_OK;
     while (gpio_get_level(s.cfg.busy) == 0) {
@@ -131,8 +132,8 @@ static esp_err_t wait_idle(int64_t deadline)
     return err;
 }
 
-// After a command that makes the controller work: waits for BUSY to go low,
-// then for it to go high again. busy_us gets the time from the command to idle.
+// După o comandă care pune controlerul la lucru: așteaptă ca BUSY să treacă în
+// 0, apoi înapoi în 1. busy_us primește timpul de la comandă până la liber.
 static esp_err_t wait_busy(const char *what, int timeout_ms, uint32_t *busy_us)
 {
     int64_t t0 = esp_timer_get_time();
@@ -149,7 +150,7 @@ static esp_err_t wait_busy(const char *what, int timeout_ms, uint32_t *busy_us)
     return err;
 }
 
-// ---- panel ----
+// ---- panoul ----
 
 static void hw_reset(void)
 {
@@ -163,8 +164,8 @@ static void hw_reset(void)
     s.asleep = false;
 }
 
-// Known state: hardware reset when waking from deep sleep, soft reset
-// otherwise (this also drops a forced temperature), then the panel setting.
+// Stare cunoscută: reset hardware la trezirea din somnul adânc, altfel reset
+// software (care renunță și la o temperatură forțată), apoi setarea panoului.
 static esp_err_t panel_setup(void)
 {
     if (s.asleep) {
@@ -183,7 +184,7 @@ static esp_err_t power(bool on, uint32_t *busy_us)
     return wait_busy(on ? "power on" : "power off", TIMEOUT_POWER_MS, busy_us);
 }
 
-// Power on, refresh, power off. Powers off even after a refresh timeout.
+// Pornire, reîmprospătare, oprire. Oprește chiar și după ce reîmprospătarea a depășit timpul.
 static esp_err_t run_refresh(epd_timing_t *t, int timeout_ms)
 {
     ESP_RETURN_ON_ERROR(power(true, &t->power_on_us), TAG, "power on");
@@ -193,8 +194,8 @@ static esp_err_t run_refresh(epd_timing_t *t, int timeout_ms)
     return err != ESP_OK ? err : off;
 }
 
-// x and w must be multiples of 8. The end column is inclusive, so its low
-// 3 bits end up 1; the last byte (0x01) keeps the gates scanning outside the window.
+// x și w trebuie să fie multipli de 8. Coloana de final e inclusă, deci cei 3
+// biți de jos ajung 1; ultimul octet (0x01) ține porțile scanând și în afara ferestrei.
 static esp_err_t set_window(int x, int y, int w, int h)
 {
     int xe = x + w - 1, ye = y + h - 1;
@@ -202,7 +203,7 @@ static esp_err_t set_window(int x, int y, int w, int h)
     return cmd_data(CMD_PTL, d, sizeof d);
 }
 
-// Writes a window of the framebuffer into one of the image RAMs.
+// Scrie o fereastră din framebuffer într-unul din RAM-urile de imagine.
 static esp_err_t write_ram(uint8_t ram, const uint8_t *fb, int x, int y, int w, int h)
 {
     const int stride = EPD_WIDTH / 8, bw = w / 8;
@@ -214,12 +215,12 @@ static esp_err_t write_ram(uint8_t ram, const uint8_t *fb, int x, int y, int w, 
     return cmd(CMD_PTOUT);
 }
 
-// ---- public ----
+// ---- publice ----
 
 esp_err_t epd_init(const epd_config_t *cfg)
 {
     s.cfg = *cfg;
-    s.asleep = true;  // unknown state: start with a hardware reset
+    s.asleep = true;  // stare necunoscută: se începe cu un reset hardware
     s.ram_valid = false;
 
     gpio_set_level(cfg->rst, 1);
@@ -229,11 +230,11 @@ esp_err_t epd_init(const epd_config_t *cfg)
         .mode = GPIO_MODE_OUTPUT,
     };
     ESP_RETURN_ON_ERROR(gpio_config(&out), TAG, "dc/rst pins");
-    // RST was held high through the last deep sleep. Release it only now that
-    // the pin is an output at 1, or it would glitch low.
+    // RST a fost ținut în 1 în ultimul somn adânc. Se eliberează abia acum, când
+    // pinul e ieșire în 1, altfel ar coborî scurt în 0.
     gpio_hold_dis(cfg->rst);
-    // Pull-up: an unconnected BUSY reads idle, so the power-on check below
-    // reports "not answering" instead of hanging.
+    // Pull-up: un BUSY neconectat se citește ca liber, deci verificarea de
+    // pornire de mai jos raportează „nu răspunde” în loc să se blocheze.
     const gpio_config_t in = {
         .pin_bit_mask = BIT64(cfg->busy),
         .mode = GPIO_MODE_INPUT,
@@ -275,8 +276,9 @@ esp_err_t epd_full_refresh(const uint8_t *fb)
     epd_timing_t t = {.full = true, .w = EPD_WIDTH, .h = EPD_HEIGHT};
     if (s.asleep) ESP_RETURN_ON_ERROR(panel_setup(), TAG, "wake");
 
-    // Both RAMs get the new image: the full waveform redraws every pixel, and
-    // afterwards "old" already matches the screen for the next partial refresh.
+    // Ambele RAM-uri primesc imaginea nouă: forma de undă completă redesenează
+    // fiecare pixel, iar după aceea „vechiul” se potrivește deja cu ecranul
+    // pentru următoarea reîmprospătare parțială.
     int64_t w0 = esp_timer_get_time();
     ESP_RETURN_ON_ERROR(write_ram(CMD_DTM1, fb, 0, 0, EPD_WIDTH, EPD_HEIGHT), TAG, "old ram");
     ESP_RETURN_ON_ERROR(write_ram(CMD_DTM2, fb, 0, 0, EPD_WIDTH, EPD_HEIGHT), TAG, "new ram");
@@ -288,7 +290,7 @@ esp_err_t epd_full_refresh(const uint8_t *fb)
     }
     ESP_RETURN_ON_ERROR(cmd_byte(CMD_CDI, CDI_FULL), TAG, "cdi");
     esp_err_t err = run_refresh(&t, TIMEOUT_FULL_MS);
-    if (s.cfg.fast_full && err == ESP_OK) err = panel_setup();  // back to the sensor temperature
+    if (s.cfg.fast_full && err == ESP_OK) err = panel_setup();  // înapoi la temperatura senzorului
     s.ram_valid = err == ESP_OK;
 
     t.total_us = since(t0);
@@ -300,7 +302,7 @@ esp_err_t epd_partial_refresh(const uint8_t *fb, int x, int y, int w, int h)
 {
     if (!s.ram_valid || s.asleep) return epd_full_refresh(fb);
 
-    // Clip to the panel, then widen to whole bytes.
+    // Tăiere la marginile panoului, apoi lărgire la octeți întregi.
     if (x < 0) {
         w += x;
         x = 0;
@@ -332,7 +334,7 @@ esp_err_t epd_partial_refresh(const uint8_t *fb, int x, int y, int w, int h)
     if (err == ESP_OK) err = panel_setup();
     if (err == ESP_OK) err = cmd(CMD_PTOUT);
 
-    // Keep "old" in step with the screen for the next partial refresh.
+    // „Vechiul” ține pasul cu ecranul pentru următoarea reîmprospătare parțială.
     if (err == ESP_OK) {
         w0 = esp_timer_get_time();
         err = write_ram(CMD_DTM1, fb, x, y, w, h);
@@ -348,11 +350,11 @@ esp_err_t epd_partial_refresh(const uint8_t *fb, int x, int y, int w, int h)
 esp_err_t epd_sleep(void)
 {
     if (s.asleep) return ESP_OK;
-    // Every refresh ends with power off, so the controller is already idle.
+    // Fiecare reîmprospătare se termină cu oprirea, deci controlerul e deja liber.
     ESP_RETURN_ON_ERROR(cmd_byte(CMD_DSLP, 0xA5), TAG, "deep sleep");
     s.asleep = true;
     s.ram_valid = false;
-    // A floating RST could pull the panel out of deep sleep while the ESP32 sleeps.
+    // Un RST lăsat în aer ar putea scoate panoul din somnul adânc cât doarme ESP32.
     gpio_hold_en(s.cfg.rst);
     return ESP_OK;
 }

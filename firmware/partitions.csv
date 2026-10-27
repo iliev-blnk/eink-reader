@@ -2,4 +2,4 @@
 nvs,      data, nvs,     0x9000,  0x6000
 phy_init, data, phy,     0xf000,  0x1000
 factory,  app,  factory, 0x10000, 4M
-# The rest of the 16 MB flash stays free for now (fonts/assets later).
+# Restul celor 16 MB de flash rămâne liber deocamdată (mai târziu fonturi și resurse).

@@ -1,12 +1,13 @@
 #!/bin/sh
-# Golden-image test for the layout (LAY-6): renders layout.ibv (every record
-# kind and special character, see make_fixture.py) with the built-in font in
-# two configurations and compares each page with golden/. Then, if the corpus
-# has been converted, paginates every book and fails on layout errors, once in
-# the built-in font and once in the device fonts if fonttool has built them.
+# Testul cu imagini de referință pentru paginare (LAY-6): desenează layout.ibv
+# (fiecare tip de înregistrare și caracter special, vezi make_fixture.py) cu
+# fontul încorporat în două configurații și compară fiecare pagină cu golden/.
+# Apoi, dacă s-a convertit corpusul, paginează fiecare carte și eșuează la erori
+# de paginare, o dată cu fontul încorporat și o dată cu fonturile dispozitivului,
+# dacă le-a construit fonttool.
 #
-#   sim/test/run.sh            test
-#   sim/test/run.sh --update   accept the current output as golden (look at it first)
+#   sim/test/run.sh            testul
+#   sim/test/run.sh --update   acceptă ieșirea curentă ca referință (întâi uită-te la ea)
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
 sim=$here/../build/sim
@@ -48,8 +49,8 @@ if [ -n "$books" ] && [ "$1" != --update ]; then
     else
         echo "FAIL corpus:"; grep -E "FAILED|:" "$out/stats.txt"; fail=1
     fi
-    # The device fonts, picked by each book's language (fontsel.c). Every
-    # character the converter left must be in the font the book gets.
+    # Fonturile dispozitivului, alese după limba fiecărei cărți (fontsel.c).
+    # Fiecare caracter lăsat de convertor trebuie să fie în fontul primit de carte.
     fam=$here/../../tools/fonttool/out/fam
     if [ -f "$fam/libron-17-r.ibf" ] && [ -f "$fam/ptserif-18-r.ibf" ]; then
         # shellcheck disable=SC2086

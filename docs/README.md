@@ -67,6 +67,11 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 - Corpusul (MEAS-1, parțial): `corpus/fetch.sh` descarcă 15 fișiere / 13 cărți (EN 6, RO 5, RU 4, cu tot cu copiile TXT). Toate se convertesc și se validează în 0,4–3,2 s fiecare; tabelul e în `corpus/README.md`. Moby-Dick: 7 litere grecești/ebraice lipsă din font.
 - Încă deschis: o carte FB2 reală și un TXT românesc CP1250 pentru corpus; încă ~5 cărți până la 20; CONV-8 (fonttool) separat; deschiderea cărților pe dispozitiv are nevoie de LAY/FW.
 
+### 2026-10-27: comentariile din cod în română (pasul 2 din 3)
+- Toate comentariile din C (firmware, simulator, machetă), Python (convertor, fonttool, schemă, scripturi), shell, CMake, Kconfig, `sdkconfig.defaults` și tabela de partiții sunt acum în română. Meniul din `menuconfig` se numește „Placa cititorului e-ink”, iar `board.h` dă „Nicio placă aleasă” dacă lipsește placa.
+- Verificat automat că s-au schimbat doar comentariile: fiecare fișier, cu comentariile scoase (preprocesorul GCC pentru C, arborele sintactic pentru Python), e identic cu versiunea dinainte; excepție fac doar textele din Kconfig și `board.h`, schimbate intenționat. Firmware-ul se compilează, cele 69 de teste ale convertorului și testele fonttool trec, `sim/test/run.sh` trece neschimbat.
+- Au rămas în engleză marcajele citite de unelte (`fall through`, `shellcheck disable`), fișierele de modele de despărțire preluate din altă parte și fonturile C generate: antetul lor vine din fonttool și se traduce în pasul 3, odată cu regenerarea.
+
 ### 2026-10-27: documentația în română (pasul 1 din 3)
 - Proiectul e pentru facultate, deci tot depozitul trece în română: documentele și specificațiile, comentariile din cod, textele de pe dispozitiv și din unelte, mesajele de commit de acum înainte. Identificatorii (variabile, funcții, nume de fișiere, nume de câmpuri din formate) rămân în engleză. Decizia e trecută în planul general, secțiunea 11.
 - Pasul 1, făcut: planul general, descrierea proiectului, acest jurnal, cele două specificații (IBV și IBF) și fiecare README (firmware, simulator, convertor, modele de despărțire, fonttool, corpus). Octeții, câmpurile, etichetele și codurile magice din exemplele hex au rămas neschimbate; doar comentariile lor sunt traduse.

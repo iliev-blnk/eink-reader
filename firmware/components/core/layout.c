@@ -32,13 +32,13 @@ static int32_t advance_of(const font_t *f, uint32_t cp)
     return f->glyphs[font_index_or_fallback(f, cp)].advance;
 }
 
-// One record being laid out or drawn.
+// O înregistrare care se paginează sau se desenează.
 typedef struct {
     const layout_cfg_t *cfg;
     const ibv_record_t *rec;
-    const font_t *face[4];       // by style; a heading uses its face for every style
+    const font_t *face[4];       // după stil; un titlu își folosește fontul pentru fiecare stil
     int kind, align;
-    int32_t left, right;         // margins, 1/64 px
+    int32_t left, right;         // marginile, 1/64 px
     int32_t first_indent, wrap_indent;
     int line_height, ascent;
     layout_fit_t *fit;           // rupturile prin încadrare totală ale înregistrării sau NULL: greedy
@@ -49,7 +49,7 @@ static void setup(para_t *p, const layout_cfg_t *cfg, const ibv_record_t *rec)
     memset(p, 0, sizeof *p);
     p->cfg = cfg;
     p->rec = rec;
-    p->kind = rec->kind <= IBV_QUOTE ? rec->kind : IBV_PARA;   // unknown kinds with text: PARA
+    p->kind = rec->kind <= IBV_QUOTE ? rec->kind : IBV_PARA;   // tipurile necunoscute cu text: PARA
     for (int s = 0; s < 4; s++) p->face[s] = p->kind == IBV_HEADING ? heading_face(cfg) : body_face(cfg, s);
     p->line_height = p->face[0]->line_height + cfg->line_gap;
     p->ascent = p->face[0]->ascent;
@@ -75,14 +75,14 @@ static void setup(para_t *p, const layout_cfg_t *cfg, const ibv_record_t *rec)
 }
 
 typedef struct {
-    uint32_t end, next;          // content ends at `end`; the next line starts at `next`
-    int32_t width;               // natural width, 1/64 px, with the hyphen if any
-    uint16_t gaps;               // stretchable spaces in [start, end)
+    uint32_t end, next;          // conținutul se termină la `end`; rândul următor începe la `next`
+    int32_t width;               // lățimea naturală, 1/64 px, cu cratima dacă are
+    uint16_t gaps;               // spațiile care se pot lăți în [start, end)
     bool hyphen;
-    bool hard;                   // ends at U+2028 or the end of the record: not justified
+    bool hard;                   // se termină la U+2028 sau la sfârșitul înregistrării: nejustificat
 } brk_t;
 
-// Greedy first fit: the longest line from `start` that fits in `avail`.
+// Greedy (first fit): cel mai lung rând de la `start` care încape în `avail`.
 static void break_line(const para_t *p, uint32_t start, int32_t avail, brk_t *out)
 {
     const char *text = p->rec->text, *end = text + p->rec->text_len, *s = text + start;
@@ -124,7 +124,7 @@ static void break_line(const para_t *p, uint32_t start, int32_t avail, brk_t *ou
                     have = true;
                 }
             }
-            break;                                  // invisible: kerning carries across it
+            break;                                  // invizibil: kerningul trece peste el
         case ZWSP:
             cand = (brk_t){at, nx, w, gaps, false, false};
             have = true;
@@ -135,7 +135,7 @@ static void break_line(const para_t *p, uint32_t start, int32_t avail, brk_t *ou
             int32_t add = f->glyphs[gi].advance;
             if (prev >= 0 && f == prev_face) add += font_kern(f, (uint32_t)prev, gi);
             if (any && w + add > avail) {
-                if (!have) cand = (brk_t){at, at, w, gaps, false, false};   // cut the word
+                if (!have) cand = (brk_t){at, at, w, gaps, false, false};   // taie cuvântul
                 *out = cand;
                 return;
             }
@@ -143,7 +143,7 @@ static void break_line(const para_t *p, uint32_t start, int32_t avail, brk_t *ou
             prev = (int32_t)gi;
             prev_face = f;
             any = true;
-            // A dash inside a word ("north-west", "1914–1918") may end a line.
+            // O liniuță în interiorul unui cuvânt („nord-vest”, „1914–1918”) poate încheia un rând.
             if ((cp == '-' || cp == 0x2013 || cp == 0x2014) && in_word && ns < end && *ns != ' ') {
                 cand = (brk_t){nx, nx, w, gaps, false, false};
                 have = true;
@@ -435,29 +435,30 @@ static void next_line(const para_t *p, uint32_t start, int32_t avail, brk_t *out
     if (!p->fit || !fit_line(p->fit, start, out)) break_line(p, start, avail, out);
 }
 
-// The page is full before the line at `*byte` of record `para`. Moves lines to
-// the next page so that it doesn't start with a paragraph's last line alone
-// (a widow) or end with its first line alone (an orphan). The page never
-// empties: a paragraph that starts at the top of the page stays as it is.
+// Pagina e plină înainte de rândul de la `*byte` din înregistrarea `para`. Mută
+// rânduri pe pagina următoare ca ea să nu înceapă cu ultimul rând al unui
+// paragraf singur (rând văduv) sau să nu se termine cu primul lui rând singur
+// (rând orfan). Pagina nu se golește niciodată: un paragraf care începe sus pe
+// pagină rămâne cum e.
 static void keep_lines(const para_t *p, layout_page_t *page, uint32_t para, uint32_t *byte)
 {
     int first = page->line_count;
     while (first > 0 && page->lines[first - 1].para == para) first--;
-    const int here = page->line_count - first;                  // lines of `para` on this page
+    const int here = page->line_count - first;                  // rândurile lui `para` de pe pagina asta
     const bool started = here > 0 && page->lines[first].start == 0;
     if (here == 0) return;
-    if (here == 1 && started) {                                  // orphan: move it over
+    if (here == 1 && started) {                                  // rând orfan: se mută
         if (first > 0) page->line_count = first, *byte = 0;
         return;
     }
     brk_t k;
     next_line(p, *byte, line_avail(p, false), &k);
-    if (k.next < p->rec->text_len) return;                       // two or more lines left: fine
-    if (here == 2 && started) {                                  // moving one would orphan the other
+    if (k.next < p->rec->text_len) return;                       // mai rămân două rânduri sau mai multe: e bine
+    if (here == 2 && started) {                                  // mutarea unuia l-ar lăsa orfan pe celălalt
         if (first > 0) page->line_count = first, *byte = 0;
         return;
     }
-    if (here >= 2) *byte = page->lines[--page->line_count].start;   // widow: take one line with it
+    if (here >= 2) *byte = page->lines[--page->line_count].start;   // rând văduv: ia un rând cu el
 }
 
 ibv_err_t layout_page(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, layout_page_t *page)
@@ -476,7 +477,7 @@ ibv_err_t layout_page(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, la
         const bool fresh = byte == 0, top = page->line_count == 0;
 
         if (rec.kind == IBV_BREAK || (rec.kind > IBV_QUOTE && rec.text_len == 0)) {
-            if (rec.kind == IBV_BREAK && !top) {     // dropped at the top of a page
+            if (rec.kind == IBV_BREAK && !top) {     // scos sus pe pagină
                 if (y + body_lh > cfg->height || page->line_count == LAYOUT_MAX_LINES) goto full;
                 if (rec.flags & IBV_ORNAMENT) {
                     int32_t w = font_text_width(body, "* * *");
@@ -500,7 +501,7 @@ ibv_err_t layout_page(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, la
         if (p.kind == IBV_HEADING && fresh) {
             int above = top ? (chapter ? 2 * body_lh : 0) : body_lh;
             below = body_lh / 2;
-            // The heading moves to the next page unless it fits with two lines after it.
+            // Titlul se mută pe pagina următoare dacă nu încape cu două rânduri după el.
             int n = 0;
             for (uint32_t b = 0; b < rec.text_len; n++) {
                 brk_t k;
@@ -532,14 +533,14 @@ ibv_err_t layout_page(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, la
             int32_t slack = avail - k.width;
             bool justify = p.align == ALIGN_JUSTIFY && k.gaps > 0 && slack != 0;
             if (justify && k.hard) {
-                // The last line of a paragraph isn't justified, unless the
-                // converter split the paragraph and it goes on in a CONT record.
+                // Ultimul rând al unui paragraf nu e justificat, decât dacă
+                // convertorul a împărțit paragraful și el continuă într-o înregistrare CONT.
                 justify = false;
                 if (done && k.end == rec.text_len && para + 1 < book->paragraph_count) {
                     ibv_record_t nxt;
                     if ((err = ibv_record(book, para + 1, &nxt)) != IBV_OK) return err;
                     justify = (nxt.flags & IBV_CONT) != 0;
-                    if ((err = ibv_record(book, para, &rec)) != IBV_OK) return err;   // keep `rec` current
+                    if ((err = ibv_record(book, para, &rec)) != IBV_OK) return err;   // `rec` rămâne la zi
                 }
             }
             ln->x = left;
@@ -550,7 +551,7 @@ ibv_err_t layout_page(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, la
             y += p.line_height;
             byte = k.next;
             first = false;
-            wrapped = !k.hard;       // after U+2028 the next line starts at the margin
+            wrapped = !k.hard;       // după U+2028 rândul următor începe la margine
             if (done) break;
         }
         y += below;
@@ -561,7 +562,7 @@ ibv_err_t layout_page(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, la
     page->end = (layout_pos_t){book->paragraph_count, 0};
     return IBV_OK;
 full:
-    // A heading at the bottom goes with what follows it, unless it's all the page has.
+    // Un titlu de jos pleacă împreună cu ce urmează după el, decât dacă e tot ce are pagina.
     while (byte == 0 && page->line_count > 0 && (page->lines[page->line_count - 1].flags & LINE_HEADING)) {
         uint32_t h = page->lines[page->line_count - 1].para;
         int n = page->line_count;
@@ -570,8 +571,8 @@ full:
         page->line_count = n;
         para = h;
     }
-    // Breaks at the top of a page are dropped, so the next page starts after
-    // them: page starts are then the same however the book was reached.
+    // Separatoarele de sus de pe pagină se scot, deci pagina următoare începe
+    // după ele: începuturile paginilor sunt atunci aceleași oricum s-a ajuns în carte.
     while (byte == 0 && para < book->paragraph_count) {
         ibv_record_t rec;
         if ((err = ibv_record(book, para, &rec)) != IBV_OK) return err;
@@ -583,10 +584,10 @@ full:
     return IBV_OK;
 }
 
-// The latest position at or before `pos` (strictly before, if `strict`) where a
-// page is sure to start: the book's start, or a chapter when chapter_page.
-// Chapters are found through the TOC, which is in RAM; a chapter missing from
-// the TOC only makes the search start earlier.
+// Ultima poziție la sau înainte de `pos` (strict înainte, dacă `strict`) unde
+// sigur începe o pagină: începutul cărții sau un capitol, cu chapter_page.
+// Capitolele se găsesc prin cuprins, care e în RAM; un capitol care lipsește
+// din cuprins doar face căutarea să înceapă mai devreme.
 static ibv_err_t sync_point(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, bool strict, layout_pos_t *out)
 {
     *out = (layout_pos_t){0, 0};
@@ -600,7 +601,7 @@ static ibv_err_t sync_point(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t p
         ibv_record_t rec;
         ibv_err_t err = ibv_record(book, t.para, &rec);
         if (err) return err;
-        // The TOC may point at any record; only a flagged one counts.
+        // Cuprinsul poate arăta spre orice înregistrare; contează doar una cu indicatorul.
         if (rec.flags & IBV_PAGE) {
             *out = at;
             return IBV_OK;

@@ -1,24 +1,25 @@
-// PC simulator: runs the portable core (fonts, IBV reader, layout) and writes
-// what the 240x416 panel would show as PNG files.
+// Simulatorul de pe PC: rulează nucleul portabil (fonturile, cititorul IBV,
+// paginarea) și scrie ca fișiere PNG ce ar arăta panoul de 240x416.
 //
-//   sim screens [-o DIR]                    boot and sleep screens
-//   sim pages BOOK.ibv [-o DIR] [--from N] [-n COUNT] [--cover] [layout options]
-//   sim stats BOOK.ibv... [layout options]  paginate whole books: timings, checks,
-//                                           and a hash of every page (golden tests)
-//   sim compare BOOK.ibv -o OUT.png [--page N] FONT... [layout options]
-//                                           one page side by side in several fonts
+//   sim screens [-o DIR]                    ecranele de pornire și de somn
+//   sim pages BOOK.ibv [-o DIR] [--from N] [-n COUNT] [--cover] [opțiuni de paginare]
+//   sim stats BOOK.ibv... [opțiuni de paginare]  paginează cărți întregi: timpi,
+//                                           verificări și un hash al fiecărei pagini
+//                                           (testele cu imagini de referință)
+//   sim compare BOOK.ibv -o OUT.png [--page N] FONT... [opțiuni de paginare]
+//                                           o pagină în mai multe fonturi, una lângă alta
 //
-// Layout options:
-//   -f FONT          body font: FONT-r.ibf, plus FONT-b/-i/-bi.ibf if they exist
-//                    (e.g. tools/fonttool/out/fam/literata-18); default: the
-//                    built-in font_ui16
-//   --margin PX      left/right/top margin (default 12)
-//   --indent PX      first-line indent (default: the font's pixel size)
+// Opțiunile de paginare:
+//   -f FONT          fontul textului: FONT-r.ibf, plus FONT-b/-i/-bi.ibf dacă există
+//                    (de exemplu tools/fonttool/out/fam/literata-18); implicit:
+//                    font_ui16, cel încorporat
+//   --margin PX      marginea din stânga, dreapta și de sus (implicit 12)
+//   --indent PX      alineatul primului rând (implicit: mărimea fontului în pixeli)
 //   --line-gap PX    --para-gap PX
-//   --ragged         no justification
-//   --no-hyphen      ignore soft hyphens
-//   --no-chapter-page   level-1 headings don't start a new page
-//   --no-keep-lines  allow widows and orphans
+//   --ragged         fără justificare
+//   --no-hyphen      ignoră cratimele moi
+//   --no-chapter-page   capitolele nu încep o pagină nouă
+//   --no-keep-lines  permite rândurile văduve și orfane
 //   --greedy         rupere greedy în rânduri (fără încadrare totală)
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,9 +44,9 @@
 typedef struct {
     layout_cfg_t cfg;
     int margin;
-    int indent;                 // -1: the body font's size
-    const char *font_name;      // for messages
-    const char *font_dir;       // --fonts: pick the family by the book's language
+    int indent;                 // -1: mărimea fontului textului
+    const char *font_name;      // pentru mesaje
+    const char *font_dir;       // --fonts: familia se alege după limba cărții
     int size_step;
     char font_buf[256];
 } setup_t;
@@ -63,8 +64,8 @@ static const char *basename_of(const char *path)
     return s ? s + 1 : path;
 }
 
-// Loads an .ibf into a buffer that lives until exit. NULL if the file doesn't
-// exist; exits if it exists but doesn't open.
+// Încarcă un .ibf într-un buffer care trăiește până la ieșire. NULL dacă
+// fișierul nu există; iese din program dacă există, dar nu se deschide.
 static const font_t *load_font(const char *path)
 {
     FILE *f = fopen(path, "rb");
@@ -72,7 +73,7 @@ static const font_t *load_font(const char *path)
     fseek(f, 0, SEEK_END);
     long n = ftell(f);
     fseek(f, 0, SEEK_SET);
-    uint8_t *d = malloc((size_t)n);        // malloc is at least 8-aligned
+    uint8_t *d = malloc((size_t)n);        // malloc aliniază cel puțin la 8
     font_t *font = malloc(sizeof *font);
     if (!d || !font || fread(d, 1, (size_t)n, f) != (size_t)n) {
         fprintf(stderr, "%s: read error\n", path);
@@ -112,7 +113,7 @@ static void finish_setup(setup_t *s, int indent)
     s->cfg.indent = indent >= 0 ? indent : s->cfg.body[0]->pixel_size;
 }
 
-// With --fonts, loads the font fontsel picks for this book, as the device does.
+// Cu --fonts, încarcă fontul pe care fontsel îl alege pentru cartea asta, ca dispozitivul.
 static void book_setup(setup_t *s, const ibv_t *book)
 {
     if (!s->font_dir) return;
@@ -125,7 +126,7 @@ static void book_setup(setup_t *s, const ibv_t *book)
     s->cfg.indent = s->indent >= 0 ? s->indent : s->cfg.body[0]->pixel_size;
 }
 
-// Parses the layout options at argv[*i]; returns false if it isn't one.
+// Citește opțiunile de paginare de la argv[*i]; întoarce false dacă nu e una.
 static bool layout_option(setup_t *s, int argc, char **argv, int *i, int *indent)
 {
     const char *a = argv[*i];
@@ -170,7 +171,7 @@ static ibv_t *open_book(const char *path)
     return &book;
 }
 
-// Draws text cut to max_w px with an ellipsis.
+// Desenează un text tăiat la max_w px, cu puncte de suspensie.
 static void text_fit(gfx_t *g, const font_t *f, int x, int y, const char *s, size_t len, int max_w)
 {
     char buf[256];
@@ -182,7 +183,7 @@ static void text_fit(gfx_t *g, const font_t *f, int x, int y, const char *s, siz
         return;
     }
     while (len > 0) {
-        do len--; while (len > 0 && ((unsigned char)buf[len] & 0xC0) == 0x80);   // back one codepoint
+        do len--; while (len > 0 && ((unsigned char)buf[len] & 0xC0) == 0x80);   // înapoi cu un caracter
         while (len > 0 && buf[len - 1] == ' ') len--;
         memcpy(buf + len, "\xE2\x80\xA6", 4);
         if (gfx_text_width(f, buf) <= max_w) break;
@@ -190,8 +191,8 @@ static void text_fit(gfx_t *g, const font_t *f, int x, int y, const char *s, siz
     gfx_text(g, f, x, y, buf, GFX_BLACK);
 }
 
-// Footer: chapter title, and "page / pages" once the index is complete (`idx`
-// may be NULL), a percentage before that.
+// Subsolul: titlul capitolului și „pagina / pagini” după ce indexul e complet
+// (`idx` poate fi NULL), un procent până atunci.
 static void draw_footer(gfx_t *g, const setup_t *s, ibv_t *book, const layout_page_t *page, const pageidx_t *idx)
 {
     const font_t *f = &font_ui12;
@@ -223,7 +224,7 @@ static void draw_cover(gfx_t *g, ibv_t *book)
     free(bits);
 }
 
-// Lays out and draws the page at `pos`. Returns false on a read error.
+// Paginează și desenează pagina de la `pos`. Întoarce false la o eroare de citire.
 static bool render_page(gfx_t *g, const setup_t *s, ibv_t *book, layout_pos_t pos, layout_page_t *page,
                         const pageidx_t *idx)
 {
@@ -248,8 +249,8 @@ static int cmd_screens(int argc, char **argv)
     gfx_init(&g, buf, W, H);
     char path[512];
 
-    // What a normal boot shows, then the longest strings the firmware can
-    // produce, to check that nothing runs off the 240 px width.
+    // Ce arată o pornire normală, apoi cele mai lungi texte pe care le poate
+    // produce firmware-ul, ca să se verifice că nimic nu iese din lățimea de 240 px.
     const bringup_info_t screens[] = {
         {
             .board = "devkit-proto",
@@ -344,10 +345,8 @@ static int cmd_pages(int argc, char **argv)
     return 0;
 }
 
-// Counts a page's widow (it starts with a paragraph's last line alone) and
-// orphan (it ends with a paragraph's first line alone). Headings don't count.
-// Characters of the book the body font has no glyph for (drawn as U+FFFD).
-// Spaces and the invisible break characters the layout handles don't count.
+// Caracterele cărții pentru care fontul textului nu are glifă (desenate ca U+FFFD).
+// Spațiile și caracterele de rupere invizibile tratate de paginare nu se numără.
 static uint32_t missing_glyphs(ibv_t *book, const font_t *font)
 {
     uint32_t missing = 0;
@@ -401,6 +400,9 @@ static int cmp_double(const void *a, const void *b)
     return x < y ? -1 : x > y;
 }
 
+// Numără rândul văduv al unei pagini (începe cu ultimul rând al unui paragraf,
+// singur) și rândul orfan (se termină cu primul rând al unui paragraf, singur).
+// Titlurile nu se numără.
 static void widows_orphans(ibv_t *book, const layout_page_t *pg, int *widows, int *orphans)
 {
     if (pg->line_count == 0) return;
@@ -415,11 +417,11 @@ static void widows_orphans(ibv_t *book, const layout_page_t *pg, int *widows, in
         ++*orphans;
 }
 
-// Paginates every book to the end and checks what the layout promises: pages
-// chain (end = next start) and always advance, nothing is drawn outside the
-// text area, going back a page and finding the page of a position (without
-// the index) agree with the index, and the index survives its sidecar file.
-// The hash covers every page's pixels, footer included.
+// Paginează fiecare carte până la capăt și verifică ce promite paginarea:
+// paginile se înlănțuie (end = începutul următoarei) și avansează mereu, nimic
+// nu se desenează în afara zonei de text, pagina înapoi și găsirea paginii unei
+// poziții (fără index) sunt de acord cu indexul, iar indexul trece neschimbat
+// prin fișierul însoțitor. Hash-ul acoperă pixelii fiecărei pagini, cu tot cu subsolul.
 static int cmd_stats(int argc, char **argv)
 {
     setup_t s;
@@ -476,9 +478,9 @@ static int cmd_stats(int argc, char **argv)
             if (layout_draw(&s.cfg, book, &page, &g, s.margin, s.margin)) { FAIL("draw error"); break; }
             gfx_rect_t d;
             if (gfx_take_dirty(&g, &d)) {
-                // Ink past the text area. Side bearings and italic descenders
-                // ('f', 'j' leaning left) stick out a few px by design; a line
-                // that is too long shows up as much more.
+                // Cerneală dincolo de zona de text. Spațiile laterale ale glifelor
+                // și cozile italicelor ('f', 'j' aplecate la stânga) ies câțiva px
+                // prin proiectare; un rând prea lung iese mult mai mult.
                 int o[3] = {s.margin - d.x, d.x + d.w - s.margin - s.cfg.width, d.y + d.h - s.margin - s.cfg.height};
                 for (int k = 0; k < 3; k++)
                     if (o[k] > overhang) overhang = o[k];
@@ -497,7 +499,7 @@ static int cmd_stats(int argc, char **argv)
             prev_off = off;
         }
 
-        // Back paging and locating, on up to 64 pages spread over the book.
+        // Pagina înapoi și găsirea paginii, pe cel mult 64 de pagini răspândite prin carte.
         int prev_max = 0;
         double prev_sum = 0;
         int samples = 0;
@@ -510,7 +512,7 @@ static int cmd_stats(int argc, char **argv)
             if (n > prev_max) prev_max = n;
             prev_sum += n;
             samples++;
-            // A position inside the page (one byte in, if the page is longer than that).
+            // O poziție în interiorul paginii (un octet după început, dacă pagina e mai lungă de atât).
             layout_pos_t mid = idx.starts[i];
             mid.byte++;
             if (i + 1 < idx.count && layout_pos_cmp(mid, idx.starts[i + 1]) >= 0) mid = idx.starts[i];
@@ -521,7 +523,7 @@ static int cmd_stats(int argc, char **argv)
         layout_pos_t first;
         if (layout_prev(&s.cfg, book, (layout_pos_t){0, 0}, &page, &first, NULL) != IBV_ERR_RANGE) FAIL("prev of page 1 isn't an error");
 
-        // The sidecar: a round trip gives the same index, a flipped byte or another layout gives none.
+        // Fișierul însoțitor: dus-întors dă același index, un octet inversat sau altă paginare nu dau niciunul.
         pageidx_t back;
         pageidx_init(&back, lh);
         if (!pageidx_save(&idx, book->book_id, sidecar)) FAIL("can't write %s", sidecar);
@@ -568,7 +570,7 @@ static int cmd_stats(int argc, char **argv)
     return failures ? 1 : 0;
 }
 
-// Copies a W x H screen into a wider canvas at column `x` (a multiple of 8).
+// Copiază un ecran W x H într-o pânză mai lată, la coloana `x` (multiplu de 8).
 static void blit(gfx_t *dst, const gfx_t *src, int x)
 {
     for (int y = 0; y < src->height && y < dst->height; y++)

@@ -1,4 +1,4 @@
-// Bring-up screens. Portable (core only), so sim/ renders the same layout.
+// Ecranele de punere în funcțiune. Portabile (doar core), deci sim/ desenează aceeași așezare.
 #pragma once
 
 #include "gfx.h"
@@ -16,6 +16,6 @@ typedef struct {
 } bringup_info_t;
 
 void screen_bringup_draw(gfx_t *g, const bringup_info_t *info);
-// Redraws only the button/counter box; the caller refreshes the dirty area.
+// Redesenează doar caseta butoanelor și a contorului; apelantul reîmprospătează zona modificată.
 void screen_bringup_draw_counter(gfx_t *g, const bringup_info_t *info);
 void screen_sleep_draw(gfx_t *g);

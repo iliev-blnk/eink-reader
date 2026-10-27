@@ -1,8 +1,8 @@
-"""Text clean-up applied to every paragraph before hyphenation (CONV-3).
+"""Curățarea textului, aplicată fiecărui paragraf înainte de despărțirea în silabe (CONV-3).
 
-Text is carried as `Styled`: a string plus one style value per character, so
-bold and italic survive every replacement here. Each rule is a small regex
-substitution; `normalize()` runs them in order.
+Textul se poartă ca `Styled`: un șir plus o valoare de stil pe caracter, deci
+bold-ul și italicul trec prin fiecare înlocuire de aici. Fiecare regulă e o mică
+substituție cu expresii regulate; `normalize()` le rulează în ordine.
 """
 from __future__ import annotations
 
@@ -27,9 +27,9 @@ class Styled:
 
 
 def sub(st: Styled, pattern: re.Pattern, repl) -> Styled:
-    """re.sub that keeps per-character styles. A replacement of the same length
-    keeps each character's style; anything else takes the style of the first
-    replaced character (or of the character before, for an empty match)."""
+    """re.sub care păstrează stilurile pe caracter. O înlocuire de aceeași lungime
+    păstrează stilul fiecărui caracter; orice altceva ia stilul primului
+    caracter înlocuit (sau al caracterului dinainte, la o potrivire goală)."""
     out, sty, pos = [], [], 0
     for m in pattern.finditer(st.text):
         a, b = m.span()
@@ -57,12 +57,12 @@ def table_sub(st: Styled, table: dict[str, str]) -> Styled:
     return sub(st, pattern, lambda m: table[m.group(0)])
 
 
-# ---------------------------------------------------------------- rules
+# ---------------------------------------------------------------- regulile
 
-# Romanian s/t with cedilla (legacy, from Turkish code pages) -> comma below
+# s/t românești cu sedilă (moștenite din paginile de cod turcești) -> virgulă dedesubt
 RO_COMMA = {"ş": "ș", "Ş": "Ș", "ţ": "ț", "Ţ": "Ț"}
-# Romanian typed with Western fonts in the 1990s: ã/º/þ stood in for ă/ș/ț.
-# Only applied when a whole book uses them (see detect_ro_legacy).
+# Româna tastată cu fonturi occidentale în anii '90: ã/º/þ țineau locul lui ă/ș/ț.
+# Se aplică doar când le folosește toată cartea (vezi detect_ro_legacy).
 RO_LEGACY = {"ã": "ă", "Ã": "Ă", "º": "ș", "ª": "Ș", "þ": "ț", "Þ": "Ț"}
 
 SPACES = re.compile(r"[\t\n\r\f\v   -\u200a\u205f\u3000\u0085]+")
@@ -79,7 +79,7 @@ DOUBLE_SPACE = re.compile(r"  +")
 LINESEP_SPACE = re.compile(r" ?\u2028 ?")
 OPEN_CONTEXT = set(" \u00a0\u2028([{<«„“‘—–-/") | {""}
 
-QUOTES = {           # (open, close) for " in each language
+QUOTES = {           # (deschidere, închidere) pentru " în fiecare limbă
     "ro": ("„", "”"),
     "ru": ("«", "»"),
     "en": ("“", "”"),
@@ -87,19 +87,19 @@ QUOTES = {           # (open, close) for " in each language
 
 
 def detect_ro_legacy(sample: str) -> bool:
-    """True when a Romanian text uses ã/º/þ for ă/ș/ț throughout."""
+    """True când un text românesc folosește peste tot ã/º/þ pentru ă/ș/ț."""
     legacy = sum(sample.count(c) for c in "ãºþ")
     proper = sum(sample.count(c) for c in "ăășşțţ")
     return legacy > 20 and legacy > 5 * proper
 
 
-# "ceva , te rog" (scans, old TXT files); not before "...", ".5" or an opening bracket
+# "ceva , te rog" (scanări, fișiere TXT vechi); nu înainte de "...", ".5" sau o paranteză deschisă
 SPACE_BEFORE_PUNCT = re.compile(r" +(?=[,;:!?.](?:[\s\u2028)\]”»’]|$))")
 
 
 def _quotes(st: Styled, lang: str) -> Styled:
-    """Straight quotes -> typographic ones. A quote opens after a space, a
-    bracket or a dash, and closes otherwise; ,, (old Romanian files) opens."""
+    """Ghilimelele drepte -> cele tipografice. Ghilimelele se deschid după un spațiu,
+    o paranteză sau o linie și se închid în rest; ,, (fișierele românești vechi) deschide."""
     if '"' not in st.text and "'" not in st.text and ",," not in st.text:
         return st
     opening, closing = QUOTES.get(lang, QUOTES["en"])
@@ -111,7 +111,7 @@ def _quotes(st: Styled, lang: str) -> Styled:
         if m.group(0) == '"':
             return opening if prev in OPEN_CONTEXT else closing
         nxt = st.text[m.end()] if m.end() < len(st.text) else ""
-        if lang == "en" and prev in OPEN_CONTEXT and not nxt.isdigit():     # but ’90s
+        if lang == "en" and prev in OPEN_CONTEXT and not nxt.isdigit():     # dar ’90s
             return "‘"
         return "’"
     return sub(st, re.compile(r"[\"']"), repl)
@@ -140,7 +140,7 @@ def normalize(st: Styled, lang: str, ro_legacy: bool = False) -> Styled:
     st = sub(st, NBSP_SPACE, NBSP)
     st = sub(st, DOUBLE_SPACE, " ")
     st = strip(st)
-    # tie a dash to the word before it so no line starts with one
+    # linia de dialog se leagă de cuvântul dinainte, ca niciun rând să nu înceapă cu ea
     st = sub(st, DASH_TIE, NBSP)
     return st
 
@@ -155,7 +155,7 @@ def strip(st: Styled) -> Styled:
 
 
 def plain(text: str, lang: str, ro_legacy: bool = False) -> str:
-    """normalize() for unstyled strings such as titles and TOC labels."""
+    """normalize() pentru șiruri fără stil, ca titlurile și etichetele din cuprins."""
     st = Styled()
     st.append(text, 0)
     return normalize(st, lang, ro_legacy).text.replace(LSEP, " ")

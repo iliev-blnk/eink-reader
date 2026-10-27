@@ -1,8 +1,8 @@
-// 1-bit framebuffer drawing. Portable C, no ESP-IDF dependencies: the same code
-// runs on the device and in the PC simulator.
+// Desenarea într-un framebuffer de 1 bit. C portabil, fără dependențe de ESP-IDF:
+// același cod rulează pe dispozitiv și în simulatorul de pe PC.
 //
-// Pixel format matches the UC8253 panel RAM: row-major, 8 px per byte, MSB = leftmost,
-// bit 1 = white, bit 0 = black.
+// Formatul pixelilor e cel din RAM-ul panoului UC8253: pe rânduri, 8 px pe octet,
+// MSB = cel mai din stânga, bitul 1 = alb, bitul 0 = negru.
 #pragma once
 
 #include <stdbool.h>
@@ -18,8 +18,8 @@ typedef struct {
 
 typedef struct {
     uint8_t *buf;
-    int width, height, stride;  // stride = bytes per row
-    gfx_rect_t dirty;           // union of everything drawn since the last take
+    int width, height, stride;  // stride = octeți pe rând
+    gfx_rect_t dirty;           // reuniunea a tot ce s-a desenat de la ultima preluare
     bool has_dirty;
 } gfx_t;
 
@@ -32,15 +32,15 @@ void gfx_fill_rect(gfx_t *g, int x, int y, int w, int h, gfx_color_t c);
 void gfx_rect(gfx_t *g, int x, int y, int w, int h, gfx_color_t c);
 void gfx_hline(gfx_t *g, int x, int y, int w, gfx_color_t c);
 
-// Draws glyph `index` of `font` with its pen at x and its baseline at y.
+// Desenează glifa `index` din `font` cu penița la x și linia de bază la y.
 void gfx_glyph(gfx_t *g, const font_t *font, uint32_t index, int x, int y, gfx_color_t c);
 
-// Draws UTF-8 text with its baseline at y, with kerning. The pen moves in
-// 1/64 px and each glyph lands on the pen rounded. Returns the x after the
-// last glyph.
+// Desenează un text UTF-8 cu linia de bază la y, cu kerning. Penița se mișcă în
+// 1/64 px, iar fiecare glifă cade la poziția rotunjită a peniței. Întoarce x-ul
+// de după ultima glifă.
 int gfx_text(gfx_t *g, const font_t *font, int x, int y, const char *utf8, gfx_color_t c);
-// Width of the text in whole px (rounded up).
+// Lățimea textului în px întregi (rotunjită în sus).
 int gfx_text_width(const font_t *font, const char *utf8);
 
-// Returns the area changed since the last call (for partial refresh) and resets it.
+// Întoarce zona schimbată de la ultimul apel (pentru reîmprospătarea parțială) și o golește.
 bool gfx_take_dirty(gfx_t *g, gfx_rect_t *out);

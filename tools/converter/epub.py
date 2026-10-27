@@ -1,24 +1,24 @@
-"""EPUB 2/3 input (CONV-2).
+"""Intrarea EPUB 2/3 (CONV-2).
 
-container.xml -> the OPF package -> metadata, manifest and spine. Spine
-documents are read in order with an HTML parser (lenient: real EPUBs have
-HTML entities and unclosed tags that a strict XML parser rejects).
+container.xml -> pachetul OPF -> metadatele, manifestul și spine-ul. Documentele
+din spine se citesc în ordine cu un parser HTML (îngăduitor: EPUB-urile reale au
+entități HTML și etichete neînchise pe care un parser XML strict le respinge).
 
-Mapping, roughly:
-  p, div, li, td ...          paragraph (PARA)
-  h1-h6                        HEADING, level 1-4
+Corespondența, pe scurt:
+  p, div, li, td ...          paragraf (PARA)
+  h1-h6                        HEADING, nivelul 1-4
   blockquote                   QUOTE
-  poem / stanza / verse        VERSE per line, BREAK between stanzas
-  hr                           BREAK with ornament
-  br                           line break inside the paragraph (U+2028)
-  b/strong, i/em/cite          bold, italic; also from inline styles and
-                               simple class rules in the book's CSS
-  footnote markers and notes   dropped (out of scope for v0.1)
-  anything else                its text, as plain text
+  poem / stanza / verse        câte un VERSE pe rând, BREAK între strofe
+  hr                           BREAK cu ornament
+  br                           rupere de rând în paragraf (U+2028)
+  b/strong, i/em/cite          bold, italic; și din stilurile inline și din
+                               regulile simple pe clase din CSS-ul cărții
+  semnele și textele notelor   scoase (în afara lui v0.1)
+  orice altceva                textul lui, ca text simplu
 
-The TOC comes from the EPUB 3 nav document, else from the NCX, else from the
-headings. Every element id is an anchor, so TOC links to "ch3.xhtml#sec2"
-land on the right paragraph.
+Cuprinsul vine din documentul nav al EPUB 3, altfel din NCX, altfel din
+titluri. Fiecare id de element e o ancoră, deci legăturile din cuprins spre
+"ch3.xhtml#sec2" ajung la paragraful potrivit.
 """
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ VERSE_HINT = re.compile(r"\b(poem|poetry|verse|stanza|lg|linegroup|line-group|so
                         r"z3998:poem|z3998:verse|z3998:song|z3998:hymn|vers|strofa|стих)\b", re.I)
 NOTE_HINT = re.compile(r"\b(noteref|footnote|endnote|rearnote|endnotes|footnotes|rearnotes|"
                        r"doc-noteref|doc-footnote|doc-endnotes|annoref)\b", re.I)
-BOILERPLATE_HINT = re.compile(r"\bpg-boilerplate\b")    # Project Gutenberg header and licence
+BOILERPLATE_HINT = re.compile(r"\bpg-boilerplate\b")    # Antetul și licența Project Gutenberg
 EPIGRAPH_HINT = re.compile(r"\b(epigraph|z3998:epigraph|doc-epigraph|motto)\b", re.I)
 
 
@@ -95,7 +95,7 @@ class Epub:
         href = urllib.parse.unquote(href.split("#", 1)[0])
         return posixpath.normpath(posixpath.join(base_dir, href)) if href else base_dir
 
-    # metadata
+    # metadatele
     def metadata(self) -> dict[str, str]:
         md = _find(self.opf, "metadata")
         md = md[0] if md else self.opf
@@ -125,7 +125,7 @@ class Epub:
         for it in cands:
             if it["type"].startswith("image/") and self.exists(it["href"]):
                 return self.read(it["href"])
-        for ref in _find(self.opf, "reference"):      # EPUB 2 guide: cover page -> its first image
+        for ref in _find(self.opf, "reference"):      # ghidul EPUB 2: pagina copertei -> prima ei imagine
             if ref.get("type") == "cover":
                 page = self.resolve(self.opf_dir, ref.get("href", ""))
                 if self.exists(page):
@@ -136,7 +136,7 @@ class Epub:
                             return self.read(img)
         return None
 
-    # table of contents: list of (path, fragment, level, title)
+    # cuprinsul: listă de (cale, fragment, nivel, titlu)
     def toc(self) -> list[tuple[str, str, int, str]]:
         nav = next((it for it in self.manifest.values() if "nav" in it["props"].split()), None)
         if nav and self.exists(nav["href"]):
@@ -174,7 +174,7 @@ class Epub:
         base = posixpath.dirname(path)
         return [(self.resolve(base, href), _fragment(href), depth, label) for href, depth, label in p.entries]
 
-    # CSS: class -> style bits / alignment / hidden
+    # CSS: clasă -> biți de stil / aliniere / ascuns
     def css_rules(self) -> dict[str, dict]:
         rules: dict[str, dict] = {}
         for it in self.manifest.values():
@@ -226,7 +226,7 @@ def _strip_tags(s: str) -> str:
 
 
 class _NavParser(html.parser.HTMLParser):
-    """Reads the <nav epub:type="toc"> list of an EPUB 3 nav document."""
+    """Citește lista <nav epub:type="toc"> dintr-un document nav EPUB 3."""
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.in_toc = 0
@@ -286,7 +286,7 @@ class _Ctx:
 
 
 class _DocParser(html.parser.HTMLParser):
-    """One XHTML spine document -> Builder calls."""
+    """Un document XHTML din spine -> apeluri Builder."""
 
     def __init__(self, b: Builder, path: str, css: dict[str, dict]):
         super().__init__(convert_charrefs=True)
@@ -295,7 +295,7 @@ class _DocParser(html.parser.HTMLParser):
         self.b.anchor((path, ""))
         self.para_kind = ibv.PARA
         self.para_flags = 0
-        self.prefix = ""          # list bullet, written before the item's first text
+        self.prefix = ""          # buline de listă, scrisă înaintea primului text al elementului
 
     @property
     def top(self) -> _Ctx:
@@ -309,7 +309,7 @@ class _DocParser(html.parser.HTMLParser):
         self.para_kind, self.para_flags = ibv.PARA, 0
 
     def _start_paragraph(self, ctx: _Ctx):
-        """Sets kind and flags for the paragraph that starts with this block."""
+        """Pune tipul și indicatorii pentru paragraful care începe cu blocul ăsta."""
         if ctx.kind == ibv.HEADING:
             self.para_kind = ibv.HEADING
             self.para_flags = heading_flags(ctx.level, ctx.align or ibv.ALIGN_CENTER)
@@ -362,7 +362,7 @@ class _DocParser(html.parser.HTMLParser):
             ctx.verse = True
         if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
             ctx.kind, ctx.level = ibv.HEADING, min(int(tag[1]), 4)
-            ctx.style &= ~ibv.BOLD            # headings are bold by kind
+            ctx.style &= ~ibv.BOLD            # titlurile sunt bold prin tipul lor
         if tag in ("ul", "ol"):
             ctx.list_kind = tag
         if a.get("id"):
@@ -386,7 +386,7 @@ class _DocParser(html.parser.HTMLParser):
         if tag == "br":
             if parent.verse:
                 if not self.b.has_text():
-                    self.b.brk()              # <br/><br/>: an empty line between stanzas
+                    self.b.brk()              # <br/><br/>: un rând gol între strofe
                 self.flush()
                 self._start_paragraph(parent)
                 for c in reversed(self.stack):
@@ -401,7 +401,7 @@ class _DocParser(html.parser.HTMLParser):
     def handle_endtag(self, tag):
         if tag in VOID:
             return
-        # close up to the matching tag (tolerates unclosed children)
+        # se închide până la eticheta pereche (tolerează copii neînchiși)
         for i in range(len(self.stack) - 1, 0, -1):
             if self.stack[i].tag == tag:
                 break
@@ -413,7 +413,7 @@ class _DocParser(html.parser.HTMLParser):
                 continue
             if ctx.tag in BLOCK and not ctx.skip:
                 self.flush()
-                # a stanza ends: an element marked as one, or a block of <br>-separated lines
+                # se termină o strofă: un element marcat ca strofă sau un bloc de rânduri despărțite cu <br>
                 if ctx.verse and (ctx.stanza or ctx.brs) and not self.top.skip:
                     self.b.brk()
                 if ctx.tag == "li":
@@ -457,7 +457,7 @@ def parse(data: bytes, name: str = "") -> tuple[Builder, dict[str, str], dict]:
         p = _DocParser(b, path, css)
         p.feed(_decode(ep.read(path)))
         p.close()
-        # a new spine document starts a new section: never run text across it
+        # un document nou din spine începe o secțiune nouă: textul nu trece niciodată peste el
         b.end()
     for path, frag, depth, label in ep.toc():
         b.toc_entry((path, frag) if frag and (path, frag) in b.anchors else (path, ""), depth, label)

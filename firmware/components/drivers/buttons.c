@@ -14,12 +14,12 @@ static const char *TAG = "buttons";
 
 typedef struct {
     gpio_num_t pin;
-    bool raw;        // last reading (true = pressed)
-    int stable_ms;   // how long raw has been unchanged
-    bool down;       // debounced state
+    bool raw;        // ultima citire (true = apăsat)
+    int stable_ms;   // de cât timp raw nu s-a schimbat
+    bool down;       // starea după debounce
     int held_ms;
-    bool long_sent;  // a long press was reported: no short press on release
-    bool ignore;     // was down at init: ignore until released
+    bool long_sent;  // s-a raportat o apăsare lungă: fără apăsare scurtă la eliberare
+    bool ignore;     // era apăsat la inițializare: ignorat până e eliberat
 } btn_t;
 
 static btn_t s_btn[BUTTON_COUNT];
@@ -29,7 +29,7 @@ static TaskHandle_t s_task;
 static void post(button_t b, press_t p)
 {
     const button_event_t ev = {.button = b, .press = p};
-    xQueueSend(s_queue, &ev, 0);  // drop when nobody is reading
+    xQueueSend(s_queue, &ev, 0);  // se pierde când nu citește nimeni
 }
 
 static void poll_task(void *arg)
@@ -75,7 +75,7 @@ esp_err_t buttons_init(const gpio_num_t pins[BUTTON_COUNT])
         .pull_up_en = GPIO_PULLUP_ENABLE,
     };
     for (int i = 0; i < BUTTON_COUNT; i++) io.pin_bit_mask |= BIT64(pins[i]);
-    // Also hands the pins back from the RTC domain after a deep-sleep wake.
+    // Tot aici pinii se iau înapoi din domeniul RTC după o trezire din somnul adânc.
     ESP_RETURN_ON_ERROR(gpio_config(&io), TAG, "pins");
 
     for (int i = 0; i < BUTTON_COUNT; i++) {
@@ -111,14 +111,14 @@ bool buttons_any_down(void)
 esp_err_t buttons_enable_wakeup(void)
 {
     if (s_task) {
-        vTaskSuspend(s_task);  // the pins are about to leave the GPIO matrix
+        vTaskSuspend(s_task);  // pinii urmează să iasă din matricea GPIO
     }
     uint64_t mask = 0;
     for (int i = 0; i < BUTTON_COUNT; i++) {
         gpio_num_t pin = s_btn[i].pin;
         mask |= BIT64(pin);
-        // RTC pull-ups; ESP-IDF holds the pads through sleep when the RTC
-        // peripherals are powered down, so they cost no extra domain.
+        // Pull-up-uri RTC; ESP-IDF ține pinii în somn când perifericele RTC
+        // sunt oprite, deci nu costă un domeniu în plus.
         ESP_RETURN_ON_ERROR(rtc_gpio_init(pin), TAG, "rtc init %d", pin);
         ESP_RETURN_ON_ERROR(rtc_gpio_set_direction(pin, RTC_GPIO_MODE_INPUT_ONLY), TAG, "rtc dir");
         ESP_RETURN_ON_ERROR(rtc_gpio_pulldown_dis(pin), TAG, "pulldown");

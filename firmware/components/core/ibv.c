@@ -41,7 +41,7 @@ static int find_section(const ibv_t *b, const char *tag)
     return -1;
 }
 
-// Reads a whole section and checks its CRC. *out is malloc'd (+1 byte, NUL).
+// Citește o secțiune întreagă și îi verifică CRC-ul. *out e alocat cu malloc (+1 octet, NUL).
 static ibv_err_t load_section(ibv_t *b, int i, uint8_t **out)
 {
     uint32_t len = b->sections[i].length;
@@ -56,8 +56,8 @@ static ibv_err_t load_section(ibv_t *b, int i, uint8_t **out)
 
 static ibv_err_t parse_meta(ibv_t *b, uint8_t *m, uint32_t len)
 {
-    // Values are rewritten in place as NUL-terminated strings: each value
-    // moves 3 bytes left, over its own key/length bytes.
+    // Valorile se rescriu pe loc ca șiruri terminate cu NUL: fiecare valoare
+    // se mută cu 3 octeți la stânga, peste propriii octeți de cheie și lungime.
     if (len < 2) return IBV_ERR_FORMAT;
     uint32_t n = rd16(m), pos = 2;
     char *out = (char *)m;
@@ -217,7 +217,7 @@ static bool uleb(const uint8_t **p, const uint8_t *end, uint32_t *out)
     return false;
 }
 
-// Decodes the record at *p; on success *p is past it.
+// Decodează înregistrarea de la *p; la reușită *p e după ea.
 static bool decode(const uint8_t **p, const uint8_t *end, ibv_record_t *r)
 {
     if (end - *p < 2) return false;
@@ -362,7 +362,7 @@ bool ibv_cover(ibv_t *b, uint16_t *w, uint16_t *h, uint8_t **bits)
 void ibv_styles_init(ibv_styles_t *s, const ibv_record_t *r)
 {
     s->p = r->runs;
-    s->end = (const uint8_t *)r->text;    // the runs end where the text starts
+    s->end = (const uint8_t *)r->text;    // intervalele se termină unde începe textul
     s->left = r->run_count;
     s->start = s->stop = 0;
     s->style = 0;

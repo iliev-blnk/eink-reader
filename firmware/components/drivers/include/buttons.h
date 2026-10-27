@@ -1,6 +1,6 @@
-// Three buttons to GND with pull-ups: debounced, short and long press, queued
-// as events. v0 polls every 10 ms; interrupts + light sleep come with the
-// power manager.
+// Trei butoane la GND cu pull-up: cu debounce, apăsare scurtă și lungă, puse
+// într-o coadă ca evenimente. v0 citește la fiecare 10 ms; întreruperile și
+// somnul ușor vin odată cu managerul de alimentare.
 #pragma once
 
 #include <stdbool.h>
@@ -19,20 +19,20 @@ typedef struct {
     press_t press;
 } button_event_t;
 
-// Starts the polling task. A button that is already down (the one that woke
-// the device) is ignored until it's released.
+// Pornește taskul care citește butoanele. Un buton deja apăsat (cel care a
+// trezit dispozitivul) e ignorat până e eliberat.
 esp_err_t buttons_init(const gpio_num_t pins[BUTTON_COUNT]);
 
-// Waits for the next event; false on timeout.
+// Așteaptă următorul eveniment; false la expirarea timpului.
 bool buttons_wait(button_event_t *ev, TickType_t timeout);
 
 bool buttons_any_down(void);
 
-// Stops polling and arms all buttons as deep-sleep wake sources (ext1, any
-// low). The pins keep their pull-ups through sleep.
+// Oprește citirea și face din toate butoanele surse de trezire din somnul
+// adânc (ext1, oricare în 0). Pinii își păstrează pull-up-urile în somn.
 esp_err_t buttons_enable_wakeup(void);
 
-// The button behind an ext1 wake status mask, or -1.
+// Butonul din spatele unei măști de stare a trezirii ext1, sau -1.
 int buttons_from_wake_mask(uint64_t mask);
 
 const char *button_name(button_t b);

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
-# Board pin maps live in their own component so the custom PCB can be added
-# later as a second board without touching drivers or apps.
+# Hărțile pinilor stau într-o componentă separată, ca placa proprie să se poată
+# adăuga mai târziu ca a doua placă fără a atinge driverele sau aplicațiile.
 set(EXTRA_COMPONENT_DIRS boards)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)

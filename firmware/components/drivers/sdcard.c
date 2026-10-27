@@ -18,7 +18,7 @@ esp_err_t sdcard_mount(const sdcard_config_t *cfg, sdcard_info_t *info)
 
     static const int speeds_khz[] = {SDMMC_FREQ_DEFAULT, 5000};
     const esp_vfs_fat_mount_config_t mount = {
-        .format_if_mount_failed = false,  // never wipe the user's card
+        .format_if_mount_failed = false,  // nu se șterge niciodată cardul utilizatorului
         .max_files = 4,
         .allocation_unit_size = 16 * 1024,
     };
@@ -35,7 +35,7 @@ esp_err_t sdcard_mount(const sdcard_config_t *cfg, sdcard_info_t *info)
         if (err == ESP_OK) break;
         ESP_LOGW(TAG, "mount at %d kHz failed: %s", speeds_khz[i], esp_err_to_name(err));
         s_card = NULL;
-        if (err == ESP_FAIL) break;  // the card answered but has no FAT volume
+        if (err == ESP_FAIL) break;  // cardul a răspuns, dar nu are volum FAT
     }
     if (err != ESP_OK) return err;
 

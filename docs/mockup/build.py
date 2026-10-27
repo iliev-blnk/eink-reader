@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Embed the rendered screens into the mockup page.
+"""Pune ecranele desenate în pagina machetei.
 
     build.py <screens dir> <template.html> <out.html> [preview.html]
 """
@@ -12,7 +12,7 @@ page = tpl.read_text().replace('/*__IMAGES__*/{}', json.dumps(images, separators
 out.write_text(page)
 print(f'{out}: {len(images)} screens, {len(page) // 1024} KB')
 if len(sys.argv) > 4:
-    # local preview only: the host adds the document skeleton itself
+    # doar pentru previzualizarea locală: gazda adaugă singură scheletul documentului
     pathlib.Path(sys.argv[4]).write_text(
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1"></head><body>'

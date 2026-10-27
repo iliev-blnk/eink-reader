@@ -1,14 +1,14 @@
-"""Liang's hyphenation algorithm (as in TeX) over the hyph-utf8 patterns in patterns/.
+"""Algoritmul de despărțire în silabe al lui Liang (ca în TeX) peste modelele hyph-utf8 din patterns/.
 
     h = Hyphenator.for_language("ro")
-    h.points("copilărie")          -> [2, 4, 6, 8]  (break allowed before these letters)
+    h.points("copilărie")          -> [2, 4, 6, 8]  (ruperea e permisă înaintea acestor litere)
     h.hyphenate("copilărie", "-")  -> "co-pi-lă-ri-e"
 
-Patterns are strings like "a3i2e". Read without the digits, a pattern is a
-substring that may appear in ".word." (the dots mark the word edges). The
-digits are scores for the gaps between its letters. Every pattern found in the
-word adds its scores, and where two patterns score the same gap the higher
-score wins. An odd final score allows a break there; an even score forbids it.
+Modelele sunt șiruri ca "a3i2e". Citit fără cifre, un model e un subșir care
+poate apărea în ".cuvânt." (punctele marchează capetele cuvântului). Cifrele sunt
+scoruri pentru golurile dintre literele lui. Fiecare model găsit în cuvânt își
+adaugă scorurile, iar unde două modele punctează același gol câștigă scorul mai
+mare. Un scor final impar permite ruperea acolo; unul par o interzice.
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ import re
 
 PATTERN_DIR = pathlib.Path(__file__).resolve().parent / "patterns"
 
-# language tag (lowercase, as in BCP 47) -> (pattern file stem, left min, right min)
+# eticheta limbii (cu litere mici, ca în BCP 47) -> (numele fișierului de modele, minimul stânga, minimul dreapta)
 LANGUAGES = {
     "ro": ("hyph-ro", 2, 2),
     "ru": ("hyph-ru", 2, 2),
@@ -30,7 +30,7 @@ ALIASES = {"mo": "ro", "ro-md": "ro", "ro-ro": "ro", "ru-ru": "ru", "ru-md": "ru
 
 
 def resolve(lang: str) -> str | None:
-    """The LANGUAGES key for a BCP 47 tag, or None when we have no patterns for it."""
+    """Cheia din LANGUAGES pentru o etichetă BCP 47, sau None când n-avem modele pentru ea."""
     tag = (lang or "").strip().lower().replace("_", "-")
     tag = ALIASES.get(tag, tag)
     if tag in LANGUAGES:
@@ -76,7 +76,7 @@ class Hyphenator:
         return cls(pats, exc, left, right)
 
     def points(self, word: str) -> list[int]:
-        """Indices i such that a break is allowed between word[i-1] and word[i]."""
+        """Indicii i pentru care e permisă ruperea între word[i-1] și word[i]."""
         w = word.lower()
         if len(w) != len(word) or len(w) < self.left + self.right:
             return []
@@ -91,7 +91,7 @@ class Hyphenator:
                     for k, v in enumerate(pat):
                         if v > score[i + k]:
                             score[i + k] = v
-        # score[k] is the gap before s[k]; word letter i is s[i + 1]
+        # score[k] e golul dinainte de s[k]; litera i a cuvântului e s[i + 1]
         return [i for i in range(self.left, len(w) - self.right + 1) if score[i + 1] % 2]
 
     def hyphenate(self, word: str, mark: str = "\u00ad") -> str:
@@ -110,8 +110,8 @@ def _read_list(path: pathlib.Path) -> list[str]:
             if ln.strip() and not ln.startswith("%")]
 
 
-# Words we hyphenate: runs of letters. A word with a capital after its first
-# letter (NATO, McDonald, iPhone) is an acronym or a name and is left alone.
+# Cuvintele despărțite: șiruri de litere. Un cuvânt cu o majusculă după prima
+# literă (NATO, McDonald, iPhone) e un acronim sau un nume și rămâne neatins.
 WORD = re.compile(r"[^\W\d_]+")
 
 

@@ -1,7 +1,7 @@
-"""IBF bitmap font format v0.1: writer, reader, validator, dumper.
+"""Formatul de font bitmap IBF v0.1: scriitor, cititor, validator, afișare.
 
-The spec is spec/font-format.md. This module is its reference implementation;
-the device reader is firmware/components/core/font.c.
+Specificația e spec/font-format.md. Modulul ăsta e implementarea ei de referință;
+cititorul de pe dispozitiv e firmware/components/core/font.c.
 """
 from __future__ import annotations
 
@@ -35,8 +35,8 @@ class Glyph:
     height: int = 0
     x_off: int = 0
     y_off: int = 0
-    rows: list[bytes] = field(default_factory=list)   # height rows of ceil(width/8) bytes, 1 = ink
-    kern_as: int | None = None    # codepoint whose kerning pairs this glyph uses (None: its own)
+    rows: list[bytes] = field(default_factory=list)   # height rânduri a câte ceil(width/8) octeți, 1 = cerneală
+    kern_as: int | None = None    # codul Unicode ale cărui perechi de kerning le folosește glifa asta (None: ale ei)
 
     def bitmap(self) -> bytes:
         return b"".join(self.rows)
@@ -50,7 +50,7 @@ class Font:
     ascent: int
     descent: int
     x_height: int
-    glyphs: list[Glyph]                       # any order; written sorted by codepoint
+    glyphs: list[Glyph]                       # în orice ordine; se scriu sortate după codul Unicode
     kerns: dict[tuple[int, int], int] = field(default_factory=dict)   # (cp, cp) -> u
     style: int = 0
     render: int = RENDER_MONO
@@ -96,7 +96,7 @@ def write(font: Font) -> bytes:
         bm = g.bitmap()
         if len(bm) != g.height * ((g.width + 7) // 8):
             raise FormatError(f"U+{g.cp:04X}: bitmap size doesn't match its box")
-        if bm not in seen:                 # identical bitmaps are stored once
+        if bm not in seen:                 # bitmapurile identice se stochează o singură dată
             seen[bm] = len(bitmaps)
             bitmaps += bm
         offsets.append(seen[bm])
@@ -107,7 +107,7 @@ def write(font: Font) -> bytes:
         if k not in index or (k != g.cp and by_cp[k].kern_as not in (None, k)):
             raise FormatError(f"U+{g.cp:04X}: kern_as U+{k:04X} missing or not a kerning glyph")
         kern_as.append(index[k])
-    # A pair may be 0: an exception that cancels the pair a glyph would borrow.
+    # O pereche poate fi 0: o excepție care anulează perechea pe care glifa ar împrumuta-o.
     kerns = sorted((index[a], index[b], v) for (a, b), v in font.kerns.items()
                    if a in index and b in index)
 
@@ -151,7 +151,7 @@ class Parsed:
 
 
 def parse(data: bytes) -> Parsed:
-    """Reads and fully checks a font file (all validator rules)."""
+    """Citește și verifică în întregime un fișier de font (toate regulile validatorului)."""
     if len(data) < HEADER_SIZE:
         raise FormatError("file shorter than the header")
     (magic, vmaj, vmin, hsize, bpp, style, render, threshold, pixel_size, line_height, ascent,
@@ -233,8 +233,8 @@ def parse(data: bytes) -> Parsed:
 
 
 def kerning(font: Font, left: int, right: int) -> int:
-    """The kerning between two codepoints, as the device looks it up: the
-    glyphs' own pair if there is one, else the pair of the glyphs they kern as."""
+    """Kerningul dintre două coduri Unicode, cum îl caută dispozitivul: perechea
+    proprie a glifelor dacă există, altfel perechea glifelor al căror kerning îl împrumută."""
     if (left, right) in font.kerns:
         return font.kerns[(left, right)]
     gl, gr = font.glyph(left), font.glyph(right)

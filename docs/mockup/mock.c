@@ -1,9 +1,10 @@
-// Mock reader and library screens for the case mockup, drawn with the
-// firmware's own gfx + font code. Paragraphs are broken as a whole (least total
-// badness over all break points, justified), using the soft hyphens hyph.py
-// puts in. It previews the LAYOUT workstream; it is not the final engine.
+// Ecranele de lectură și de bibliotecă pentru macheta carcasei, desenate cu codul
+// gfx + font al firmware-ului. Paragrafele se rup ca întreg (cea mai mică
+// proastă așezare totală peste toate punctele de rupere, justificat), cu
+// cratimele moi puse de hyph.py. E o previzualizare a direcției de PAGINARE; nu
+// e motorul final.
 //
-//   mock <outdir> <bookdir>   (book format: "# heading", "P text", "V verse", "S")
+//   mock <outdir> <bookdir>   (formatul cărții: "# titlu", "P text", "V vers", "S")
 #define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,16 +20,16 @@ extern const font_t font_serif16, font_serif18, font_serif18b, font_ui13;
 #define H 416
 #define ML 14
 #define TW (W - 2 * ML)
-#define LH 24          // body line pitch (18 px serif)
-#define TOP 20         // first baseline sits at TOP + ascent
-#define BOTTOM 382     // no body baseline below this
-#define FOOT 405       // footer baseline
+#define LH 24          // pasul rândurilor de text (serif de 18 px)
+#define TOP 20         // prima linie de bază e la TOP + ascent
+#define BOTTOM 382     // nicio linie de bază a textului sub asta
+#define FOOT 405       // linia de bază a subsolului
 #define INDENT 14
 #define SHOW_PAGES 8
 
 static uint8_t s_buf[GFX_BUF_SIZE(W, H)];
 static gfx_t s_g;
-static const font_t *s_body = &font_serif18;  // per book, like a font size setting
+static const font_t *s_body = &font_serif18;  // pe carte, ca o setare a mărimii fontului
 static int s_lh = LH;
 
 static int write_pbm(const char *path)
@@ -41,7 +42,7 @@ static int write_pbm(const char *path)
     return 0;
 }
 
-// ---- layout ----------------------------------------------------------------
+// ---- paginarea --------------------------------------------------------------
 
 typedef struct { char **items; int n; } book_t;
 
@@ -64,11 +65,11 @@ static book_t load(const char *path)
     return b;
 }
 
-// The layout runs twice: once to count pages, once more drawing a given page.
+// Paginarea rulează de două ori: o dată ca să numere paginile, încă o dată ca să deseneze o pagină anume.
 typedef struct {
-    int page, y;        // current page and baseline
-    int draw_page;      // page to draw, or -1
-    int fresh;          // nothing placed on this page yet
+    int page, y;        // pagina curentă și linia de bază
+    int draw_page;      // pagina de desenat, sau -1
+    int fresh;          // încă nimic pus pe pagina asta
 } pen_t;
 
 static void new_page(pen_t *p)
@@ -95,18 +96,18 @@ static void put_text(pen_t *p, const font_t *f, int x, const char *s)
 static void heading(pen_t *p, const char *text)
 {
     if (!p->fresh || p->page == 0) new_page(p);
-    p->y = TOP + 64;  // chapters start a little way down the page
+    p->y = TOP + 64;  // capitolele încep puțin mai jos pe pagină
     int w = gfx_text_width(&font_serif18b, text);
     put_text(p, &font_serif18b, (W - w) / 2, text);
-    p->y += LH;       // one empty line under the heading
+    p->y += LH;       // un rând gol sub titlu
     p->fresh = 0;
 }
 
-// Paragraphs are cut into fragments: at spaces, at no-break spaces (U+00A0,
-// stretch but never break), at soft hyphens (U+00AD, put there by hyph.py) and
-// after a hard hyphen. Line breaks are then chosen for the whole paragraph at
-// once, Knuth-Plass style: the sum of (10 + badness)^2 plus hyphen penalties is
-// minimised, so one tight line can save the next one from huge gaps.
+// Paragrafele se taie în fragmente: la spații, la spațiile neseparabile (U+00A0,
+// se lățesc, dar nu se rup niciodată), la cratimele moi (U+00AD, puse de hyph.py)
+// și după o cratimă obișnuită. Apoi rupturile de rând se aleg pentru tot paragraful
+// odată, în stilul Knuth-Plass: se minimizează suma (10 + badness)^2 plus
+// penalizările cratimelor, deci un rând strâns poate scuti următorul de goluri uriașe.
 enum { AFTER_SPACE, AFTER_TIE, AFTER_SOFT, AFTER_HARD, AFTER_END };
 
 typedef struct {
@@ -146,7 +147,7 @@ static int split(const char *t)
             s_frag[n] = (frag_t){start, (int)(end - start), width_of(start, end - start), after};
             n++;
         } else if (n && after == AFTER_SPACE) {
-            s_frag[n - 1].after = AFTER_SPACE;  // collapse runs of spaces
+            s_frag[n - 1].after = AFTER_SPACE;  // spațiile repetate devin unul
         }
         if (after == AFTER_END) break;
         t += skip;
@@ -158,7 +159,7 @@ static int split(const char *t)
 
 static int gap_after(int k) { return s_frag[k].after == AFTER_SPACE || s_frag[k].after == AFTER_TIE; }
 
-// Natural width and gap count of fragments a..b as one line.
+// Lățimea naturală și numărul de goluri ale fragmentelor a..b ca un singur rând.
 static int line_width(int a, int b, int *gaps)
 {
     const int space = font_glyph(s_body, ' ')->advance;
@@ -175,25 +176,25 @@ static int line_width(int a, int b, int *gaps)
 static void paragraph(pen_t *p, const char *text, int indent)
 {
     const int space = font_glyph(s_body, ' ')->advance;
-    const double stretch = space, shrink = 1.0;  // per gap, px
+    const double stretch = space, shrink = 1.0;  // pe gol, px
     int n = split(text);
     if (n == 0) return;
 
-    // s_cost[b]: best total for the text up to a break after fragment b.
+    // s_cost[b]: cel mai bun total pentru textul până la o rupere după fragmentul b.
     for (int b = 0; b < n; b++) {
         s_cost[b] = 1e300;
         int after = s_frag[b].after;
         if (after == AFTER_TIE) continue;
         for (int a = b; a >= 0; a--) {
-            if (a > 0 && s_frag[a - 1].after == AFTER_TIE) continue;  // can't start a line here
+            if (a > 0 && s_frag[a - 1].after == AFTER_TIE) continue;  // aici nu poate începe un rând
             int gaps, w = line_width(a, b, &gaps);
             int avail = TW - (a == 0 ? indent : 0);
             if (w - gaps * shrink > avail && a < b) break;
-            // badness = 100 r^3; a lone word on a justified line counts as worse
-            // than any loose line, so it only happens when nothing else fits.
+            // badness = 100 r^3; un cuvânt singur pe un rând justificat contează ca mai
+            // rău decât orice rând larg, deci se întâmplă doar când nu încape altceva.
             double bad;
             if (w > avail) bad = gaps ? 100 * pow((w - avail) / (gaps * shrink), 3) : 1e7;
-            else if (after == AFTER_END) bad = 0;  // last line is ragged
+            else if (after == AFTER_END) bad = 0;  // ultimul rând e nejustificat
             else bad = gaps ? 100 * pow((avail - w) / (gaps * stretch), 3) : 1e7;
             if (bad > 1e7) bad = 1e7;
             double d = (10 + bad) * (10 + bad);
@@ -234,8 +235,8 @@ static void paragraph(pen_t *p, const char *text, int indent)
     }
 }
 
-// Verse keeps its lines. One too long for the screen breaks at the last space
-// that fits, and the rest is set flush right on the next line (a turnover).
+// Versurile își păstrează rândurile. Unul prea lung pentru ecran se rupe la
+// ultimul spațiu care încape, iar restul se așază la dreapta pe rândul următor.
 static void verse(pen_t *p, const char *text)
 {
     char line[512];
@@ -284,7 +285,7 @@ static int layout(const book_t *b, int draw_page)
             verse(&p, rest);
             break;
         case 'S':
-            // A stanza break that would land at the page top is dropped.
+            // Un separator de strofă care ar cădea sus pe pagină se scoate.
             if (!p.fresh && p.y + s_lh <= BOTTOM) p.y += s_lh / 2;
             break;
         }
@@ -300,13 +301,13 @@ static void footer(const char *title, int page, int pages)
     gfx_text(&s_g, &font_ui13, W - ML - gfx_text_width(&font_ui13, num), FOOT, num, GFX_BLACK);
 }
 
-// ---- library ---------------------------------------------------------------
+// ---- biblioteca -------------------------------------------------------------
 
 typedef struct { const char *file, *title, *author; int small; } entry_t;
 
 static const entry_t ENTRIES[] = {
     {"amintiri", "Amintiri din copilărie", "Ion Creangă", 0},
-    {"luceafarul", "Luceafărul", "Mihai Eminescu", 1},  // verse: one size down
+    {"luceafarul", "Luceafărul", "Mihai Eminescu", 1},  // versuri: cu o mărime mai mic
     {"moara", "Moara cu noroc", "Ioan Slavici", 0},
     {"belye", "Белые ночи", "Фёдор Достоевский", 0},
 };
@@ -341,7 +342,7 @@ static void library(int sel, const int *pages)
         snprintf(meta, sizeof meta, "%s · %d pagini", ENTRIES[i].author, pages[i]);
         gfx_text(&s_g, &font_ui13, ML, y + 53, meta, ink);
     }
-    // "◀ ▶ alege    MENU deschide", arrows drawn as triangles
+    // "◀ ▶ alege    MENU deschide", săgețile desenate ca triunghiuri
     const char *t1 = "alege", *t2 = "MENU  deschide";
     const int r = 4, cy = FOOT - 5;
     int x = (W - (2 * (r + 1) + 5 + 6 + gfx_text_width(&font_ui13, t1) + 20 + gfx_text_width(&font_ui13, t2))) / 2;
@@ -354,7 +355,7 @@ static void library(int sel, const int *pages)
     gfx_text(&s_g, &font_ui13, x, FOOT, t2, GFX_BLACK);
 }
 
-// ---- main ------------------------------------------------------------------
+// ---- principal --------------------------------------------------------------
 
 int main(int argc, char **argv)
 {
@@ -385,9 +386,9 @@ int main(int argc, char **argv)
         if (write_pbm(path)) return 1;
     }
 
-    // Exactly what today's firmware draws: the boot screen, the same after a
-    // wake from sleep, and the sleep screen. Board name and the boot strings
-    // are the firmware's; chip, memory, SD and battery are sample values.
+    // Exact ce desenează firmware-ul de azi: ecranul de pornire, același după o
+    // trezire din somn și ecranul de somn. Numele plăcii și textele de pornire
+    // sunt ale firmware-ului; cipul, memoria, SD-ul și bateria sunt valori de exemplu.
     bringup_info_t info = {
         .board = "devkit-proto",
         .chip = "ESP32-S3 v0.2, 2 cores",
@@ -402,7 +403,7 @@ int main(int argc, char **argv)
     screen_bringup_draw(&s_g, &info);
     snprintf(path, sizeof path, "%s/bringup.pbm", out);
     if (write_pbm(path)) return 1;
-    // After a wake the firmware names the button that woke it.
+    // După o trezire, firmware-ul spune ce buton l-a trezit.
     static const char *const names[] = {"PREV", "NEXT", "MENU"};
     char wake[40];
     for (int boot = 2; boot <= 9; boot++) {

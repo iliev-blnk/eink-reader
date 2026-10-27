@@ -18,7 +18,7 @@ static void mark_dirty(gfx_t *g, int x, int y, int w, int h)
     g->dirty.h = y1 - g->dirty.y;
 }
 
-// Clips a rectangle to the screen; returns false if nothing is left.
+// Taie un dreptunghi la marginile ecranului; întoarce false dacă nu rămâne nimic.
 static bool clip(const gfx_t *g, int *x, int *y, int *w, int *h)
 {
     if (*x < 0) { *w += *x; *x = 0; }
@@ -88,8 +88,8 @@ void gfx_glyph(gfx_t *g, const font_t *font, uint32_t index, int x, int y, gfx_c
     int gx = x + gl->x_off, gy = y + gl->y_off;
     int w = gl->width, h = gl->height;
     if (gx >= 0 && gy >= 0 && gx + w <= g->width && gy + h <= g->height) {
-        // Whole glyph on screen: shift each source byte into two framebuffer
-        // bytes. Ink clears bits for black and sets them for white.
+        // Glifa e toată pe ecran: fiecare octet sursă se deplasează în doi octeți
+        // ai framebufferului. Cerneala șterge biți pentru negru și îi pune pentru alb.
         int shift = gx & 7;
         for (int r = 0; r < h; r++) {
             uint8_t *dst = &g->buf[(gy + r) * g->stride + gx / 8];

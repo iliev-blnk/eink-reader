@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Downloads the candidate book fonts into tools/fonttool/fonts/ (not tracked).
-# All four families are under the SIL Open Font License 1.1; each folder gets
-# its OFL.txt. Noto Serif is copied from the system if it's installed.
+# Descarcă fonturile candidate pentru cărți în tools/fonttool/fonts/ (nu sunt în depozit).
+# Toate cele patru familii sunt sub SIL Open Font License 1.1; fiecare dosar își
+# primește OFL.txt. Noto Serif se copiază din sistem, dacă e instalat.
 set -euo pipefail
 cd "$(dirname "$0")"
 GF=https://github.com/google/fonts/raw/main/ofl
@@ -14,16 +14,16 @@ get() {   # get DIR NAME URL
   echo "ok $1/$2"
 }
 
-# Literata: Google's e-book typeface (Play Books), variable (optical size + weight)
+# Literata: fontul Google pentru cărți electronice (Play Books), variabil (mărime optică + grosime)
 get literata "Literata[opsz,wght].ttf"        "$GF/literata/Literata%5Bopsz,wght%5D.ttf"
 get literata "Literata-Italic[opsz,wght].ttf" "$GF/literata/Literata-Italic%5Bopsz,wght%5D.ttf"
 get literata OFL.txt                          "$GF/literata/OFL.txt"
-# PT Serif: ParaType, made for Cyrillic and Latin together
+# PT Serif: ParaType, făcut pentru chirilic și latin împreună
 for s in Regular Bold Italic BoldItalic; do
   get ptserif "PT_Serif-Web-$s.ttf" "$GF/ptserif/PT_Serif-Web-$s.ttf"
 done
 get ptserif OFL.txt "$GF/ptserif/OFL.txt"
-# Noto Serif: from the system (Arch: noto-fonts), else from Google Fonts
+# Noto Serif: din sistem (Arch: noto-fonts), altfel de pe Google Fonts
 mkdir -p fonts/notoserif
 for s in Regular Bold Italic BoldItalic; do
   src=/usr/share/fonts/noto/NotoSerif-$s.ttf
@@ -31,8 +31,8 @@ for s in Regular Bold Italic BoldItalic; do
     echo "Noto Serif not installed: install noto-fonts or copy NotoSerif-$s.ttf here" >&2; fi
 done
 get notoserif OFL.txt "$GF/notoserif/OFL.txt"
-# Libron: Nico Verbruggen's e-reader font (from Readerly / Newsreader). Latin
-# only, no Cyrillic. The R release has the relaxed line spacing we want.
+# Libron: fontul pentru cititoare al lui Nico Verbruggen (din Readerly / Newsreader).
+# Doar latin, fără chirilice. Varianta R are spațierea mai largă a rândurilor pe care o vrem.
 LIBRON=https://github.com/nicoverbruggen/libron/releases/download/v0.32
 if [ ! -s fonts/libron/Libron_R-Regular.ttf ]; then
   mkdir -p fonts/libron

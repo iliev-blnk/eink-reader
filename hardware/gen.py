@@ -1,4 +1,4 @@
-"""Generate the e-ink reader schematic (+ symbol lib)."""
+"""Generează schema cititorului e-ink (+ biblioteca de simboluri)."""
 import math, uuid as _uuid
 import sexp
 
@@ -14,10 +14,10 @@ def q(s): return '"' + s.replace('\\', '\\\\').replace('"', '\\"').replace('\n',
 def f(v): return f'{round(v, 4):g}'
 FONT = '(font (size 1.27 1.27))'
 
-# ---------------------------------------------------------------- custom module symbols
+# ---------------------------------------------------------------- simbolurile proprii ale modulelor
 P = 2.54
 def module(name, desc, left, right, width, top, plen=2.54):
-    """left/right: lists of (number, name, type) or None for a gap, listed top-down."""
+    """left/right: liste de (număr, nume, tip) sau None pentru un gol, de sus în jos."""
     pins, n_rows = [], max(len(left), len(right))
     for side, lst in (('L', left), ('R', right)):
         for i, p in enumerate(lst):
@@ -80,7 +80,7 @@ for lid, (lib, name) in LIBS.items():
 for k, (_, pins, _) in CUSTOM.items():
     LIBPINS['EinkReader:' + k] = pins
 
-# ---------------------------------------------------------------- sheet items
+# ---------------------------------------------------------------- elementele foii
 items = []
 refs = {}
 def xf(X, Y, rot, px, py):
@@ -108,17 +108,17 @@ def place(lib_id, ref, value, X, Y, rot=0, fang=0, ref_at=None, val_at=None, hid
     return pos
 
 def pwr(kind, x, y, direction='down'):
-    """Power symbol whose pin sits at (x,y), graphic pointing `direction`."""
+    """Simbol de alimentare cu pinul la (x,y) și desenul îndreptat spre `direction`."""
     global pwr_n; pwr_n += 1
     lib = {'gnd': 'power:GND', '3v3': 'power:+3V3', 'flag': 'power:PWR_FLAG'}[kind]
     val = {'gnd': 'GND', '3v3': '+3V3', 'flag': 'PWR_FLAG'}[kind]
-    # native direction: GND points down, +3V3/PWR_FLAG point up
+    # direcția nativă: GND arată în jos, +3V3/PWR_FLAG arată în sus
     native = 'down' if kind == 'gnd' else 'up'
-    order = ['up', 'left', 'down', 'right']           # CCW steps of 90 degrees
+    order = ['up', 'left', 'down', 'right']           # pași de 90 de grade în sens trigonometric
     rot = ((order.index(direction) - order.index(native)) % 4) * 90
     off = {'up': (0, -5.08, None), 'down': (0, 5.08, None), 'left': (-4.0, 0, 'right'), 'right': (4.0, 0, 'left')}[direction]
     just = off[2]
-    if just and rot == 90:  # KiCad reads the field upside-down at 90 deg and flips justification
+    if just and rot == 90:  # KiCad citește câmpul invers la 90 de grade și întoarce alinierea
         just = {'left': 'right', 'right': 'left'}[just]
     va = (x + off[0], y + off[1]) + ((just,) if just else ())
     place(lib, f'#{"FLG" if kind == "flag" else "PWR"}0{pwr_n:02d}', val, x, y, rot, rot % 180,
@@ -130,7 +130,7 @@ def wire(*pts):
                      f'(stroke (width 0) (type default)) (uuid {q(uid())}))')
 
 def label(name, x, y, side):
-    """Local net label anchored at (x,y); text runs to `side` ('left' or 'right')."""
+    """Etichetă locală de rețea ancorată la (x,y); textul merge spre `side` ('left' sau 'right')."""
     ang, just = (180, 'right') if side == 'left' else (0, 'left')
     items.append(f'(label {q(name)} (at {f(x)} {f(y)} {ang}) (effects {FONT} (justify {just} bottom)) '
                  f'(uuid {q(uid())}))')
@@ -161,7 +161,7 @@ def mod(key, ref, X, Y):
     return place('EinkReader:' + key, ref, key.replace('_', ' '), X, Y,
                  ref_at=(X - hw, Y - top - P - 1.27, 'left'), val_at=(X - hw, Y - bottom + P + 1.27, 'left'))
 
-# ================================================================= POWER
+# ================================================================= ALIMENTAREA
 box(15.24, 20.32, 160.02, 125.73, 'POWER')
 bt = place('Device:Battery_Cell', 'BT1', 'LiPo 3.7 V', 30.48, 68.58,
            ref_at=(27.94, 66.04, 'right'), val_at=(27.94, 68.58, 'right'))
@@ -173,7 +173,7 @@ wire(bt['1'], u2['3'])                                            # BAT+ -> B+
 wire(u2['4'], (40.64, u2['4'][1]), (40.64, bt['2'][1]), bt['2'])  # B- -> BAT-
 nc(u2['1']); nc(u2['2'])
 text('Charging input:\nUSB port on the\nTP4056 module', 25.4, 45.72)
-wire(u2['5'], sw1['1'])                                           # OUT+ -> switch
+wire(u2['5'], sw1['1'])                                           # OUT+ -> întrerupător
 stub_pwr(u2['6'], 'gnd', 'right', 2.54)
 wire(sw1['2'], (101.6, 58.42), u3['1']); label('VSYS', 95.25, 58.42, 'right')
 pwr('flag', 101.6, 58.42, 'up'); junction((101.6, 58.42))
@@ -181,7 +181,7 @@ stub_pwr(u3['2'], 'gnd', 'left', 2.54)
 stub_pwr(u3['3'], '3v3', 'right', 5.08)
 text('Charger GND = OUT−, not B−\n(B− sits behind the protection FETs)', 50.8, 76.2)
 
-# battery-sense divider
+# divizorul pentru măsurarea bateriei
 r1 = place('Device:R', 'R1', '100k', 127, 91.44, ref_at=(129.54, 90.17, 'left'), val_at=(129.54, 92.71, 'left'))
 r2 = place('Device:R', 'R2', '100k', 127, 104.14, ref_at=(129.54, 102.87, 'left'), val_at=(129.54, 105.41, 'left'))
 c1 = place('Device:C', 'C1', '100nF', 137.16, 104.14, ref_at=(139.7, 102.87, 'left'), val_at=(139.7, 105.41, 'left'))
@@ -195,7 +195,7 @@ pwr('gnd', *r2['2']); pwr('gnd', *c1['2'])
 pwr('gnd', 152.4, 107.95); pwr('flag', 152.4, 107.95, 'up')
 text('Battery sense: VSYS/2 → IO1 (ADC1_CH0)\n4.2 V full → 2.1 V at the pin.\nAfter SW1, so it draws nothing when off.', 50.8, 92.71)
 
-# ================================================================= MCU
+# ================================================================= MICROCONTROLERUL
 box(165.1, 20.32, 279.4, 139.7, 'MCU')
 u1 = mod('ESP32-S3-DevKitC-1', 'U1', 222.25, 83.82)
 J1NET = {3: 'BTN_PREV', 4: 'BTN_NEXT', 5: 'BTN_MENU',
@@ -218,7 +218,7 @@ for i in range(22):
 c, d = u1['J3.21'], u1['J3.22']
 wire(d, (d[0] + 5.08, d[1])); wire((d[0] + 5.08, d[1]), (c[0] + 5.08, c[1]))
 
-# ================================================================= DISPLAY
+# ================================================================= ECRANUL
 box(289.56, 20.32, 403.86, 72.39, 'DISPLAY')
 u4 = mod('WeAct_EPD_3.7', 'U4', 354.33, 45.72)
 for num, net in zip('123456', ['EPD_BUSY', 'EPD_RST', 'EPD_DC', 'EPD_CS', 'SPI_SCK', 'SPI_MOSI']):
@@ -227,7 +227,7 @@ stub_pwr(u4['7'], 'gnd', 'left', 5.08)
 stub_pwr(u4['8'], '3v3', 'left', 5.08)
 text('3.7" 416×240, UC8253\nVCC 3.3–5 V, logic 3.3 V\nWrite-only: no MISO', 370.84, 34.29)
 
-# ================================================================= STORAGE
+# ================================================================= STOCAREA
 box(289.56, 80.01, 403.86, 125.73, 'STORAGE')
 u5 = mod('MicroSD_Module', 'U5', 354.33, 104.14)
 stub_pwr(u5['1'], 'gnd', 'left', 5.08)
@@ -236,7 +236,7 @@ for num, net in zip('3456', ['SPI_MISO', 'SPI_MOSI', 'SPI_SCK', 'SD_CS']):
     stub_label(u5[num], net, 'left', 15.24)
 text('microSDHC, FAT32\nShares SPI2 with the\ndisplay, own CS', 370.84, 95.25)
 
-# ================================================================= BUTTONS
+# ================================================================= BUTOANELE
 box(15.24, 133.35, 160.02, 196.85, 'BUTTONS')
 BTNS = [('SW2', 'BTN_PREV', 'PREV PAGE'), ('SW3', 'BTN_NEXT', 'NEXT PAGE'), ('SW4', 'BTN_MENU', 'MENU / OK')]
 for k, (ref, net, fn) in enumerate(BTNS):
@@ -247,7 +247,7 @@ for k, (ref, net, fn) in enumerate(BTNS):
 text('Active-low to GND, internal pull-ups (no resistors).\nAll on RTC GPIOs: any button can wake from deep sleep (ext1).',
      22.86, 184.15)
 
-# ================================================================= NOTES
+# ================================================================= NOTE
 box(165.1, 147.32, 403.86, 196.85, 'NOTES')
 text('Parts not in the kit: SW1 slide switch, SW2–SW4 tactile buttons, R1/R2 100k, C1 100nF.\n\n'
      '1.  Never power the board from the DevKit USB while SW1 is ON. Espressif lists USB, the 5V pin and the 3V3 pin\n'
@@ -270,7 +270,7 @@ text('GPIO MAP', 350.52, 156.21, 1.27, True)
 text('\n'.join(SIG), 350.52, 160.02)
 text('\n'.join('IO' + g for g in GP), 378.46, 160.02)
 
-# ---------------------------------------------------------------- write
+# ---------------------------------------------------------------- scrierea
 lib_syms = [sexp.dump(t, 2) for t in LIBTREE.values()]
 for k, (sym, _, _) in CUSTOM.items():
     lib_syms.append(sym.replace(f'(symbol {q(k)}', f'(symbol {q("EinkReader:" + k)}', 1))

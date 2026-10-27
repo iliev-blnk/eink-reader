@@ -1,12 +1,13 @@
-"""Glyph coverage (CONV-5): every character in a book must have a glyph in the
-device font, or the reader draws a box.
+"""Acoperirea glifelor (CONV-5): fiecare caracter dintr-o carte trebuie să aibă o
+glifă în fontul dispozitivului, altfel cititorul desenează o căsuță.
 
-The character set is the one fonttool.py puts into the font (its
-DEFAULT_RANGES), less what the book's font lacks: the device sets a book in
-PT Serif if its language is written in Cyrillic and in Libron otherwise
-(firmware fontsel.c), and Libron has no Cyrillic. Characters outside it are replaced by a close stand-in from
-FALLBACK when there is one. The rest are counted and reported, then replaced
-by U+FFFD so the problem is visible on the device rather than silent.
+Setul de caractere e cel pe care fonttool.py îl pune în font (DEFAULT_RANGES),
+minus ce îi lipsește fontului cărții: dispozitivul culege o carte cu PT Serif
+dacă limba ei se scrie cu chirilice și cu Libron altfel (fontsel.c din
+firmware), iar Libron nu are chirilice. Caracterele din afara lui se înlocuiesc
+cu un echivalent apropiat din FALLBACK, când există. Celelalte se numără și se
+raportează, apoi se înlocuiesc cu U+FFFD, ca problema să se vadă pe dispozitiv
+în loc să treacă neobservată.
 """
 from __future__ import annotations
 
@@ -16,39 +17,39 @@ import re
 
 from textnorm import LSEP, SHY, ZWSP, Styled, sub
 
-# Never drawn, so they need no glyph.
+# Nu se desenează niciodată, deci nu le trebuie glifă.
 INVISIBLE = {ord(SHY), ord(ZWSP), ord(LSEP)}
 
 FALLBACK = {
-    # dashes, minus, quotes, primes
+    # linii, minus, ghilimele, prime
     "―": "—", "⸺": "—", "⸻": "—", "−": "-", "‑": "-",
     "‟": "“", "″": "”", "′": "’", "‵": "‘", "ʼ": "’",
     "´": "’", "⁄": "/", "‧": "·", "∙": "·", "◦": "•",
     "‣": "•", "⁃": "-", "⁣": "",
-    # ligatures
+    # ligaturi
     "ﬀ": "ff", "ﬁ": "fi", "ﬂ": "fl", "ﬃ": "ffi", "ﬄ": "ffl",
     "ﬅ": "st", "ﬆ": "st", "Ĳ": "IJ", "ĳ": "ij", "ſ": "s", "ŉ": "’n",
-    # Russian: pre-1918 letters, number sign, stress marks
+    # Rusă: literele de dinainte de 1918, semnul numărului, accentele
     "Ѣ": "Е", "ѣ": "е", "Ѳ": "Ф", "ѳ": "ф", "Ѵ": "И", "ѵ": "и",
-    "№": "№",            # kept if the font has it, see below
+    "№": "№",            # păstrat dacă îl are fontul, vezi mai jos
     "́": "", "̀": "",
-    # spaces and dots
+    # spații și puncte
     "․": ".", "‥": "..", "…": "…", "⋯": "…",
     "\u00a0": "\u00a0",
 }
-# second choice when the first one is missing from the font too
+# a doua variantă când nici prima nu e în font
 FALLBACK_2 = {"№": "No", "…": "...", "—": "-", "“": '"', "”": '"', "’": "'", "‘": "'", "•": "*"}
 
 
-# Same list and rules as fontsel.c (a test checks they agree).
+# Aceeași listă și aceleași reguli ca fontsel.c (un test verifică dacă sunt de acord).
 CYRILLIC_LANGS = frozenset({"ba", "be", "bg", "ce", "cv", "kk", "ky", "mk", "mn",
                             "os", "ru", "sah", "sr", "tg", "tt", "uk"})
-# In DEFAULT_RANGES but not in Libron.
+# În DEFAULT_RANGES, dar nu în Libron.
 LIBRON_LACKS = frozenset(range(0x400, 0x530)) | {0x132, 0x133, 0x149, 0x17F}
 
 
 def is_cyrillic(lang: str | None) -> bool:
-    """True if the device sets a book in `lang` (BCP 47) in the Cyrillic font."""
+    """True dacă dispozitivul culege o carte în `lang` (BCP 47) cu fontul chirilic."""
     tags = re.split(r"[-_]", (lang or "").lower())
     for t in tags[1:]:
         if t in ("cyrl", "latn"):
@@ -58,7 +59,7 @@ def is_cyrillic(lang: str | None) -> bool:
 
 @functools.cache
 def charset_for(lang: str | None) -> frozenset[int]:
-    """The characters the device font for a book in `lang` has."""
+    """Caracterele pe care le are fontul dispozitivului pentru o carte în `lang`."""
     full = default_charset()
     return full if is_cyrillic(lang) else full - LIBRON_LACKS
 

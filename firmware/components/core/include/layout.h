@@ -1,14 +1,15 @@
-// Text layout: IBV records -> lines -> pages (LAY-1, LAY-2, LAY-3, LAY-4).
+// Paginarea textului: înregistrări IBV -> rânduri -> pagini (LAY-1, LAY-2, LAY-3, LAY-4).
 //
-// A page is computed from a position (paragraph, byte) and fills the text area
-// with lines until the next one doesn't fit. Lines are byte ranges of their
-// record plus where to draw them, so a page costs a few hundred bytes, and
-// drawing re-reads the text from the book's block cache.
+// O pagină se calculează de la o poziție (paragraf, octet) și umple zona de
+// text cu rânduri până când următorul nu mai încape. Rândurile sunt intervale
+// de octeți din înregistrarea lor plus locul unde se desenează, deci o pagină
+// ocupă câteva sute de octeți, iar desenarea recitește textul din cache-ul de
+// blocuri al cărții.
 //
-// Break opportunities: spaces, soft hyphens U+00AD (a '-' is drawn), U+200B,
-// after '-', '–', '—' inside a word; U+2028 forces a break. U+00A0 is a space
-// that stretches but doesn't break. All widths are in 1/64 px with kerning
-// (font.h), so justification has no rounding drift.
+// Puncte de rupere: spațiile, cratimele moi U+00AD (se desenează '-'), U+200B,
+// după '-', '–', '—' în interiorul unui cuvânt; U+2028 forțează ruperea.
+// U+00A0 e un spațiu care se lățește, dar nu se rupe. Toate lățimile sunt în
+// 1/64 px, cu kerning (font.h), deci justificarea nu acumulează erori de rotunjire.
 //
 // Paragrafele și citatele justificate se rup în rânduri tot odată (LAY-5,
 // „încadrarea totală” Knuth–Plass): dintre toate felurile de a rupe
@@ -20,16 +21,17 @@
 // cu peste LAYOUT_FIT_MAX puncte de rupere sau cu un cuvânt mai lat decât
 // rândul (tăiat între caractere).
 //
-// A CONT record (an over-long paragraph the converter split at a space)
-// starts a new line with no indent or gap, and the line before it is
-// justified, so the join doesn't show unless that line is short. Lines never
-// span two records. The split is rare (30 in 70,000 records in the corpus).
+// O înregistrare CONT (un paragraf prea lung pe care convertorul l-a împărțit
+// la un spațiu) începe un rând nou fără alineat sau spațiu, iar rândul dinaintea
+// ei e justificat, deci îmbinarea nu se vede decât dacă acel rând e scurt.
+// Rândurile nu trec niciodată peste două înregistrări. Împărțirea e rară (30
+// din 70.000 de înregistrări în corpus).
 //
-// Pages are always the ones you get by paginating from the start of the book:
-// a page's layout depends only on where it starts, and with chapter_page a
-// chapter (a record flagged IBV_PAGE) always starts a page, so paginating from
-// there gives the same pages. That is how layout_locate and layout_prev find a page
-// without laying out the whole book before it.
+// Paginile sunt mereu cele obținute paginând de la începutul cărții: paginarea
+// unei pagini depinde doar de locul unde începe, iar cu chapter_page un capitol
+// (o înregistrare cu IBV_PAGE) începe mereu o pagină, deci paginarea de acolo
+// dă aceleași pagini. Așa găsesc layout_locate și layout_prev o pagină fără să
+// pagineze toată cartea dinaintea ei.
 #pragma once
 
 #include <stdbool.h>
@@ -39,7 +41,7 @@
 #include "gfx.h"
 #include "ibv.h"
 
-#define LAYOUT_VERSION 3         // part of the layout hash: bump when line breaks can change
+#define LAYOUT_VERSION 3         // face parte din layout_hash: se crește când se pot schimba rupturile de rând
 #define LAYOUT_MAX_LINES 64
 #define LAYOUT_FIT_MAX 2048      // puncte de rupere pe înregistrare pentru încadrarea totală (maximul în corpus e ~2000)
 
@@ -76,18 +78,18 @@ typedef struct {
 void layout_fit_reset(layout_fit_t *fit);
 
 typedef struct {
-    // Body faces by IBV style: [0] regular, [1] bold, [2] italic, [3] bold italic.
-    // Only [0] is required; a missing face falls back to regular.
+    // Fonturile textului după stilul IBV: [0] regular, [1] bold, [2] italic, [3] bold italic.
+    // Doar [0] e obligatoriu; în locul unui font lipsă se folosește regular.
     const font_t *body[4];
-    const font_t *heading;       // NULL: body bold (or regular)
-    int width, height;           // text area, px
-    int indent;                  // PARA first-line indent and QUOTE margins, px
-    int line_gap;                // px added to every body line's height
-    int para_gap;                // px between paragraphs
+    const font_t *heading;       // NULL: bold-ul textului (sau regular)
+    int width, height;           // zona de text, px
+    int indent;                  // alineatul primului rând la PARA și marginile la QUOTE, px
+    int line_gap;                // px adăugați la înălțimea fiecărui rând de text
+    int para_gap;                // px între paragrafe
     bool justify;
-    bool hyphenate;              // break at soft hyphens
-    bool chapter_page;           // records flagged IBV_PAGE (chapters) start a new page
-    bool keep_lines;             // no widows or orphans (a paragraph's last or first line alone)
+    bool hyphenate;              // rupe la cratimele moi
+    bool chapter_page;           // înregistrările cu IBV_PAGE (capitolele) încep o pagină nouă
+    bool keep_lines;             // fără rânduri văduve sau orfane (ultimul sau primul rând al unui paragraf singur)
     layout_fit_t *fit;           // NULL: rupere greedy peste tot
 } layout_cfg_t;
 
@@ -96,40 +98,40 @@ typedef struct {
 } layout_pos_t;
 
 enum {
-    LINE_HYPHEN = 1,             // draw '-' at the end (soft hyphen break)
-    LINE_ORNAMENT = 2,           // a BREAK drawn as "* * *"
-    LINE_HEADING = 4,            // drawn with the heading face
+    LINE_HYPHEN = 1,             // se desenează '-' la final (rupere la cratimă moale)
+    LINE_ORNAMENT = 2,           // un BREAK desenat ca "* * *"
+    LINE_HEADING = 4,            // desenat cu fontul titlurilor
 };
 
 typedef struct {
     uint32_t para;
-    uint32_t start, end;         // text bytes [start, end) of record `para`
-    int32_t x;                   // pen start, 1/64 px from the text area's left
-    int32_t extra;               // justification: 1/64 px spread over `gaps` spaces (< 0: îngustare)
+    uint32_t start, end;         // octeții de text [start, end) ai înregistrării `para`
+    int32_t x;                   // începutul peniței, în 1/64 px de la marginea stângă a zonei de text
+    int32_t extra;               // justificarea: 1/64 px împărțiți pe `gaps` spații (< 0: îngustare)
     uint16_t gaps;
-    int16_t baseline;            // px from the text area's top
+    int16_t baseline;            // px de la marginea de sus a zonei de text
     uint8_t flags;
 } layout_line_t;
 
 typedef struct {
-    layout_pos_t start, end;     // end = start of the next page
-    bool at_end;                 // the book ends on this page
+    layout_pos_t start, end;     // end = începutul paginii următoare
+    bool at_end;                 // cartea se termină pe pagina asta
     int line_count;
     layout_line_t lines[LAYOUT_MAX_LINES];
 } layout_page_t;
 
-// Lays out the page that starts at `pos`.
+// Paginează pagina care începe la `pos`.
 ibv_err_t layout_page(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, layout_page_t *page);
 
-// Start of the page that holds `pos` (start <= pos < end), for opening a book
-// at a saved position after the layout changed. `scratch` is overwritten.
+// Începutul paginii care conține `pos` (start <= pos < end), pentru deschiderea
+// unei cărți la o poziție salvată după ce s-a schimbat paginarea. `scratch` se suprascrie.
 ibv_err_t layout_locate(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, layout_page_t *scratch,
                         layout_pos_t *out);
 
-// Start of the page before the one that starts at `pos` (or holds the text just
-// before `pos`). Returns IBV_ERR_RANGE at the start of the book. Without a page
-// index this lays out pages from the chapter's start (or the book's, with no
-// chapters); `*pages`, if not NULL, gets how many.
+// Începutul paginii dinaintea celei care începe la `pos` (sau care conține textul
+// de chiar dinainte de `pos`). Întoarce IBV_ERR_RANGE la începutul cărții. Fără
+// index de pagini, paginează de la începutul capitolului (sau al cărții, dacă
+// nu are capitole); `*pages`, dacă nu e NULL, primește câte pagini au fost.
 ibv_err_t layout_prev(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, layout_page_t *scratch,
                       layout_pos_t *out, int *pages);
 
@@ -139,10 +141,10 @@ static inline int layout_pos_cmp(layout_pos_t a, layout_pos_t b)
     return a.byte < b.byte ? -1 : a.byte > b.byte;
 }
 
-// Draws a laid-out page with the text area's top-left at (x0, y0).
+// Desenează o pagină paginată, cu colțul stânga-sus al zonei de text la (x0, y0).
 ibv_err_t layout_draw(const layout_cfg_t *cfg, ibv_t *book, const layout_page_t *page, gfx_t *g,
                       int x0, int y0);
 
-// Identifies the layout for page caches (spec: IPGC layout_hash): fonts,
-// sizes, area, spacing, greedy or total fit, and LAYOUT_VERSION.
+// Identifică paginarea pentru indexurile de pagini (specificația: IPGC layout_hash):
+// fonturile, mărimile, zona, spațierea, greedy sau încadrare totală și LAYOUT_VERSION.
 uint32_t layout_hash(const layout_cfg_t *cfg);

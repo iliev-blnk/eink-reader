@@ -18,7 +18,7 @@ static void chunk(FILE *f, const char *type, const uint8_t *data, uint32_t len)
     fwrite(type, 1, 4, f);
     if (len) fwrite(data, 1, len, f);
     uLong crc = crc32(0, (const Bytef *)type, 4);
-    if (len) crc = crc32(crc, data, len);    // crc32(_, NULL, _) would reset it to 0
+    if (len) crc = crc32(crc, data, len);    // crc32(_, NULL, _) l-ar readuce la 0
     put32(b, (uint32_t)crc);
     fwrite(b, 1, 4, f);
 }
@@ -31,7 +31,7 @@ int png_write(const gfx_t *g, const char *path)
     uint8_t *z = malloc(z_len);
     if (!raw || !z) { free(raw); free(z); return 1; }
     for (int y = 0; y < g->height; y++) {
-        raw[y * row] = 0;    // filter: none
+        raw[y * row] = 0;    // filtrul: niciunul
         memcpy(raw + y * row + 1, g->buf + (size_t)y * (size_t)g->stride, (size_t)g->stride);
     }
     int st = compress2(z, &z_len, raw, (uLong)raw_len, 9);
@@ -42,7 +42,7 @@ int png_write(const gfx_t *g, const char *path)
     uint8_t ihdr[13];
     put32(ihdr, (uint32_t)g->width);
     put32(ihdr + 4, (uint32_t)g->height);
-    ihdr[8] = 1, ihdr[9] = 0, ihdr[10] = 0, ihdr[11] = 0, ihdr[12] = 0;   // 1 bit gray, no interlace
+    ihdr[8] = 1, ihdr[9] = 0, ihdr[10] = 0, ihdr[11] = 0, ihdr[12] = 0;   // gri pe 1 bit, fără întrețesere
     fwrite(sig, 1, 8, f);
     chunk(f, "IHDR", ihdr, 13);
     chunk(f, "IDAT", z, (uint32_t)z_len);

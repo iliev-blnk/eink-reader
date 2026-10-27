@@ -3,13 +3,13 @@
 #include <stdio.h>
 #include <string.h>
 
-// Page counts for Pride and Prejudice per step, Libron / PT Serif:
+// Numărul de pagini din Pride and Prejudice pe treaptă, Libron / PT Serif:
 // 1541 / 1601, 1845 / 1803, 2081 / 2042, 2370 / 2302, 2844 / 2753.
 static const uint8_t LIBRON[FONTSEL_STEPS] = {15, 16, 17, 18, 20};
 static const uint8_t PTSERIF[FONTSEL_STEPS] = {16, 17, 18, 19, 21};
 
-// Languages written in Cyrillic by default. Serbian is written in both;
-// "sr" alone is Cyrillic, "sr-Latn" is Latin.
+// Limbile scrise implicit cu chirilice. Sârba se scrie cu amândouă;
+// "sr" singur e chirilic, "sr-Latn" e latin.
 static const char *const CYRILLIC[] = {"ba", "be", "bg", "ce", "cv", "kk", "ky", "mk", "mn",
                                        "os", "ru", "sah", "sr", "tg", "tt", "uk"};
 
@@ -18,7 +18,7 @@ static char lower(char c)
     return c >= 'A' && c <= 'Z' ? (char)(c - 'A' + 'a') : c;
 }
 
-// Case-insensitive compare of a subtag [s, s+n) with a lowercase word.
+// Compară, fără să țină cont de majuscule, o subetichetă [s, s+n) cu un cuvânt scris cu litere mici.
 static bool tag_is(const char *s, size_t n, const char *word)
 {
     if (strlen(word) != n) return false;
@@ -31,8 +31,8 @@ bool fontsel_cyrillic(const char *lang)
 {
     if (!lang || !*lang) return false;
     size_t n = strcspn(lang, "-_");
-    // A script subtag ("sr-Latn", "ro-Cyrl") is four letters, anywhere after
-    // the language.
+    // O subetichetă de scriere ("sr-Latn", "ro-Cyrl") are patru litere, oriunde
+    // după limbă.
     for (const char *s = lang + n; *s;) {
         s++;
         size_t k = strcspn(s, "-_");

@@ -62,7 +62,7 @@ font_err_t font_open(font_t *font, const uint8_t *d, size_t len)
     font->kerns = (const font_kern_t *)(d + off[2]);
     font->bitmaps = d + off[3];
 
-    // Rules 3 to 5, so that no later lookup can read outside the file.
+    // Regulile 3–5, ca nicio căutare de mai târziu să nu poată citi în afara fișierului.
     uint32_t next = 0, prev_last = 0;
     for (uint32_t i = 0; i < nranges; i++) {
         const font_range_t *r = &font->ranges[i];
@@ -168,7 +168,7 @@ uint32_t utf8_next_n(const char **s, const char *end)
         cp = (cp << 6) | (p[i] & 0x3F);
     }
     *s += extra + 1;
-    // Reject overlong forms and surrogates.
+    // Se resping formele prea lungi și surogatele.
     static const uint32_t min_cp[] = {0, 0x80, 0x800, 0x10000};
     if (cp < min_cp[extra] || cp > 0x10FFFF || (cp >= 0xD800 && cp <= 0xDFFF)) return 0xFFFD;
     return cp;
@@ -177,5 +177,5 @@ uint32_t utf8_next_n(const char **s, const char *end)
 uint32_t utf8_next(const char **s)
 {
     if (**s == 0) return 0;
-    return utf8_next_n(s, *s + 1 + strnlen(*s + 1, 3));   // never past the NUL
+    return utf8_next_n(s, *s + 1 + strnlen(*s + 1, 3));   // niciodată după NUL
 }

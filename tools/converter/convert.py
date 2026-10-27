@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ibv-convert: EPUB / FB2 / TXT -> .ibv book files for the e-ink reader.
+"""ibv-convert: EPUB / FB2 / TXT -> fișiere de carte .ibv pentru cititorul e-ink.
 
     convert.py convert BOOK [BOOK ...] [-o OUT] [--lang ro] [--title T] [--author A]
                         [--no-hyphenate] [--no-cover] [--block 16384] [--stored]
@@ -7,7 +7,7 @@
     convert.py dump FILE.ibv [--records 40]
     convert.py preview-cover FILE.ibv OUT.png
 
-Every converted book is read back and validated before it's written.
+Fiecare carte convertită se recitește și se validează înainte de a fi scrisă.
 """
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ def reader_for(path: pathlib.Path):
 
 def convert(src: pathlib.Path, *, lang=None, title=None, author=None, hyphenate=True,
             with_cover=True, block=ibv.DEFAULT_BLOCK_TARGET, compress=True):
-    """Returns (ibv bytes, report lines)."""
+    """Întoarce (octeții ibv, rândurile raportului)."""
     reader = reader_for(src)
     if reader is None:
         raise SystemExit(f"{src}: unknown format (expected .epub, .fb2, .fb2.zip or .txt)")
@@ -58,7 +58,7 @@ def convert(src: pathlib.Path, *, lang=None, title=None, author=None, hyphenate=
     if with_cover and cover_bytes:
         try:
             cov = cover_mod.load(cover_bytes)
-        except Exception as e:          # a broken cover must not stop the book
+        except Exception as e:          # o copertă stricată nu trebuie să oprească cartea
             info["cover"] = f"unreadable ({e.__class__.__name__})"
     book, rep = doc.finish(b, meta, hyphenate=hyphenate, cover=cov)
     meta = book.meta
@@ -123,14 +123,14 @@ def main(argv: list[str]) -> int:
                 dst = a.out / (_stem(src) + ".ibv")
             else:
                 dst = a.out or src.with_name(_stem(src) + ".ibv")
-            if dst in written:          # book.epub and book.txt in one batch
+            if dst in written:          # book.epub și book.txt în același lot
                 dst = dst.with_name(f"{_stem(src)}-{src.name[len(_stem(src)) + 1:].replace('.', '-')}.ibv")
             written.add(dst)
             try:
                 out, lines = convert(src, lang=a.lang, title=a.title, author=a.author,
                                      hyphenate=not a.no_hyphenate, with_cover=not a.no_cover,
                                      block=a.block, compress=not a.stored)
-            except Exception as e:             # one bad book must not stop a batch
+            except Exception as e:             # o carte stricată nu trebuie să oprească un lot
                 print(f"{src.name}: FAILED: {e.__class__.__name__}: {e}", file=sys.stderr)
                 failed += 1
                 continue

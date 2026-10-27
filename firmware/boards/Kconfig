@@ -1,13 +1,13 @@
-menu "E-ink reader board"
+menu "Placa cititorului e-ink"
 
     choice READER_BOARD
-        prompt "Board"
+        prompt "Placa"
         default READER_BOARD_DEVKIT
         help
-            Selects the pin map in boards/include/board_*.h.
+            Alege harta pinilor din boards/include/board_*.h.
 
         config READER_BOARD_DEVKIT
-            bool "Prototype: ESP32-S3 DevKitC-1 + modules on a breadboard"
+            bool "Prototipul: ESP32-S3 DevKitC-1 + module pe breadboard"
     endchoice
 
 endmenu

@@ -1,17 +1,17 @@
-"""From parsed input to an ibv.Book.
+"""De la intrarea parsată la un ibv.Book.
 
-Every reader (txt.py, epub.py, fb2.py) feeds a `Builder`: text with styles,
-paragraph ends with a kind, breaks, anchors and TOC entries. `finish()` then
-does the work that is the same for every input:
+Fiecare cititor (txt.py, epub.py, fb2.py) hrănește un `Builder`: text cu
+stiluri, sfârșituri de paragraf cu un tip, separatoare, ancore și intrări de
+cuprins. Apoi `finish()` face munca ce e aceeași pentru orice intrare:
 
-1. clean up the text (textnorm), map characters the font lacks (glyphs);
-2. tidy the structure: paragraphs that are really stanzas (short lines
-   joined by <br>) become VERSE lines; drop empty paragraphs, merge repeated
-   breaks, drop breaks at the edges and next to headings, no indent after a
-   heading;
-3. hyphenate prose (soft hyphens);
-4. split paragraphs too long for one record, mark the rest CONT;
-5. turn styles into byte runs and resolve TOC targets to paragraph numbers.
+1. curăță textul (textnorm), înlocuiește caracterele care lipsesc din font (glyphs);
+2. pune ordine în structură: paragrafele care sunt de fapt strofe (rânduri
+   scurte legate cu <br>) devin rânduri VERSE; scoate paragrafele goale, unește
+   separatoarele repetate, scoate separatoarele de la capete și de lângă
+   titluri, fără alineat după un titlu;
+3. desparte în silabe proza (cratime moi);
+4. împarte paragrafele prea lungi pentru o înregistrare și le marchează pe celelalte CONT;
+5. transformă stilurile în intervale de octeți și rezolvă țintele cuprinsului în numere de paragraf.
 """
 from __future__ import annotations
 
@@ -26,9 +26,9 @@ from hyphenate import WORD, Hyphenator, should_hyphenate
 from textnorm import SHY, Styled
 
 CONVERTER = "ibv-convert 0.1"
-SPLIT_BYTES = 8192          # longer paragraphs become several CONT records
-CHAPTER_BYTES = 3000        # a heading level whose sections are this long (median) starts pages
-VERSE_MAX_LINE = 80         # a <br>-joined paragraph whose lines all fit is a stanza
+SPLIT_BYTES = 8192          # paragrafele mai lungi devin mai multe înregistrări CONT
+CHAPTER_BYTES = 3000        # un nivel de titlu cu secțiuni atât de lungi (mediana) începe pagini
+VERSE_MAX_LINE = 80         # un paragraf legat cu <br> al cărui fiecare rând încape e o strofă
 VERSE_MEAN_LINE = 55
 LSEP = textnorm.LSEP
 LSEP_SPACES = re.compile(rf" *{LSEP} *")
@@ -45,7 +45,7 @@ class Item:
 
 @dataclass
 class TocRef:
-    target: object          # an anchor key, or an int item index
+    target: object          # o cheie de ancoră sau un indice întreg de element
     level: int
     title: str
 
@@ -57,7 +57,7 @@ class Builder:
         self.anchors: dict[object, int] = {}
         self.toc: list[TocRef] = []
 
-    # text
+    # textul
     def text(self, s: str, style: int = 0) -> None:
         if s:
             self.cur.append(s, style)
@@ -68,9 +68,9 @@ class Builder:
     def has_text(self) -> bool:
         return bool(self.cur.text.strip(" \t\r\n\u00a0\u2028"))
 
-    # structure
+    # structura
     def end(self, kind: int = ibv.PARA, flags: int = 0) -> int | None:
-        """Ends the current paragraph. Returns its item index, or None if empty."""
+        """Încheie paragraful curent. Întoarce indicele lui de element, sau None dacă e gol."""
         st, self.cur = self.cur, Styled()
         if not st.text.strip(" \t\r\n\u00a0\u2028"):
             return None
@@ -82,7 +82,7 @@ class Builder:
         self.items.append(Item(ibv.BREAK, ibv.BREAK_ORNAMENT if ornament else 0))
 
     def anchor(self, key: object) -> None:
-        """Marks `key` as pointing at the next paragraph to be ended."""
+        """Marchează `key` ca arătând spre următorul paragraf care se va încheia."""
         self.anchors.setdefault(key, len(self.items))
 
     def toc_entry(self, target: object, level: int, title: str) -> None:
@@ -113,7 +113,7 @@ def finish(b: Builder, meta: dict[str, str], *, hyphenate: bool = True,
         rep.warnings.append("Romanian typed with ã/º/þ for ă/ș/ț: mapped back")
     charset = charset if charset is not None else glyphs.charset_for(lang)
 
-    # 1. text clean-up; each source item becomes zero or more items
+    # 1. curățarea textului; fiecare element sursă devine zero sau mai multe elemente
     groups: list[list[Item]] = []
     for it in b.items:
         if it.kind == ibv.BREAK:
@@ -130,9 +130,9 @@ def finish(b: Builder, meta: dict[str, str], *, hyphenate: bool = True,
         else:
             groups.append([Item(it.kind, it.flags, st)])
 
-    # 2. structure
+    # 2. structura
     keep: list[Item] = []
-    new_index: list[int] = []            # old item index -> index in keep (next surviving)
+    new_index: list[int] = []            # indicele vechi al elementului -> indicele în keep (următorul rămas)
     for group in groups:
         new_index.append(len(keep))
         for it in group:
@@ -144,7 +144,7 @@ def finish(b: Builder, meta: dict[str, str], *, hyphenate: bool = True,
         if it.kind == ibv.PARA and prev is not None and prev.kind in (ibv.HEADING, ibv.BREAK):
             it.flags |= ibv.NO_INDENT
 
-    # 3. hyphenation
+    # 3. despărțirea în silabe
     hy = Hyphenator.for_language(lang) if hyphenate else None
     if hyphenate and hy is None:
         rep.warnings.append(f"no hyphenation patterns for language '{lang}': not hyphenated")
@@ -155,9 +155,9 @@ def finish(b: Builder, meta: dict[str, str], *, hyphenate: bool = True,
                 it.st, n = _hyphenate(it.st, hy)
                 rep.hyphenated_words += n
 
-    # 4 + 5. records
+    # 4 + 5. înregistrările
     records: list[ibv.Record] = []
-    first_record: list[int] = []          # keep index -> first record index
+    first_record: list[int] = []          # indicele în keep -> indicele primei înregistrări
     for it in keep:
         first_record.append(len(records))
         if it.kind == ibv.BREAK:
@@ -182,18 +182,18 @@ def finish(b: Builder, meta: dict[str, str], *, hyphenate: bool = True,
 
 
 def _chapter_pages(records: list[ibv.Record]) -> tuple[list[int], int]:
-    """Sets PAGE on the headings that should start a new page. A heading's
-    section runs to the next heading of the same or a higher level. A level
-    is a chapter level if its sections are at least CHAPTER_BYTES long
-    (median): titles, parts and chapters are, the short poems of a collection
-    aren't. On a chapter level, a heading whose own section is under a
-    quarter of that (a short poem among stories) runs on too, and so does a
-    heading right after another (a subtitle). The book's first record is
-    marked too when it qualifies: it starts a page anyway, and the layout
-    sets a chapter's title lower on the page. Returns the chapter levels and
-    how many records were marked."""
-    size: dict[int, int] = {}           # heading record -> bytes in its section
-    open_: dict[int, int] = {}          # level -> its open heading
+    """Pune PAGE pe titlurile care trebuie să înceapă o pagină nouă. Secțiunea unui
+    titlu ține până la următorul titlu de același nivel sau de nivel mai înalt.
+    Un nivel e nivel de capitol dacă secțiunile lui au cel puțin CHAPTER_BYTES
+    (mediana): titlurile, părțile și capitolele au, poeziile scurte dintr-o
+    culegere nu. Pe un nivel de capitol, un titlu a cărui secțiune are sub un
+    sfert din asta (o poezie scurtă printre povestiri) continuă pe aceeași
+    pagină, la fel și un titlu chiar după altul (un subtitlu). Prima
+    înregistrare a cărții se marchează și ea când se califică: oricum începe o
+    pagină, iar paginarea așază titlul unui capitol mai jos pe pagină. Întoarce
+    nivelurile de capitol și câte înregistrări au fost marcate."""
+    size: dict[int, int] = {}           # înregistrarea titlului -> octeții din secțiunea lui
+    open_: dict[int, int] = {}          # nivelul -> titlul lui deschis
     for i, r in enumerate(records):
         if r.kind == ibv.HEADING:
             for lv in [lv for lv in open_ if lv >= r.level]:
@@ -231,7 +231,7 @@ def _place(it: Item, keep: list[Item], new_index: list[int]) -> None:
 
 
 def _tidy_line_breaks(st: Styled) -> Styled:
-    """No spaces around a line break, at most one empty line in a row."""
+    """Fără spații în jurul unei ruperi de rând, cel mult un rând gol la rând."""
     st = textnorm.sub(st, LSEP_SPACES, LSEP)
     st = textnorm.sub(st, LSEP_RUN, LSEP * 2)
     return textnorm.strip(st)
@@ -246,7 +246,7 @@ def _is_stanza(text: str) -> bool:
 
 
 def _stanza(st: Styled, align: int) -> list[Item]:
-    """One VERSE item per line, a BREAK at each empty line and after the stanza."""
+    """Câte un element VERSE pe rând, un BREAK la fiecare rând gol și după strofă."""
     out, start = [], 0
     for i in range(len(st.text) + 1):
         if i == len(st.text) or st.text[i] == LSEP:
@@ -262,7 +262,7 @@ def _stanza(st: Styled, align: int) -> list[Item]:
 
 def _resolve_toc(b: Builder, new_index, first_record, keep, lang, ro_legacy, rep) -> list[ibv.TocEntry]:
     refs = b.toc
-    if not refs:   # no TOC in the source: build one from the headings
+    if not refs:   # sursa nu are cuprins: se face unul din titluri
         refs = [TocRef(i, 1 + ((it.flags & ibv.LEVEL_MASK) >> ibv.LEVEL_SHIFT), it.st.text)
                 for i, it in enumerate(b.items) if it.kind == ibv.HEADING]
     out: list[ibv.TocEntry] = []
@@ -278,7 +278,7 @@ def _resolve_toc(b: Builder, new_index, first_record, keep, lang, ro_legacy, rep
         if not title:
             continue
         if out and para <= out[-1].para:
-            continue                       # same target as the entry before (e.g. part + chapter)
+            continue                       # aceeași țintă ca intrarea dinainte (de exemplu parte + capitol)
         out.append(ibv.TocEntry(para, min(max(ref.level, 1), 4), title[:200]))
     return out
 

@@ -1,10 +1,10 @@
-"""Tests for the converter (CONV-1..7, 9, 10).
+"""Testele convertorului (CONV-1..7, 9, 10).
 
     cd tools/converter && python3 -m unittest test_convert
 
-The EPUB and FB2 inputs are built here, in memory, so every case says
-exactly what it feeds in. The corpus test at the end converts whatever is in
-corpus/files/ and is skipped when that folder is empty.
+Intrările EPUB și FB2 se construiesc aici, în memorie, deci fiecare caz spune
+exact ce primește. Testul pe corpus de la final convertește ce se află în
+corpus/files/ și se sare când dosarul e gol.
 """
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ def styled(*parts: tuple[str, int]) -> Styled:
 
 
 def build(b: doc.Builder, lang: str = "ro", **kw) -> tuple[ibv.Book, ibv.Parsed]:
-    """finish() + write + validate: every test book must also be a valid file."""
+    """finish() + write + validate: fiecare carte de test trebuie să fie și un fișier valid."""
     book, rep = doc.finish(b, {"title": "T", "language": lang}, **kw)
     return book, ibv.validate(ibv.write(book))
 
@@ -52,7 +52,7 @@ def texts(book: ibv.Book, kind: int | None = None) -> list[str]:
     return [r.text.replace(SHY, "") for r in book.records if kind is None or r.kind == kind]
 
 
-# ---------------------------------------------------------------- normalize
+# ---------------------------------------------------------------- normalizarea
 
 class TestNormalize(unittest.TestCase):
     def test_quotes_per_language(self):
@@ -93,7 +93,7 @@ class TestNormalize(unittest.TestCase):
         self.assertEqual(italic, "„da”…")
 
 
-# ---------------------------------------------------------------- hyphenation
+# ---------------------------------------------------------------- despărțirea în silabe
 
 class TestHyphenate(unittest.TestCase):
     def check(self, lang, cases):
@@ -125,7 +125,7 @@ class TestHyphenate(unittest.TestCase):
         self.assertIsNotNone(Hyphenator.for_language("ro-MD"))
 
 
-# ---------------------------------------------------------------- encodings + TXT
+# ---------------------------------------------------------------- codificări + TXT
 
 RO = ("Stau câteodată și-mi aduc aminte ce vremi și ce oameni mai erau în părțile noastre "
       "pe când începusem și eu, drăgăliță-Doamne, a mă ridica băiețaș la casa părinților mei. ") * 8
@@ -144,12 +144,12 @@ class TestEncoding(unittest.TestCase):
             self.assertEqual((text, got), (RU, enc))
 
     def test_romanian_code_pages(self):
-        cedilla = RO.replace("ș", "ş").replace("ț", "ţ")      # CP1250 has no comma-below letters
+        cedilla = RO.replace("ș", "ş").replace("ț", "ţ")      # CP1250 nu are litere cu virgulă dedesubt
         text, got = txt.decode(cedilla.encode("cp1250"))
         self.assertEqual(text, cedilla)
         self.assertIn(got, ("cp1250", "iso8859_2"))
-        # ISO-8859-16 ș/ț are CP1250 ş/ţ byte for byte, and the rest of Romanian
-        # is the same in both: either reading normalizes to the same text
+        # ș/ț din ISO-8859-16 sunt octet cu octet ş/ţ din CP1250, iar restul românei
+        # e la fel în amândouă: oricare citire se normalizează în același text
         text, got = txt.decode(RO.encode("iso8859_16"))
         self.assertIn(got, ("iso8859_16", "cp1250"))
         self.assertEqual(textnorm.plain(text, "ro"), textnorm.plain(RO, "ro"))
@@ -334,8 +334,8 @@ class TestEpub(unittest.TestCase):
         self.assertEqual(recs[1].kind, ibv.PARA)
         self.assertTrue(recs[1].flags & ibv.NO_INDENT)
         all_text = " ".join(texts(self.book))
-        self.assertNotIn("Nota de subsol", all_text)        # footnote body
-        self.assertNotIn("noastre1", all_text)              # footnote marker
+        self.assertNotIn("Nota de subsol", all_text)        # corpul notei
+        self.assertNotIn("noastre1", all_text)              # semnul notei
         self.assertNotIn("ascuns", all_text)                # display:none
         self.assertNotIn("afara firului", all_text)         # linear="no"
         self.assertIn("• unu", all_text)
@@ -369,7 +369,7 @@ class TestEpub(unittest.TestCase):
         self.assertEqual(toc, [(1, "Partea I", "Partea I"), (2, "Capitolul II", "Capitolul II")])
 
     def test_cover(self):
-        cov = cover.load(self.info["cover_bytes"])        # 300 x 500 scaled by 0.8
+        cov = cover.load(self.info["cover_bytes"])        # 300 x 500 scalat cu 0,8
         self.assertEqual((cov.width, cov.height), (240, 400))
 
     def test_no_nav_falls_back_to_headings(self):
@@ -461,7 +461,7 @@ class TestFb2(unittest.TestCase):
         self.assertEqual(meta["title"], "Повести Белкина")
 
 
-# ---------------------------------------------------------------- cover
+# ---------------------------------------------------------------- coperta
 
 class TestCover(unittest.TestCase):
     def test_flat_grey_keeps_its_average(self):
@@ -487,7 +487,7 @@ class TestCover(unittest.TestCase):
         self.assertEqual(set(c.bits), {0xFF})
 
 
-# ---------------------------------------------------------------- glyphs + finish
+# ---------------------------------------------------------------- glife + finish
 
 class TestGlyphs(unittest.TestCase):
     def test_fallbacks_and_missing(self):
@@ -507,7 +507,7 @@ class TestGlyphs(unittest.TestCase):
             self.assertTrue(glyphs.is_cyrillic(lang), lang)
         for lang in ("en", "ro", "mo", "sr-Latn", "de-CH", "", None, "rus"):
             self.assertFalse(glyphs.is_cyrillic(lang), lang)
-        # A Latin-script book is set in Libron: no Cyrillic, and ſ becomes s.
+        # O carte cu scriere latină se culege cu Libron: fără chirilice, iar ſ devine s.
         missing, replaced = {}, {}
         st = glyphs.apply(styled(("ſun Москва ăș", 0)), glyphs.charset_for("en"), missing, replaced)
         self.assertEqual(st.text, "sun ������ ăș")
@@ -536,8 +536,8 @@ class TestFinish(unittest.TestCase):
         self.assertEqual(last.runs[-1][2], ibv.BOLD)
 
     def test_chapters_start_pages(self):
-        # A title, two parts, chapters long enough to be chapters, a subtitle
-        # right under one of them, and a few short poems on the chapters' level.
+        # Un titlu, două părți, capitole destul de lungi ca să fie capitole, un subtitlu
+        # chiar sub unul din ele și câteva poezii scurte pe nivelul capitolelor.
         b = doc.Builder()
 
         def head(level, title):
@@ -561,8 +561,8 @@ class TestFinish(unittest.TestCase):
             b.end(ibv.VERSE)
         book, p = build(b)
         page = [r.text for r in book.records if r.flags & ibv.PAGE]
-        # A run of headings starts one page: Book + Part One + Chapter 1 open
-        # the book, Part Two takes its Chapter 1 along.
+        # Un șir de titluri începe o singură pagină: Cartea + Partea întâi + Capitolul 1
+        # deschid cartea, Partea a doua își ia Capitolul 1 cu ea.
         self.assertEqual(page, ["Book", "Chapter 2", "Chapter 3", "Part Two", "Chapter 2", "Chapter 3"])
         self.assertFalse(any(t.startswith("Poem ") for t in page))
         self.assertNotIn("In which a subtitle follows", page)
@@ -605,8 +605,8 @@ class TestFinish(unittest.TestCase):
         b = doc.Builder()
         b.text("intro"); b.end()
         b.anchor("x")
-        b.text("   "); b.end()               # empty, dropped
-        b.brk()                              # dropped: before a heading
+        b.text("   "); b.end()               # gol, scos
+        b.brk()                              # scos: înaintea unui titlu
         b.text("Cap"); b.end(ibv.HEADING, doc.heading_flags(2))
         b.toc_entry("x", 2, "Cap")
         b.toc_entry("missing", 2, "Nu există")
@@ -623,7 +623,7 @@ class TestFinish(unittest.TestCase):
         self.assertEqual(book.meta["converter"], doc.CONVERTER)
 
 
-# ---------------------------------------------------------------- whole files
+# ---------------------------------------------------------------- fișiere întregi
 
 class TestConvert(unittest.TestCase):
     def test_cli_round_trip(self):
@@ -648,7 +648,7 @@ class TestConvert(unittest.TestCase):
 
 @unittest.skipUnless(CORPUS.is_dir() and any(CORPUS.iterdir()), "no corpus in corpus/files")
 class TestCorpus(unittest.TestCase):
-    """CONV-10: every book in the corpus converts and validates."""
+    """CONV-10: fiecare carte din corpus se convertește și se validează."""
 
     def test_corpus(self):
         books = [p for p in sorted(CORPUS.iterdir()) if convert.reader_for(p)]

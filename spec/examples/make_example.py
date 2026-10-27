@@ -1,5 +1,5 @@
-"""Writes example.ibv, the worked example in ../book-format.md (stored, no compression,
-so every byte is readable).  python3 make_example.py"""
+"""Scrie example.ibv, exemplul lucrat din ../book-format.md (stocat, fără compresie,
+ca fiecare octet să se poată citi).  python3 make_example.py"""
 import pathlib, sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "tools" / "converter"))
 import ibv

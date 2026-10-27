@@ -1,7 +1,8 @@
-// Phase 0 bring-up app. Checks every part of the prototype once and shows the
-// result on the panel: chip and memory, SD card, battery ADC, buttons with
-// partial refresh, and deep sleep with button wake. Refresh timings go to the
-// serial log as PERF lines for experiment E1.
+// Aplicația de punere în funcțiune din Faza 0. Verifică o dată fiecare parte a
+// prototipului și arată rezultatul pe panou: cipul și memoria, cardul SD, ADC-ul
+// bateriei, butoanele cu reîmprospătare parțială și somnul adânc cu trezire din
+// buton. Timpii de reîmprospătare merg în jurnalul serial ca rânduri PERF pentru
+// experimentul E1.
 #include <dirent.h>
 #include <inttypes.h>
 #include <stdio.h>
@@ -31,7 +32,7 @@ static const char *TAG = "bringup";
 #define MOUNT_POINT "/sd"
 #define RELEASE_WAIT_US (5 * 1000 * 1000)
 
-// Survives deep sleep, so it also shows that RTC memory is kept.
+// Supraviețuiește somnului adânc, deci arată și că memoria RTC se păstrează.
 static RTC_DATA_ATTR uint32_t s_boot_count;
 
 static uint8_t s_fb[EPD_FB_SIZE];
@@ -85,7 +86,7 @@ static const char *reset_reason(void)
     }
 }
 
-// Call after buttons_init(), which knows the pins.
+// Se apelează după buttons_init(), care știe pinii.
 static void describe_wake(void)
 {
     s_boot_count++;
@@ -104,7 +105,7 @@ static void read_battery(void)
     if (mv < 0) {
         snprintf(s_battery, sizeof s_battery, "ADC error");
     } else if (mv < 2500) {
-        // Below any usable Li-ion voltage: nothing on the divider.
+        // Sub orice tensiune utilizabilă de Li-ion: nimic pe divizor.
         snprintf(s_battery, sizeof s_battery, "none (%d.%02d V)", mv / 1000, mv % 1000 / 10);
     } else {
         snprintf(s_battery, sizeof s_battery, "%d.%02d V", mv / 1000, mv % 1000 / 10);
@@ -123,7 +124,7 @@ static int count_root_files(void)
     return n;
 }
 
-// Appends one line per boot, so the card shows the device really wrote to it.
+// Adaugă un rând la fiecare pornire, deci cardul arată că dispozitivul chiar a scris pe el.
 static void log_boot_to_sd(void)
 {
     FILE *f = fopen(MOUNT_POINT "/bringup.txt", "a");
@@ -151,14 +152,14 @@ static void mount_sd(void)
     } else if (err != ESP_OK) {
         snprintf(s_sd, sizeof s_sd, "failed: 0x%x", err);
     } else {
-        unsigned gb10 = (unsigned)(sd.capacity_bytes / 100000000);  // tenths of a GB
+        unsigned gb10 = (unsigned)(sd.capacity_bytes / 100000000);  // zecimi de GB
         snprintf(s_sd, sizeof s_sd, "OK, %u.%u GB, %d files", gb10 / 10, gb10 % 10, count_root_files());
         log_boot_to_sd();
     }
     if (err != ESP_OK) ESP_LOGE(TAG, "SD card: %s", esp_err_to_name(err));
 }
 
-// ---- display ----
+// ---- ecranul ----
 
 static void log_refresh(esp_err_t err)
 {
@@ -171,7 +172,7 @@ static void log_refresh(esp_err_t err)
            ",off_us=%" PRIu32 ",total_us=%" PRIu32 "\n",
            t->full ? "epd_full" : "epd_partial", t->x, t->y, t->w, t->h, t->write_us, t->power_on_us,
            t->refresh_us, t->power_off_us, t->total_us);
-    // Shown on the next update: a screen can't show its own refresh time.
+    // Se arată la următoarea actualizare: un ecran nu-și poate arăta propriul timp de reîmprospătare.
     snprintf(s_timing, sizeof s_timing, "prev: %s %" PRIu32 " ms", t->full ? "full" : "partial",
              t->total_us / 1000);
 }
@@ -179,7 +180,7 @@ static void log_refresh(esp_err_t err)
 static void show_full(void)
 {
     gfx_rect_t r;
-    gfx_take_dirty(&s_gfx, &r);  // the whole screen goes out anyway
+    gfx_take_dirty(&s_gfx, &r);  // oricum pleacă tot ecranul
     if (s_epd_ok) log_refresh(epd_full_refresh(s_fb));
 }
 
@@ -196,7 +197,7 @@ static void draw_all(void)
     show_full();
 }
 
-// ---- sleep ----
+// ---- somnul ----
 
 static void go_to_sleep(void)
 {
@@ -206,14 +207,14 @@ static void go_to_sleep(void)
     if (s_epd_ok) epd_sleep();
     if (s_sd_ok) sdcard_unmount();
 
-    // A button still down would wake the chip right away.
+    // Un buton încă apăsat ar trezi cipul imediat.
     int64_t t0 = esp_timer_get_time();
     while (buttons_any_down() && esp_timer_get_time() - t0 < RELEASE_WAIT_US) vTaskDelay(pdMS_TO_TICKS(10));
-    vTaskDelay(pdMS_TO_TICKS(50));  // let the contacts settle
+    vTaskDelay(pdMS_TO_TICKS(50));  // contactele se liniștesc
 
     esp_err_t err = buttons_enable_wakeup();
     if (err != ESP_OK) {
-        // Without a wake source only the reset button would bring it back.
+        // Fără o sursă de trezire, doar butonul de reset l-ar mai aduce înapoi.
         ESP_LOGE(TAG, "can't arm button wake-up (%s), restarting instead", esp_err_to_name(err));
         esp_restart();
     }
@@ -221,7 +222,7 @@ static void go_to_sleep(void)
     esp_deep_sleep_start();
 }
 
-// ---- main ----
+// ---- principal ----
 
 void app_main(void)
 {
@@ -230,7 +231,7 @@ void app_main(void)
         [BUTTON_NEXT] = BOARD_BTN_NEXT,
         [BUTTON_MENU] = BOARD_BTN_MENU,
     };
-    // First, so the button that woke the chip is seen as held and ignored.
+    // Primul, ca butonul care a trezit cipul să fie văzut ca ținut și ignorat.
     ESP_ERROR_CHECK(buttons_init(pins));
     describe_chip();
     describe_wake();
@@ -243,8 +244,8 @@ void app_main(void)
         snprintf(s_battery, sizeof s_battery, "ADC error");
     }
 
-    // The SD card's CS must be high before any traffic for the panel, or the
-    // card could take part of it as commands.
+    // CS-ul cardului SD trebuie să fie în 1 înaintea oricărui trafic pentru
+    // panou, altfel cardul ar putea lua o parte din el drept comenzi.
     gpio_set_level(BOARD_SD_CS, 1);
     gpio_config(&(gpio_config_t){.pin_bit_mask = BIT64(BOARD_SD_CS), .mode = GPIO_MODE_OUTPUT});
 
@@ -292,8 +293,8 @@ void app_main(void)
         ESP_LOGI(TAG, "%s %s", button_name(ev.button), hold ? "long" : "short");
 
         if (ev.button == BUTTON_MENU) {
-            if (hold) go_to_sleep();  // doesn't return
-            // Re-check what may have changed: battery, and a card put in since boot.
+            if (hold) go_to_sleep();  // nu se întoarce
+            // Se verifică din nou ce s-ar fi putut schimba: bateria și un card pus după pornire.
             read_battery();
             if (!s_sd_ok) mount_sd();
             snprintf(s_button, sizeof s_button, "MENU");

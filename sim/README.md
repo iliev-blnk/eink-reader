@@ -10,7 +10,7 @@ Builds the firmware's portable core (`firmware/components/core`: fonts, graphics
     sim/build/sim compare corpus/out/pg1342.ibv --page 30 -o cmp.png tools/fonttool/out/fam/literata-16 tools/fonttool/out/fam/ptserif-18
     sim/test/run.sh                                                        # golden-image test
 
-Without `-f` the built-in UI font is used. Layout options: `--margin`, `--indent`, `--line-gap`, `--para-gap`, `--ragged`, `--no-hyphen`, `--no-chapter-page`.
+Without `-f` the built-in UI font is used. Layout options: `--margin`, `--indent`, `--line-gap`, `--para-gap`, `--ragged`, `--no-hyphen`, `--no-chapter-page`, `--no-keep-lines`, `--greedy` (rupere greedy în loc de încadrare totală).
 
 `stats` checks, for every page of every book, that pages chain and advance and how far ink goes outside the text area (side bearings and italics: 1–4 px; more fails). It also prints a hash of every page's pixels.
 

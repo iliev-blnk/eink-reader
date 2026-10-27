@@ -5,11 +5,20 @@
 // record plus where to draw them, so a page costs a few hundred bytes, and
 // drawing re-reads the text from the book's block cache.
 //
-// Line breaking is greedy (first fit). Break opportunities: spaces, soft
-// hyphens U+00AD (a '-' is drawn), U+200B, after '-', '–', '—' inside a word;
-// U+2028 forces a break. U+00A0 is a space that stretches but doesn't break. A
-// word wider than the line is cut between characters. All widths are in
-// 1/64 px with kerning (font.h), so justification has no rounding drift.
+// Break opportunities: spaces, soft hyphens U+00AD (a '-' is drawn), U+200B,
+// after '-', '–', '—' inside a word; U+2028 forces a break. U+00A0 is a space
+// that stretches but doesn't break. All widths are in 1/64 px with kerning
+// (font.h), so justification has no rounding drift.
+//
+// Paragrafele și citatele justificate se rup în rânduri tot odată (LAY-5,
+// „încadrarea totală” Knuth–Plass): dintre toate felurile de a rupe
+// înregistrarea, cel cu penalizarea cea mai mică, unde penalizarea unui rând
+// crește cu cubul lățirii sau îngustării spațiilor lui, iar cratimele costă în
+// plus. Îi trebuie o zonă de lucru (layout_fit_t, cfg.fit). Restul, și orice
+// înregistrare când cfg.fit e NULL, se rupe greedy (first fit): cel mai lung
+// rând care încape, apoi următorul. Greedy e și rezerva pentru o înregistrare
+// cu peste LAYOUT_FIT_MAX puncte de rupere sau cu un cuvânt mai lat decât
+// rândul (tăiat între caractere).
 //
 // A CONT record (an over-long paragraph the converter split at a space)
 // starts a new line with no indent or gap, and the line before it is
@@ -30,8 +39,41 @@
 #include "gfx.h"
 #include "ibv.h"
 
-#define LAYOUT_VERSION 2         // part of the layout hash: bump when line breaks can change
+#define LAYOUT_VERSION 3         // part of the layout hash: bump when line breaks can change
 #define LAYOUT_MAX_LINES 64
+#define LAYOUT_FIT_MAX 2048      // puncte de rupere pe înregistrare pentru încadrarea totală (maximul în corpus e ~2000)
+
+// Zona de lucru pentru încadrarea totală, ~66 KB. Păstrează și rupturile
+// ultimei înregistrări rupte, ca paginile unui paragraf lung să nu le refacă.
+// Fiecare task care paginează are nevoie de a lui. Se pune pe zero (sau
+// layout_fit_reset) înainte de prima folosire și după ce alte fonturi se
+// încarcă la aceleași adrese.
+typedef struct {
+    uint16_t end, next;          // un rând rupt aici se termină la `end`; următorul începe la `next`
+    uint16_t gaps;               // spații înainte de `end`
+    uint8_t kind;
+    int32_t w, sp;               // lățimea și lățimea spațiilor înainte de `end` (w cu cratima)
+    int16_t dw, dsp;             // același lucru la `next`, minus w și sp
+} layout_fit_bp_t;
+
+typedef struct {
+    // Pentru ce înregistrare sunt rupturile.
+    bool valid, fitted;          // fitted false: greedy pentru înregistrarea asta
+    uint8_t book_id[8];
+    uint32_t para;
+    const font_t *face[4];
+    int32_t avail[2];
+    bool hyphenate;
+    uint16_t count, lines;       // puncte de rupere, rânduri
+    layout_fit_bp_t bp[LAYOUT_FIT_MAX];
+    uint64_t total[LAYOUT_FIT_MAX];
+    uint16_t prev[LAYOUT_FIT_MAX];
+    uint16_t line_end[LAYOUT_FIT_MAX];
+    uint8_t fitness[LAYOUT_FIT_MAX];
+    uint32_t broken[3];          // înregistrări rupte în prima trecere, a doua, greedy (pentru E6)
+} layout_fit_t;
+
+void layout_fit_reset(layout_fit_t *fit);
 
 typedef struct {
     // Body faces by IBV style: [0] regular, [1] bold, [2] italic, [3] bold italic.
@@ -46,6 +88,7 @@ typedef struct {
     bool hyphenate;              // break at soft hyphens
     bool chapter_page;           // records flagged IBV_PAGE (chapters) start a new page
     bool keep_lines;             // no widows or orphans (a paragraph's last or first line alone)
+    layout_fit_t *fit;           // NULL: rupere greedy peste tot
 } layout_cfg_t;
 
 typedef struct {
@@ -62,7 +105,7 @@ typedef struct {
     uint32_t para;
     uint32_t start, end;         // text bytes [start, end) of record `para`
     int32_t x;                   // pen start, 1/64 px from the text area's left
-    int32_t extra;               // justification: 1/64 px spread over `gaps` spaces
+    int32_t extra;               // justification: 1/64 px spread over `gaps` spaces (< 0: îngustare)
     uint16_t gaps;
     int16_t baseline;            // px from the text area's top
     uint8_t flags;
@@ -101,5 +144,5 @@ ibv_err_t layout_draw(const layout_cfg_t *cfg, ibv_t *book, const layout_page_t 
                       int x0, int y0);
 
 // Identifies the layout for page caches (spec: IPGC layout_hash): fonts,
-// sizes, area, spacing and LAYOUT_VERSION.
+// sizes, area, spacing, greedy or total fit, and LAYOUT_VERSION.
 uint32_t layout_hash(const layout_cfg_t *cfg);

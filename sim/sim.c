@@ -19,6 +19,7 @@
 //   --no-hyphen      ignore soft hyphens
 //   --no-chapter-page   level-1 headings don't start a new page
 //   --no-keep-lines  allow widows and orphans
+//   --greedy         rupere greedy în rânduri (fără încadrare totală)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -133,6 +134,7 @@ static bool layout_option(setup_t *s, int argc, char **argv, int *i, int *indent
     else if (!strcmp(a, "--no-hyphen")) s->cfg.hyphenate = false;
     else if (!strcmp(a, "--no-chapter-page")) s->cfg.chapter_page = false;
     else if (!strcmp(a, "--no-keep-lines")) s->cfg.keep_lines = false;
+    else if (!strcmp(a, "--greedy")) s->cfg.fit = NULL;
     else if (v && !strcmp(a, "-f")) load_family(s, v), ++*i;
     else if (v && !strcmp(a, "--fonts")) s->font_dir = v, ++*i;
     else if (v && !strcmp(a, "--size")) s->size_step = atoi(v), ++*i;
@@ -146,7 +148,9 @@ static bool layout_option(setup_t *s, int argc, char **argv, int *i, int *indent
 
 static void default_setup(setup_t *s)
 {
+    static layout_fit_t fit;
     memset(s, 0, sizeof *s);
+    s->cfg.fit = &fit;
     s->margin = 12;
     s->cfg.justify = true;
     s->cfg.hyphenate = true;
@@ -362,6 +366,41 @@ static uint32_t missing_glyphs(ibv_t *book, const font_t *font)
     return missing;
 }
 
+// Calitatea ruperii în rânduri (experimentul E6). Spațiile unui rând
+// justificat se desenează mai late (sau mai înguste) decât un spațiu simplu cu
+// r = extra / gaps / lățimea spațiului: 0 e un spațiu simplu, 0,5 un spațiu și
+// jumătate, -0,33 cel mai mult cât îngustează încadrarea totală. Rândurile
+// nejustificate (ultimele rânduri, text ragged) nu se numără.
+typedef struct {
+    uint32_t text_lines, hyphens, double_hyphens, n, cap;
+    double *r;
+    bool last_hyphen;
+} quality_t;
+
+static void quality_page(quality_t *q, const setup_t *s, const layout_page_t *pg)
+{
+    const font_t *f = s->cfg.body[0];
+    const double space = f->glyphs[font_index_or_fallback(f, ' ')].advance;
+    for (int i = 0; i < pg->line_count; i++) {
+        const layout_line_t *ln = &pg->lines[i];
+        if (ln->flags & (LINE_HEADING | LINE_ORNAMENT)) { q->last_hyphen = false; continue; }
+        q->text_lines++;
+        bool hy = ln->flags & LINE_HYPHEN;
+        q->hyphens += hy;
+        q->double_hyphens += hy && q->last_hyphen;
+        q->last_hyphen = hy;
+        if (!ln->gaps) continue;
+        if (q->n == q->cap) q->cap = q->cap ? 2 * q->cap : 4096, q->r = realloc(q->r, q->cap * sizeof *q->r);
+        q->r[q->n++] = ln->extra / (double)ln->gaps / space;
+    }
+}
+
+static int cmp_double(const void *a, const void *b)
+{
+    double x = *(const double *)a, y = *(const double *)b;
+    return x < y ? -1 : x > y;
+}
+
 static void widows_orphans(ibv_t *book, const layout_page_t *pg, int *widows, int *orphans)
 {
     if (pg->line_count == 0) return;
@@ -397,9 +436,13 @@ static int cmd_stats(int argc, char **argv)
     printf("# font %s, text area %dx%d, layout hash %08x%s\n", s.font_dir ? "by language" : s.font_name, s.cfg.width,
            s.cfg.height, lh,
            s.cfg.keep_lines ? "" : ", widows and orphans allowed");
+    printf("# line breaking: %s\n", s.cfg.fit ? "total fit" : "greedy");
     printf("# prev: pages laid out to go back one page without the index (max, mean over up to 64 pages)\n");
-    printf("%-28s %6s %7s %8s %8s %5s %4s %4s %5s %6s %6s %6s  %-8s  %s\n", "book", "pages", "paras", "ms",
-           "us/page", "lines", "ovhg", "wid", "orph", "prev", "mean", "miss", "hash", "font");
+    printf("# hyph: %% of lines hyphenated, 2hy: two in a row; r: how much wider than a plain space justified\n"
+           "#   spaces are (0.5 = a space and a half), mean, 95th percentile; loose: %% of lines with r > 0.5\n");
+    printf("%-28s %6s %7s %8s %8s %5s %4s %4s %5s %6s %6s %5s %4s %5s %5s %6s %6s  %-8s  %s\n", "book", "pages", "paras",
+           "ms", "us/page", "lines", "ovhg", "wid", "orph", "prev", "mean", "hyph", "2hy", "r", "r95", "loose", "miss",
+           "hash", "font");
     static uint8_t buf[GFX_BUF_SIZE(W, H)];
     gfx_t g;
     gfx_init(&g, buf, W, H);
@@ -416,12 +459,14 @@ static int cmd_stats(int argc, char **argv)
 #define FAIL(...) do { fprintf(stderr, "%s: ", name); fprintf(stderr, __VA_ARGS__); fputc('\n', stderr); ok = false; } while (0)
         pageidx_t idx;
         pageidx_init(&idx, lh);
+        if (s.cfg.fit) memset(s.cfg.fit->broken, 0, sizeof s.cfg.fit->broken);
         double t0 = now_ms();
         ibv_err_t err = pageidx_step(&idx, &s.cfg, book, 1 << 30, &page);
         double layout_ms = now_ms() - t0;
         if (err) FAIL("%s", ibv_strerror(err));
 
         int overhang = 0, widows = 0, orphans = 0;
+        quality_t q = {0};
         uint32_t hash = 0, min_lines = 999, prev_off = 0;
         for (uint32_t i = 0; ok && i < idx.count; i++) {
             layout_pos_t pos = idx.starts[i];
@@ -441,6 +486,7 @@ static int cmd_stats(int argc, char **argv)
             draw_footer(&g, &s, book, &page, &idx);
             hash = crc32_update(hash, buf, sizeof buf);
             widows_orphans(book, &page, &widows, &orphans);
+            quality_page(&q, &s, &page);
             if (page.line_count > 0 && (uint32_t)page.line_count < min_lines && !page.at_end) min_lines = (uint32_t)page.line_count;
             if (page.at_end != (i + 1 == idx.count)) FAIL("page %u: at_end is wrong", i + 1);
             if (page.at_end) break;
@@ -495,11 +541,24 @@ static int cmd_stats(int argc, char **argv)
         remove(sidecar);
         pageidx_free(&back);
 
-        printf("%-28.28s %6u %7u %8.1f %8.0f %5u %2dpx %4d %5d %6d %6.1f %6u  %08x  %s%s\n", name, idx.count,
-               book->paragraph_count, layout_ms, layout_ms * 1000 / (idx.count ? idx.count : 1),
+        uint32_t broken[3] = {0};
+        if (s.cfg.fit) memcpy(broken, s.cfg.fit->broken, sizeof broken);
+        double r_mean = 0, r95 = 0, loose = 0;
+        if (q.n) {
+            qsort(q.r, q.n, sizeof *q.r, cmp_double);
+            for (uint32_t i = 0; i < q.n; i++) r_mean += q.r[i], loose += q.r[i] > 0.5;
+            r_mean /= q.n;
+            r95 = q.r[q.n * 95 / 100];
+            loose = 100 * loose / q.n;
+        }
+        printf("%-28.28s %6u %7u %8.1f %8.0f %5u %2dpx %4d %5d %6d %6.1f %5.1f %4u %5.2f %5.2f %6.1f %6u  %08x  %s%s\n",
+               name, idx.count, book->paragraph_count, layout_ms, layout_ms * 1000 / (idx.count ? idx.count : 1),
                min_lines == 999 ? 0 : min_lines, overhang, widows, orphans, prev_max,
-               samples ? prev_sum / samples : 0.0, missing_glyphs(book, s.cfg.body[0]), hash, s.font_name,
+               samples ? prev_sum / samples : 0.0, q.text_lines ? 100.0 * q.hyphens / q.text_lines : 0.0,
+               q.double_hyphens, r_mean, r95, loose, missing_glyphs(book, s.cfg.body[0]), hash, s.font_name,
                ok ? "" : "  FAILED");
+        free(q.r);
+        if (getenv("SIM_FIT")) fprintf(stderr, "%s: total fit pass 1 %u, pass 2 %u, greedy %u\n", name, broken[0], broken[1], broken[2]);
         if (overhang > s.cfg.body[0]->pixel_size / 4) FAIL("ink %d px outside the text area", overhang);
 #undef FAIL
         failures += !ok;

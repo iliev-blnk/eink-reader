@@ -54,7 +54,7 @@ if [ -n "$books" ] && [ "$1" != --update ]; then
     if [ -f "$fam/libron-17-r.ibf" ] && [ -f "$fam/ptserif-18-r.ibf" ]; then
         # shellcheck disable=SC2086
         if "$sim" stats $books --fonts "$fam" >"$out/stats-fonts.txt" 2>&1 \
-            && awk '/\.ibv/ && $12 != 0 { bad = 1; print "  " $1 ": " $12 " characters not in " $14 } END { exit bad }' \
+            && awk '/\.ibv/ && $17 != 0 { bad = 1; print "  " $1 ": " $17 " characters not in " $19 } END { exit bad }' \
                 "$out/stats-fonts.txt"; then
             echo "ok   corpus: $(grep -c '\.ibv' "$out/stats-fonts.txt") books in their own font, no missing glyphs"
         else

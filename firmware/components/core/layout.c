@@ -41,6 +41,7 @@ typedef struct {
     int32_t left, right;         // margins, 1/64 px
     int32_t first_indent, wrap_indent;
     int line_height, ascent;
+    layout_fit_t *fit;           // rupturile prin încadrare totală ale înregistrării sau NULL: greedy
 } para_t;
 
 static void setup(para_t *p, const layout_cfg_t *cfg, const ibv_record_t *rec)
@@ -165,6 +166,275 @@ static int32_t line_avail(const para_t *p, bool first)
     return p->cfg->width * FONT_UNIT - line_left(p, first) - p->right;
 }
 
+// Încadrarea totală (Knuth și Plass, „Breaking paragraphs into lines”, 1981),
+// în forma din TeX, redusă la ce îi trebuie unui cititor: fiecare spațiu e un
+// „lipici” care se poate lăți cu de două ori lățimea lui sau îngusta cu o
+// treime. Proasta așezare (badness) a unui rând e 100 r^3 pentru raportul r cu
+// care se lățește sau se îngustează, iar penalizarea lui (demerits) e
+// (LINE + badness)^2 plus pătratul penalizării punctului de rupere și
+// adaosurile de mai jos. Câștigă rupturile cu suma cea mai mică pe toată
+// înregistrarea. O cratimă moale sau o liniuță în cuvânt costă HYPHEN; două
+// rânduri cu cratimă la rând, o cratimă pe penultimul rând și un rând larg
+// lângă unul strâns (clasele de potrivire) costă în plus. Ultimul rând și
+// rândul care se termină la U+2028 rămân la lățimea lor naturală, deci
+// trebuie doar să încapă.
+//
+// Căutarea e o singură trecere peste punctele de rupere, cu cel mai bun drum
+// până la fiecare (algoritmul clasic păstrează câte unul pe clasă de
+// potrivire; aici ajunge unul și ocupă de 4 ori mai puțin). Un rând începe la
+// începutul înregistrării sau după o rupere și se măsoară din sume prefix:
+// punctul de rupere ține lățimea până unde se termină rândul care se rupe
+// acolo și lățimea de unde începe următorul, cu kerningul tăiat de rupere.
+// Prima trecere ia doar rânduri cu badness până la TOLERANCE; dacă nu iese
+// nicio împărțire, a doua ia orice rând care încape (badness nelimitat, ca să
+// deosebească un rând larg de unul și mai larg), iar dacă un cuvânt singur nu
+// încape, înregistrarea se rupe lacom (greedy).
+//
+// Constantele sunt alese pe corpus cu `sim stats` (experimentul E6, la 216 px):
+// față de greedy, mai puține cratime, de 2–10 ori mai puține cratime
+// consecutive și spații cu ~30 % mai puțin lățite.
+//
+// Rupturile unei înregistrări depind doar de textul ei și de cele două lățimi
+// de rând (primul rând, celelalte), deci o pagină care începe în mijlocul unui
+// paragraf primește aceleași rupturi ca atunci când paragraful a început pe
+// pagina dinainte.
+enum { BP_START, BP_SPACE, BP_SHY, BP_DASH, BP_ZWSP, BP_HARD };
+
+// Se pot suprascrie cu -D pentru experimente.
+#ifndef STRETCH_NUM
+#define STRETCH_NUM 2            // un spațiu se lățește cu 2 lățimi ale lui...
+#endif
+#ifndef STRETCH_DEN
+#define STRETCH_DEN 1
+#endif
+#define SHRINK_NUM 1             // ...și se îngustează cu 1/3
+#define SHRINK_DEN 3
+#ifndef TOLERANCE
+#define TOLERANCE 400            // prima trecere: r până la 1,59
+#endif
+#define BAD_MAX 10000000         // fără plafonul de 10000 din TeX, ca a doua trecere să
+                                 // deosebească un rând larg de unul și mai larg
+#define LINE 10
+#ifndef HYPHEN
+#define HYPHEN 100
+#endif
+#ifndef DOUBLE_HYPHEN
+#define DOUBLE_HYPHEN 100000
+#endif
+#define FINAL_HYPHEN 5000
+#define ADJ_FITNESS 10000
+
+void layout_fit_reset(layout_fit_t *fit)
+{
+    fit->valid = false;
+}
+
+// Adună punctele de rupere ale înregistrării, așa cum le vede break_line.
+// False dacă sunt mai multe de LAYOUT_FIT_MAX.
+static bool fit_scan(layout_fit_t *ft, const para_t *p)
+{
+    const char *text = p->rec->text, *end = text + p->rec->text_len, *s = text;
+    ibv_styles_t st;
+    ibv_styles_init(&st, p->rec);
+    layout_fit_bp_t *bp = ft->bp;
+    int n = 0;
+    bp[n++] = (layout_fit_bp_t){.kind = BP_START};
+    int32_t w = 0, sp = 0;
+    uint16_t gaps = 0;
+    int32_t prev = -1;
+    const font_t *prev_face = NULL;
+    bool in_word = false;
+    int pend = -1;               // rupere în cuvânt: kerningul glifei următoare nu e pe rândul următor
+
+    while (s < end) {
+        if (n >= LAYOUT_FIT_MAX - 1) return false;                // un loc rămâne pentru sfârșit
+        uint16_t at = (uint16_t)(s - text);
+        const char *ns = s;
+        uint32_t cp = utf8_next_n(&ns, end);
+        uint16_t nx = (uint16_t)(ns - text);
+        const font_t *f = p->face[ibv_style_at(&st, at) & 3];
+        switch (cp) {
+        case ' ': {
+            int16_t a = (int16_t)advance_of(f, ' ');
+            bp[n++] = (layout_fit_bp_t){at, nx, gaps, BP_SPACE, w, sp, a, a};
+        }
+            /* fall through */
+        case NBSP: {
+            int32_t a = advance_of(f, ' ');
+            w += a;
+            sp += a;
+            gaps++;
+            prev = -1;
+            in_word = false;
+            pend = -1;
+            break;
+        }
+        case LSEP:
+            bp[n++] = (layout_fit_bp_t){at, nx, gaps, BP_HARD, w, sp, 0, 0};
+            prev = -1;
+            in_word = false;
+            pend = -1;
+            break;
+        case SHY:
+            if (p->cfg->hyphenate) {
+                uint32_t h = font_index_or_fallback(f, '-');
+                int32_t hw = w + f->glyphs[h].advance + (prev >= 0 && f == prev_face ? font_kern(f, (uint32_t)prev, h) : 0);
+                bp[n++] = (layout_fit_bp_t){at, nx, gaps, BP_SHY, hw, sp, (int16_t)(w - hw), 0};
+                pend = n - 1;
+            }
+            break;
+        case ZWSP:
+            bp[n++] = (layout_fit_bp_t){at, nx, gaps, BP_ZWSP, w, sp, 0, 0};
+            prev = -1;
+            pend = -1;
+            break;
+        default: {
+            uint32_t gi = font_index_or_fallback(f, cp);
+            int32_t k = prev >= 0 && f == prev_face ? font_kern(f, (uint32_t)prev, gi) : 0;
+            if (pend >= 0) bp[pend].dw = (int16_t)(bp[pend].dw + k);
+            pend = -1;
+            w += f->glyphs[gi].advance + k;
+            prev = (int32_t)gi;
+            prev_face = f;
+            if ((cp == '-' || cp == 0x2013 || cp == 0x2014) && in_word && ns < end && *ns != ' ') {
+                bp[n++] = (layout_fit_bp_t){nx, nx, gaps, BP_DASH, w, sp, 0, 0};
+                pend = n - 1;
+            }
+            in_word = true;
+        }
+        }
+        s = ns;
+    }
+    uint16_t len = (uint16_t)p->rec->text_len;
+    // Un U+2028 chiar la sfârșit încheie deja ultimul rând.
+    if (!(bp[n - 1].kind == BP_HARD && bp[n - 1].next == len))
+        bp[n++] = (layout_fit_bp_t){len, len, gaps, BP_HARD, w, sp, 0, 0};
+    ft->count = (uint16_t)n;
+    return true;
+}
+
+static int32_t badness(int32_t over, int32_t room)
+{
+    if (over <= 0) return 0;
+    if (room <= 0) return BAD_MAX;           // rând scurt fără spații: doar în a doua trecere
+    int64_t b = 100 * (int64_t)over * over * over / ((int64_t)room * room * room);
+    return b > BAD_MAX ? BAD_MAX : (int32_t)b;
+}
+
+static bool hyphenish(int kind)
+{
+    return kind == BP_SHY || kind == BP_DASH;
+}
+
+// Cele mai bune rupturi cu badness-ul fiecărui rând până la `tol`; false dacă nu există.
+static bool fit_solve(layout_fit_t *ft, int tol)
+{
+    const layout_fit_bp_t *bp = ft->bp;
+    const int n = ft->count;
+    ft->total[0] = 0;
+    ft->fitness[0] = 2;
+    for (int j = 1; j < n; j++) {
+        const layout_fit_bp_t *b = &bp[j];
+        const bool fill = b->kind == BP_HARD;
+        uint64_t best = UINT64_MAX;
+        for (int i = j - 1; i >= 0; i--) {
+            const layout_fit_bp_t *a = &bp[i];
+            int32_t width = b->w - (a->w + a->dw), space = b->sp - (a->sp + a->dsp);
+            int32_t avail = ft->avail[i > 0];
+            int32_t shrink = space * SHRINK_NUM / SHRINK_DEN;
+            if (width - shrink > avail) break;                    // și mai lung de mai departe în urmă
+            if (b->end > a->next && ft->total[i] != UINT64_MAX) {
+                int32_t bad;
+                int fit;
+                if (fill) {
+                    bad = width <= avail ? 0 : BAD_MAX + 1;
+                    fit = 2;
+                } else if (width <= avail) {
+                    bad = badness(avail - width, space * STRETCH_NUM / STRETCH_DEN);
+                    fit = bad > 99 ? 0 : bad > 12 ? 1 : 2;
+                } else {
+                    bad = badness(width - avail, shrink);
+                    fit = bad > 12 ? 3 : 2;
+                }
+                if (bad <= tol) {
+                    uint64_t d = (uint64_t)(LINE + bad) * (uint64_t)(LINE + bad);
+                    if (hyphenish(b->kind)) d += HYPHEN * HYPHEN;
+                    if (i > 0 && hyphenish(a->kind)) {
+                        if (hyphenish(b->kind)) d += DOUBLE_HYPHEN;
+                        if (j == n - 1) d += FINAL_HYPHEN;
+                    }
+                    if (i > 0 && (fit > ft->fitness[i] + 1 || ft->fitness[i] > fit + 1)) d += ADJ_FITNESS;
+                    d += ft->total[i];
+                    if (d < best) {
+                        best = d;
+                        ft->prev[j] = (uint16_t)i;
+                        ft->fitness[j] = (uint8_t)fit;
+                    }
+                }
+            }
+            if (a->kind == BP_HARD) break;                        // niciun rând nu trece peste U+2028
+        }
+        ft->total[j] = best;
+        if (fill && best == UINT64_MAX) return false;              // nimic nu trece de o rupere forțată
+    }
+    int lines = 0;
+    for (int j = n - 1; j > 0; j = ft->prev[j]) lines++;
+    ft->lines = (uint16_t)lines;
+    for (int j = n - 1; j > 0; j = ft->prev[j]) ft->line_end[--lines] = (uint16_t)j;
+    return true;
+}
+
+// Pune în p->fit rupturile prin încadrare totală ale înregistrării și le
+// calculează dacă zona de lucru nu le are deja. Lasă NULL pentru greedy.
+static void fit_prepare(para_t *p, const ibv_t *book, uint32_t para)
+{
+    layout_fit_t *ft = p->cfg->fit;
+    if (!ft || p->align != ALIGN_JUSTIFY || (p->kind != IBV_PARA && p->kind != IBV_QUOTE)) return;
+    int32_t avail[2] = {line_avail(p, true), line_avail(p, false)};
+    if (!(ft->valid && ft->para == para && !memcmp(ft->book_id, book->book_id, sizeof ft->book_id)
+          && !memcmp(ft->face, p->face, sizeof ft->face) && !memcmp(ft->avail, avail, sizeof avail)
+          && ft->hyphenate == p->cfg->hyphenate)) {
+        ft->valid = true;
+        ft->para = para;
+        memcpy(ft->book_id, book->book_id, sizeof ft->book_id);
+        memcpy(ft->face, p->face, sizeof ft->face);
+        memcpy(ft->avail, avail, sizeof avail);
+        ft->hyphenate = p->cfg->hyphenate;
+        int pass = 2;
+        if (p->rec->text_len > 0 && p->rec->text_len <= UINT16_MAX && fit_scan(ft, p))
+            pass = fit_solve(ft, TOLERANCE) ? 0 : fit_solve(ft, BAD_MAX) ? 1 : 2;
+        ft->fitted = pass < 2;
+        ft->broken[pass]++;
+    }
+    if (ft->fitted) p->fit = ft;
+}
+
+// Rândul din încadrarea totală care începe la `start`; false dacă acolo nu începe niciun rând.
+static bool fit_line(const layout_fit_t *ft, uint32_t start, brk_t *out)
+{
+    int lo = 0, hi = ft->lines - 1;
+    while (lo <= hi) {
+        int k = (lo + hi) / 2;
+        int i = k ? ft->line_end[k - 1] : 0;
+        uint32_t at = ft->bp[i].next;
+        if (at < start) lo = k + 1;
+        else if (at > start) hi = k - 1;
+        else {
+            const layout_fit_bp_t *a = &ft->bp[i], *b = &ft->bp[ft->line_end[k]];
+            *out = (brk_t){b->end, b->next, b->w - (a->w + a->dw), (uint16_t)(b->gaps - a->gaps - (a->kind == BP_SPACE)),
+                           b->kind == BP_SHY, b->kind == BP_HARD};
+            return true;
+        }
+    }
+    return false;
+}
+
+// Rândul de la `start`: din încadrarea totală dacă înregistrarea o are, altfel greedy.
+static void next_line(const para_t *p, uint32_t start, int32_t avail, brk_t *out)
+{
+    if (!p->fit || !fit_line(p->fit, start, out)) break_line(p, start, avail, out);
+}
+
 // The page is full before the line at `*byte` of record `para`. Moves lines to
 // the next page so that it doesn't start with a paragraph's last line alone
 // (a widow) or end with its first line alone (an orphan). The page never
@@ -181,7 +451,7 @@ static void keep_lines(const para_t *p, layout_page_t *page, uint32_t para, uint
         return;
     }
     brk_t k;
-    break_line(p, *byte, line_avail(p, false), &k);
+    next_line(p, *byte, line_avail(p, false), &k);
     if (k.next < p->rec->text_len) return;                       // two or more lines left: fine
     if (here == 2 && started) {                                  // moving one would orphan the other
         if (first > 0) page->line_count = first, *byte = 0;
@@ -223,6 +493,7 @@ ibv_err_t layout_page(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, la
 
         para_t p;
         setup(&p, cfg, &rec);
+        fit_prepare(&p, book, para);
         int below = 0;
         const bool chapter = cfg->chapter_page && (rec.flags & IBV_PAGE) && fresh;
         if (chapter && !top) goto full;
@@ -252,14 +523,14 @@ ibv_err_t layout_page(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, la
             int32_t left = line_left(&p, first && !wrapped), avail = line_avail(&p, first && !wrapped);
             if (p.kind == IBV_VERSE && !wrapped) left = p.left, avail = cfg->width * FONT_UNIT - p.left - p.right;
             brk_t k;
-            break_line(&p, byte, avail, &k);
+            next_line(&p, byte, avail, &k);
             bool done = k.next >= rec.text_len;
             layout_line_t *ln = &page->lines[page->line_count++];
             *ln = (layout_line_t){.para = para, .start = byte, .end = k.end,
                                   .baseline = (int16_t)(y + p.ascent),
                                   .flags = (uint8_t)((k.hyphen ? LINE_HYPHEN : 0) | (p.kind == IBV_HEADING ? LINE_HEADING : 0))};
             int32_t slack = avail - k.width;
-            bool justify = p.align == ALIGN_JUSTIFY && k.gaps > 0 && slack > 0;
+            bool justify = p.align == ALIGN_JUSTIFY && k.gaps > 0 && slack != 0;
             if (justify && k.hard) {
                 // The last line of a paragraph isn't justified, unless the
                 // converter split the paragraph and it goes on in a CONT record.
@@ -441,8 +712,8 @@ static uint32_t hash_font(uint32_t h, const font_t *f)
 
 uint32_t layout_hash(const layout_cfg_t *cfg)
 {
-    int32_t v[10] = {LAYOUT_VERSION, cfg->width, cfg->height, cfg->indent, cfg->line_gap, cfg->para_gap,
-                     cfg->justify, cfg->hyphenate, cfg->chapter_page, cfg->keep_lines};
+    int32_t v[11] = {LAYOUT_VERSION, cfg->width, cfg->height, cfg->indent, cfg->line_gap, cfg->para_gap,
+                     cfg->justify, cfg->hyphenate, cfg->chapter_page, cfg->keep_lines, cfg->fit != NULL};
     uint32_t h = crc32_update(0, v, sizeof v);
     for (int i = 0; i < 4; i++) h = hash_font(h, cfg->body[i]);
     return hash_font(h, cfg->heading);

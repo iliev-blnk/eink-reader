@@ -450,12 +450,16 @@ void ui_list_draw(ui_t *ui, gfx_t *g, ui_list_t *l)
     // Jos: unde ești în listă și ce face fiecare buton.
     int hy = UI_H - 6;
     gfx_hline(g, 0, UI_H - LIST_HINT_H, UI_W, GFX_BLACK);
-    gfx_text(g, s, 8, hy, "MENIU: alege · ÎNAPOI lung: înapoi", GFX_BLACK);
+    const char *hint = "MENIU: alege · ÎNAPOI lung: ieși";
+    int pw = 0;
     if (l->count > per) {
         char pg[24];
         snprintf(pg, sizeof pg, "%d/%d", l->top / per + 1, (l->count + per - 1) / per);
+        pw = gfx_text_width(s, pg) + 8;
         gfx_text(g, s, UI_W - 8 - gfx_text_width(s, pg), hy, pg, GFX_BLACK);
     }
+    if (gfx_text_width(s, hint) + pw > UI_W - 16) hint = "MENIU: alege";    // o listă cu sute de pagini
+    gfx_text(g, s, 8, hy, hint, GFX_BLACK);
 }
 
 bool ui_list_key(ui_list_t *l, ui_key_t k, ui_press_t p)

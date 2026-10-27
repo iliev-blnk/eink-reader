@@ -32,8 +32,14 @@ void gfx_fill_rect(gfx_t *g, int x, int y, int w, int h, gfx_color_t c);
 void gfx_rect(gfx_t *g, int x, int y, int w, int h, gfx_color_t c);
 void gfx_hline(gfx_t *g, int x, int y, int w, gfx_color_t c);
 
-// Draws UTF-8 text with its baseline at y. Returns the x after the last glyph.
+// Draws glyph `index` of `font` with its pen at x and its baseline at y.
+void gfx_glyph(gfx_t *g, const font_t *font, uint32_t index, int x, int y, gfx_color_t c);
+
+// Draws UTF-8 text with its baseline at y, with kerning. The pen moves in
+// 1/64 px and each glyph lands on the pen rounded. Returns the x after the
+// last glyph.
 int gfx_text(gfx_t *g, const font_t *font, int x, int y, const char *utf8, gfx_color_t c);
+// Width of the text in whole px (rounded up).
 int gfx_text_width(const font_t *font, const char *utf8);
 
 // Returns the area changed since the last call (for partial refresh) and resets it.

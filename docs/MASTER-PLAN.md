@@ -171,15 +171,15 @@ Language and stack (my call): **C on ESP-IDF** (latest stable), with **our own U
 My calls for design (to be justified in the spec):
 - **Reflowable, not pre-paginated.** Text layout is a must-do, so pagination happens on the device.
 - **Little-endian binary file:** magic + version header, metadata (title, author, language), a chapter table with byte offsets, and a content stream of paragraph records. Each record holds UTF-8 text plus style runs (bold, italic, heading level) and soft hyphens (U+00AD) inserted by the converter.
-- **Compression per chapter**, so random access stays cheap. The candidate is DEFLATE via miniz, which is already in the ESP32 ROM. Experiment E5 measures with and without.
+- **Compression per block** of ≤ 32 KB (whole paragraphs, 16 KB target), so RAM use and seek time stay constant however long a chapter is. DEFLATE, decoded by the miniz `tinfl` already in the ESP32-S3 ROM. Experiment E5 measures block sizes and decode time. *(Was "per chapter"; changed in SPEC-1 because TXT books are one chapter and real chapters pass the 32 KB window.)*
 - **Cover:** an optional 1-bit dithered image block.
-- **Integrity:** CRC32 per chapter, and the validator checks all of it.
-- **Sidecar files:** `<book>.pos` (progress), `<book>.bm` (bookmarks), `<book>.pg-<hash>` (pagination cache keyed by font, size, margins and spacing).
+- **Integrity:** CRC32 on the header, the section directory, every section and every decoded block. The validator checks all of it, and a test flips every bit of a sample file.
+- **Sidecar files** in `/.ibv/`, named by a content hash (`book_id`) so renaming a book keeps its progress: `<id>.pos` (progress), `<id>.bm` (bookmarks), `<id>-<layout>.pg` (pagination cache keyed by font, size, margins and spacing). Written atomically (tmp + rename).
 - **Font format:** a glyph table with Unicode ranges, 1 bpp (optional 2 bpp) bitmaps, advance widths and optional kerning pairs. Fonts live in a flash partition (16 MB is plenty) or on SD.
 
-- [ ] SPEC-1 Write v0.1 with a byte-level layout diagram and a worked example.
-- [ ] SPEC-2 Review it. Pick the name and file extension (Q5).
-- [ ] SPEC-3 Font format spec v0.1.
+- [x] SPEC-1 Write v0.1 with a byte-level layout diagram and a worked example. Done 2026-10-26: `spec/book-format.md`, reference codec + validator `tools/converter/ibv.py` (15 tests), example `spec/examples/example.ibv`.
+- [ ] SPEC-2 Review it. Pick the name and file extension (Q5). Name done: IBV.
+- [x] SPEC-3 Font format spec v0.1. Done 2026-10-26: `spec/font-format.md` (IBF), reference codec + validator `tools/fonttool/ibf.py`, C loader `firmware/components/core/font.c` that checks the same rules.
 - [ ] SPEC-4 Freeze v1.0 after the converter and firmware both implement it. Changes after that bump the version.
 
 **Done when:** the converter writes it, the validator checks it, the firmware and simulator read it, and the spec matches all three.
@@ -189,20 +189,22 @@ My calls for design (to be justified in the spec):
 **Deliverable:** `tools/converter`, a Python 3 CLI: `convert`, `validate`, `dump`. Plus `tools/fonttool`.
 **Thesis:** Toolchain.
 
-- [ ] CONV-1 TXT input: UTF-8, plus CP1250/CP1251 detection for old Romanian/Russian files, and paragraph detection.
-- [ ] CONV-2 EPUB 2/3 input: OPF spine, NCX/nav TOC, XHTML → paragraph records with basic styles. Unknown tags degrade to plain text.
-- [ ] CONV-3 Normalization:
+- [x] CONV-1 TXT input: UTF-8, plus CP1250/CP1251 detection for old Romanian/Russian files, and paragraph detection. Done 2026-10-26 (`txt.py`): BOM / UTF-8 / CP1250 / ISO-8859-2/-16 / CP1251 / KOI8-R / CP1252 scored per word; blank-line, indented and line-per-paragraph modes; Gutenberg and lib.ru headers; headings, scene breaks, verse, printed contents lists.
+- [x] CONV-2 EPUB 2/3 input: OPF spine, NCX/nav TOC, XHTML → paragraph records with basic styles. Unknown tags degrade to plain text. Done 2026-10-26 (`epub.py`): nav → NCX → headings for the TOC, CSS bold/italic, footnotes and PG boilerplate dropped, poems → VERSE.
+- [x] CONV-3 Normalization:
   - Unicode NFC
   - Romanian cedilla ş/ţ → comma ș/ț
   - quotes, dashes, ellipsis
   - whitespace
-- [ ] CONV-4 Hyphenation: Liang's algorithm with the TeX hyphenation patterns for RO, RU and EN (check the licenses), selected by the book's language. Inserts soft hyphens.
-- [ ] CONV-5 Glyph coverage check against the target font. Warn about missing characters and map common fallbacks.
-- [ ] CONV-6 Cover extraction → resize → Floyd–Steinberg dither → 1 bpp.
-- [ ] CONV-7 Writer, validator, and a dumper that prints the human-readable structure.
-- [ ] CONV-8 fonttool: TTF/OTF → our font format at chosen sizes, with the RO + Cyrillic + punctuation ranges. Font choice: open-licensed, e.g. Literata, Noto Serif or PT Serif (to compare in the simulator).
-- [ ] CONV-9 FB2 input (common for Russian books). Should-have.
-- [ ] CONV-10 Tests on the test corpus (see MEAS). Every book converts and validates.
+
+  Done 2026-10-26 (`textnorm.py`), plus per-language quotes, no space before punctuation, and Romanian typed with ã/º/þ mapped back.
+- [x] CONV-4 Hyphenation: Liang's algorithm with the TeX hyphenation patterns for RO, RU and EN (check the licenses), selected by the book's language. Inserts soft hyphens. Done 2026-10-26 (`hyphenate.py`): own Liang implementation (not pyphen, so it stays portable) reading hyph-utf8 patterns. Licences in `tools/converter/patterns/README.md`: en-gb MIT, en-us permissive, ru LPPL, ro none stated (fallback: LibreOffice `hyph_ro_RO`).
+- [x] CONV-5 Glyph coverage check against the target font. Warn about missing characters and map common fallbacks. Done 2026-10-26 (`glyphs.py`): character set read from fonttool's ranges, fallbacks, the rest → U+FFFD and reported.
+- [x] CONV-6 Cover extraction → resize → Floyd–Steinberg dither → 1 bpp. Done 2026-10-26 (`cover.py`): fit 240×416, serpentine Floyd–Steinberg, ~50 ms.
+- [x] CONV-7 Writer, validator, and a dumper that prints the human-readable structure. Done 2026-10-26 (`ibv.py`, `convert.py`): `convert`, `validate`, `dump`, `preview-cover`; every output is validated before it's written.
+- [x] CONV-8 fonttool: TTF/OTF → our font format at chosen sizes, with the RO + Cyrillic + punctuation ranges. Font choice: open-licensed, e.g. Literata, Noto Serif or PT Serif (to compare in the simulator). Done 2026-10-26 (`tools/fonttool`, 23 tests): all three families × 4 styles × 16/18/20 px build, 19–41 KB per face; borrowed kerning (`kern_as`) for accented letters; stand-ins for missing glyphs. The pick is LAY-7.
+- [x] CONV-9 FB2 input (common for Russian books). Should-have. Done 2026-10-26 (`fb2.py`): FB2 and `.fb2.zip`; tested on a synthetic book only.
+- [x] CONV-10 Tests on the test corpus (see MEAS). Every book converts and validates. Done 2026-10-26: 66 tests; all 15 corpus files convert and validate (`corpus/README.md`). Opening them on the device waits for LAY/FW.
 
 **Done when:** all corpus books convert and validate, and they open on the device.
 
@@ -211,15 +213,17 @@ My calls for design (to be justified in the spec):
 **Deliverable:** the layout part of `firmware/components/core`, shared with `sim/`.
 **Thesis:** Text layout.
 
-- [ ] LAY-1 Font renderer: glyph lookup, blit to the 1 bpp framebuffer, bold and italic (separate font files).
-- [ ] LAY-2 Line breaking v1: greedy, with soft hyphens as break points and justification by distributing spaces.
+- [x] LAY-1 Font renderer: glyph lookup, blit to the 1 bpp framebuffer, bold and italic (separate font files). Done 2026-10-26 (`font.c`, `gfx_glyph`): byte-shift blit, 1/64 px pen with kerning.
+- [x] LAY-2 Line breaking v1: greedy, with soft hyphens as break points and justification by distributing spaces. Done 2026-10-26 (`layout.c`): also U+200B, in-word dashes, U+00A0 ties, U+2028, emergency cuts; ~20–30 µs per page on the PC.
 - [ ] LAY-3 Paginator:
   - lines → pages
   - margins, line spacing, paragraph indent, headings
   - widow/orphan control (should-have)
+
+  Partly done 2026-10-26 (`layout_page`): forward pagination, margins, line and paragraph gaps, indent, headings centred with keep-with-next and chapters on a new page, breaks and ornaments, verse hanging indent, quote margins, footer with chapter and percent. Still open: widows/orphans, going back a page (needs LAY-4's page index).
 - [ ] LAY-4 Pagination cache plus background pagination task, for page numbers and "x of y". Jumping to a chapter goes through the chapter offsets.
 - [ ] LAY-5 Line breaking v2: Knuth–Plass (total-fit) per paragraph, with a memory cap and fallback to greedy for huge paragraphs.
-- [ ] LAY-6 Simulator: render any book or page to PNG at any setting, a batch mode for experiments, and golden-image tests.
+- [x] LAY-6 Simulator: render any book or page to PNG at any setting, a batch mode for experiments, and golden-image tests. Done 2026-10-26 (`sim/`): `pages`, `stats` (whole books: chaining, overhang, timings, page hashes), `compare` (font sheets), `test/run.sh` golden test on a fixture book with every record kind.
 - [ ] LAY-7 Visual review: I render comparison sheets and you judge them on the real screen.
 
 **Done when:** Romanian, Russian and English books lay out with no overflow, missing glyphs or broken diacritics at every font size. Knuth–Plass beats greedy on the E6 metrics and fits the page-turn time budget.
@@ -289,7 +293,7 @@ Each experiment's method gets written **before** we run it, so results can't ste
 | E8 | Charging behaviour | USB-C tester | charge time, current curve | May (optional) |
 | E9 | Do real readers like it? | 3–5 people read 20 min, short questionnaire | ratings + comments | May (optional) |
 
-- [ ] MEAS-1 Test corpus: ~20 public-domain books in EN, RO and RU (Project Gutenberg, Wikisource), short and long, plain and with heavy formatting. List them with sources and licenses.
+- [ ] MEAS-1 Test corpus: ~20 public-domain books in EN, RO and RU (Project Gutenberg, Wikisource), short and long, plain and with heavy formatting. List them with sources and licenses. In progress: 15 files / 13 books in `corpus/` (`fetch.sh`, README with sources and results). Missing: a real FB2 and a CP1250 Romanian TXT.
 - [ ] MEAS-2 Logger firmware for the INA226 board, plus CSV → figure scripts.
 - [ ] MEAS-3 One-page method sheet per experiment.
 - [ ] MEAS-4 Run them: wiring photos, the raw data stays raw.
@@ -409,13 +413,14 @@ Prices are rough (RON). I'll check current ones before each purchase.
 - 2026-10-25: I do the build work; you do the hands-on work and the defense.
 - 2026-10-25: Thesis in Romanian, ~40 pages. The topic is approved.
 - 2026-10-25: Custom PCB, ordered for delivery in Romania. *(My reading of "how can I get the custom PCB in Romania". Correct me if that's wrong.)*
+- 2026-10-26: The book format is named IBV, *Ink Book Volume* (also your initials), extension `.ibv`.
 
 **My calls** (change any of them; each one gets a reason in the thesis)
 - C on ESP-IDF; our own UC8253 driver
 - Portable C core shared with a PC simulator
 - Reflowable binary format, hyphenation done in the converter as soft hyphens, line breaking on the device
 - Greedy line breaking first, then Knuth–Plass
-- Compression per chapter (miniz/DEFLATE), measured in E5
+- Compression per ≤ 32 KB block (ROM miniz/DEFLATE), measured in E5
 - Python converter (CLI only, no GUI)
 - PCB v1 keeps the WeAct display module; fuel gauge IC; 4-layer board
 - JLCPCB with assembly
@@ -432,6 +437,6 @@ These are yours to answer; each one changes the plan:
 - **Q2** The exact submission date and defense date.
 - **Q3** Do you have access to a 3D printer (faculty, maker space, friend), or should we plan an online print service?
 - **Q4** Stretch goal: should PCB v2 drive the bare display panel with our own boost circuit? It's more EE depth, but it costs ~3 extra weeks plus the risk.
-- **Q5** A name and file extension for the book format.
+- ~~Q5~~ Answered: the book format is **IBV** (*Ink Book Volume*), extension `.ibv`.
 - **Q6** Should the code go to a private GitHub repo on your account (iliev-blnk) as an off-machine backup?
 - **Q7** Roughly how many hours a week can you give to the hands-on tasks?

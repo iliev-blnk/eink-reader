@@ -6,8 +6,11 @@ Raw material for writing up the e-ink reader diploma.
 - `project-brief.md`: what the project is, the parts list, open purchases, display/power notes, firmware scope and the book-format plan.
 - `../hardware/`: the KiCad schematic (`eink-reader.kicad_sch`), its PDF/SVG exports and `gen.py`, which generates them.
 - `../firmware/`: the ESP-IDF firmware. Its README covers build, flash and wiring.
-- `../sim/`: the PC simulator. It builds the same drawing code as the firmware and renders screens to images.
-- `../tools/fonttool/`: converts a TTF font into the firmware's bitmap font.
+- `../sim/`: the PC simulator. It builds the firmware's portable core (fonts, IBV reader, layout) and renders screens and book pages to PNG, with whole-book stats and golden-image tests. See its README.
+- `../tools/fonttool/`: TTF/OTF → IBF bitmap fonts, the font format's reference codec (`ibf.py`) and tests. See its README.
+- `../tools/converter/`: the book converter (EPUB / FB2 / TXT → `.ibv`), the format's reference reader, writer and validator (`ibv.py`), and their tests. See its README.
+- `../corpus/`: the test books (`fetch.sh` downloads them; not tracked) and their conversion results.
+- `../spec/`: the book format spec (`book-format.md`), the font format spec (`font-format.md`) and a worked example file (`examples/`).
 
 ## Log
 
@@ -45,3 +48,32 @@ Raw material for writing up the e-ink reader diploma.
 - The screens are drawn by the firmware's own gfx and font code (`docs/mockup/mock.c`). Reader pages use pyphen soft hyphens and a whole-paragraph line breaker, which is an early preview of the LAYOUT workstream. Sleep and Bring-up are exactly what today's firmware draws, with sample hardware values.
 - Rebuild: see the commands in the header of `docs/mockup/mock.c`, then `python3 docs/mockup/build.py docs/mockup/screens docs/mockup/template.html docs/mockup/eink-mockup.html`.
 - Next: pick a case, then ENC-1 (CAD) and the PCB outline.
+
+### 2026-10-26: book format spec v0.1 (SPEC-1)
+- `spec/book-format.md`: byte-level layout of the header, section directory, META, TOC, block index, records and cover; device reading algorithm and RAM budget; sidecar files; validator rules; versioning; a table of design choices with the alternatives turned down; preliminary sizes. Named IBV (Q5), extension `.ibv`.
+- Reference codec `tools/converter/ibv.py` (write, parse, validate, dump, and `from-lines` for the mockup texts) with 15 tests. One test flips every bit of a sample file; it found that a damaged directory tag went unnoticed, so the header gained a directory CRC.
+- Worked example `spec/examples/example.ibv` (240 B, uncompressed), annotated byte by byte in the spec. Rebuild with `python3 spec/examples/make_example.py`.
+- Two changes to the plan: compression per ≤ 32 KB block instead of per chapter (Moara's longest chapter is 37 KB, a TXT book is one chapter), and sidecars keyed by a content hash in `/.ibv/` instead of `<book>.pos`.
+- Preliminary sizes on the four mockup books: 35–50 % of the plain text at 16 KB blocks, about 1.3× whole-file gzip. Soft hyphens add 18.5 % to the raw text of Moara. Not E5 yet (needs the 20-book corpus and on-device timings).
+- Q5 decided: the format is **IBV**, *Ink Book Volume* (also the author's initials), extension `.ibv`. Renamed the codec to `tools/converter/ibv.py`.
+- Next: SPEC-2 review.
+
+### 2026-10-26: book converter (CONV-1…7, 9, 10)
+- `tools/converter/convert.py`: `convert` (EPUB 2/3, FB2, `.fb2.zip`, TXT; single book or batch), `validate`, `dump`, `preview-cover`. Every output is validated before it is written.
+- Readers `txt.py`, `epub.py`, `fb2.py` fill a shared `doc.Builder`. `doc.finish()` normalizes (`textnorm.py`), maps missing glyphs (`glyphs.py`), turns `<br>`-joined short lines into verse, tidies breaks, hyphenates prose (`hyphenate.py`, own Liang + TeX patterns), splits long paragraphs and resolves the TOC. Covers: `cover.py`, serpentine Floyd–Steinberg to 1 bpp.
+- TXT: encodings scored per word (both Dubrovsky files, KOI8-R and CP1251, give byte-identical books); Gutenberg and lib.ru headers become metadata; printed contents lists aren't turned into TOC entries.
+- Validator: text must also be NFC (added to spec rule 5).
+- Tests: `test_convert.py`, 51 tests on synthetic EPUB/FB2/TXT inputs plus `TestCorpus`; 66 with `test_ibv.py`, all passing.
+- Corpus (MEAS-1, partly): `corpus/fetch.sh` downloads 15 files / 13 books (EN 6, RO 5, RU 4, counting the TXT copies). All convert and validate in 0.4–3.2 s each; table in `corpus/README.md`. Moby-Dick: 7 Greek/Hebrew letters missing from the font.
+- Still open: a real FB2 book and a CP1250 Romanian TXT for the corpus; ~5 more books to reach 20; CONV-8 (fonttool) separately; opening the books on the device needs LAY/FW.
+
+### 2026-10-26: fonts, layout engine and book simulator (SPEC-3, CONV-8, LAY-1, 2, 6, part of 3)
+- Font format IBF v0.1, `spec/font-format.md`: 96-byte header, Unicode ranges, glyph table, bitmaps, kerning in 1/64 px. Accented letters borrow their base letter's kerning (`kern_as`) and only the pairs where that's wrong are stored, which took Literata from 7,596 pairs (45 KB) to 3,844. Missing glyphs get stand-ins (U+2011 → '-', an accented letter → its base).
+- `tools/fonttool`: `build`, `family`, `c` (C tables for the built-in UI fonts), `validate`, `dump`, `sheet`; reference codec `ibf.py`; 23 tests. Literata, PT Serif and Noto Serif build in 4 styles at 16/18/20 px, 19–41 KB per face.
+- A bug the first rendered pages showed: Literata swaps glyphs by optical size (OpenType feature variations). Advances were measured through HarfBuzz but bitmaps rendered by FreeType alone, so they came from different glyphs and every italic "w" had a gap after it. Bitmaps now go through HarfBuzz too; a test covers it.
+- Firmware core (portable C, also built by the simulator): `font.c` (loads an IBF in place and checks every spec rule), `gfx_glyph` (byte-shift blit), `crc32.c`, `ibv.c` (IBV reader: header, sections, two-block cache, CRC per block, style runs), `inflate_rom.c` (ESP32-S3 ROM miniz; the simulator uses zlib), `layout.c` (greedy line breaking with soft hyphens and justification in 1/64 px, pagination). The firmware still builds: 346 KB app.
+- Layout rules: PARA justified with an indent; QUOTE with both margins; VERSE left with a hanging indent; HEADING centred, kept with two lines after it, level 1 on a new page; BREAK as a blank line or "* * *", dropped at the top of a page; CONT continues without indent or gap. Breaks at spaces, soft hyphens, U+200B and dashes inside words; U+00A0 stretches but doesn't break.
+- `sim`: `pages` (book → PNGs, with cover and footer: chapter + percent), `stats` (paginates whole books, checks that pages chain and advance and how far ink leaves the text area, times it, hashes every page), `compare` (one page side by side in several fonts). Golden test `sim/test/run.sh` on `sim/test/layout.ibv`, a fixture with every record kind and special character.
+- All 15 corpus books paginate in every font: 20–50 µs per page on the PC, ink at most 1–4 px outside the text area (italic overhang). Pride and Prejudice: 2,057 pages in Literata 16, 1,994 in PT Serif 18.
+- Ready for LAY-7: comparison sheets of the three fonts (EN and RU) and of Literata at 16/18/20.
+- Still open: LAY-3 widows/orphans and paging backwards (LAY-4), Knuth–Plass (LAY-5, greedy leaves wide gaps on 216 px lines), running the layout on the device (needs the prototype).

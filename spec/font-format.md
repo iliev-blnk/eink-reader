@@ -1,196 +1,196 @@
-# IBF font format, v0.1
+# Formatul de font IBF, v0.1
 
-Status: **draft for review.** Written 2026-10-26.
-Reference implementation: `tools/fonttool/ibf.py` (writer, reader, validator). Font builder: `tools/fonttool/fonttool.py`. Tests: `tools/fonttool/test_fonttool.py`. Device reader: `firmware/components/core/font.c` (`font_open`).
+Stare: **ciornă pentru revizuire.** Scrisă pe 2026-10-26.
+Implementarea de referință: `tools/fonttool/ibf.py` (scriitor, cititor, validator). Constructorul de fonturi: `tools/fonttool/fonttool.py`. Teste: `tools/fonttool/test_fonttool.py`. Cititorul de pe dispozitiv: `firmware/components/core/font.c` (`font_open`).
 
-**Name.** IBF, *Ink Bitmap Font*, the companion of IBV. Extension `.ibf`.
+**Numele.** IBF, *Ink Bitmap Font*, perechea lui IBV. Extensia `.ibf`.
 
-When this document and `ibf.py` disagree, one of them has a bug. Fix it, then add a line to the changelog at the end.
+Când documentul ăsta și `ibf.py` nu sunt de acord, unul dintre ele are o eroare. Se repară, apoi se adaugă un rând în jurnalul de schimbări de la final.
 
 ---
 
-## 1. What the format is for
+## 1. La ce folosește formatul
 
-The device draws text from **pre-rendered bitmaps**. It has no TrueType rasterizer: FreeType would cost about 300 KB of flash and several milliseconds per glyph, and on a 1-bit screen the result has to be thresholded anyway. The PC does the rendering once, with full hinting or careful thresholding, and writes one file per face (regular, bold, italic, bold italic) and pixel size.
+Dispozitivul desenează textul din **bitmapuri desenate dinainte**. Nu are rasterizator TrueType: FreeType ar costa cam 300 KB de flash și câteva milisecunde pe glifă, iar pe un ecran de 1 bit rezultatul tot trebuie trecut printr-un prag. PC-ul face desenarea o singură dată, cu hinting complet sau cu un prag ales atent, și scrie câte un fișier pentru fiecare față (regular, bold, italic, bold italic) și mărime în pixeli.
 
-What the device needs from a font:
+Ce îi trebuie dispozitivului de la un font:
 
-1. **Find a glyph fast.** It looks up every character on the page, so lookup has to be a few comparisons.
-2. **Measure exactly.** Line breaking and justification add up advance widths. Integer pixel advances spread rounding errors across a line, so advances and kerning are stored in **1/64 px**, the same 26.6 fixed point FreeType uses.
-3. **Use the file in place.** The tables are laid out so that a C struct pointer can point straight into the loaded file (or into a memory-mapped flash partition). Opening a font is a header check, never a parse.
-4. **Stay small.** The default character set (about 435 glyphs) at 18 px takes 20–38 KB per face, so all four faces of the body font fit in RAM together.
+1. **Să găsească repede o glifă.** Caută fiecare caracter de pe pagină, deci căutarea trebuie să fie câteva comparații.
+2. **Să măsoare exact.** Ruperea în rânduri și justificarea adună lățimi de avans. Avansurile întregi în pixeli împrăștie erori de rotunjire de-a lungul rândului, deci avansurile și kerningul se păstrează în **1/64 px**, același virgulă fixă 26.6 pe care îl folosește FreeType.
+3. **Să folosească fișierul pe loc.** Tabelele sunt așezate astfel încât un pointer la o structură C să poată arăta direct în fișierul încărcat (sau într-o partiție de flash mapată în memorie). Deschiderea unui font e o verificare a antetului, niciodată o parsare.
+4. **Să rămână mic.** Setul implicit de caractere (cam 435 de glife) la 18 px ocupă 20–38 KB pe față, deci toate patru fețele fontului de text încap împreună în RAM.
 
-## 2. Conventions
+## 2. Convenții
 
-- Little-endian, like IBV. `u8/u16/u32` unsigned, `i8/i16` two's complement.
-- All offsets are absolute from the start of the file.
-- Tables start at offsets that are multiples of 4. Every record has natural alignment (a `u32` at a multiple of 4, a `u16` at a multiple of 2), so on the ESP32 and on the PC the C structs in `font.h` have exactly the sizes and layouts given here, without `packed`. `font.h` checks the sizes with `_Static_assert`.
-- `CRC32` is the zlib/PNG CRC, as in IBV.
-- Units: **px** are screen pixels. **u** is 1/64 px (so 64 u = 1 px).
-- y grows downwards, as on the screen. The baseline is y = 0. Negative y is above the baseline.
+- Little-endian, ca IBV. `u8/u16/u32` fără semn, `i8/i16` în complement față de doi.
+- Toate deplasamentele sunt absolute, de la începutul fișierului.
+- Tabelele încep la deplasamente multiple de 4. Fiecare înregistrare are alinierea naturală (un `u32` la un multiplu de 4, un `u16` la un multiplu de 2), deci pe ESP32 și pe PC structurile C din `font.h` au exact mărimile și așezarea de aici, fără `packed`. `font.h` verifică mărimile cu `_Static_assert`.
+- `CRC32` e CRC-ul zlib/PNG, ca în IBV.
+- Unități: **px** sunt pixeli de ecran. **u** e 1/64 px (deci 64 u = 1 px).
+- y crește în jos, ca pe ecran. Linia de bază e y = 0. Un y negativ e deasupra liniei de bază.
 
-## 3. File layout
+## 3. Structura fișierului
 
 ```
 offset 0   ┌────────────────────────────────┐
-           │ Header                  96 B   │  magic, version, metrics, table offsets, CRCs
+           │ Antet                   96 B   │  cod magic, versiune, metrici, deplasamentele tabelelor, CRC-uri
        96  ├────────────────────────────────┤
-           │ Ranges            8 B × ranges │  codepoint ranges → glyph indices
-           │ Glyphs           12 B × glyphs │  bitmap offset, box, advance
-           │ Kerning pairs     6 B × pairs  │  optional (count may be 0)
-           │ Bitmaps                        │  1 bpp, rows padded to bytes
+           │ Intervale     8 B × intervale  │  intervale de puncte de cod → indici de glifă
+           │ Glife            12 B × glife  │  deplasamentul bitmapului, caseta, avansul
+           │ Perechi de kerning 6 B × per.  │  opțional (numărul poate fi 0)
+           │ Bitmapuri                      │  1 bpp, rânduri completate la octet
            └────────────────────────────────┘
 ```
 
-The writer uses this order. Readers find the tables only through the offsets in the header.
+Scriitorul folosește ordinea asta. Cititorii găsesc tabelele doar prin deplasamentele din antet.
 
-### 3.1 Header (96 bytes)
+### 3.1 Antetul (96 de octeți)
 
-| Offset | Size | Field | Value / meaning |
+| Deplasament | Mărime | Câmp | Valoare / semnificație |
 |---:|---:|---|---|
-| 0 | 8 | `magic` | `89 49 42 46 0D 0A 1A 0A` = `\x89IBF\r\n\x1a\n` (same idea as IBV's) |
+| 0 | 8 | `magic` | `89 49 42 46 0D 0A 1A 0A` = `\x89IBF\r\n\x1a\n` (aceeași idee ca la IBV) |
 | 8 | 1 | `version_major` | 0 |
 | 9 | 1 | `version_minor` | 1 |
 | 10 | 2 | `header_size` | 96 |
-| 12 | 1 | `bpp` | 1. (2 is reserved for 4-level grey; v0.1 readers refuse it.) |
-| 13 | 1 | `style` | bit 0 bold, bit 1 italic: the same bits as IBV style runs |
-| 14 | 1 | `render` | how the PC made the bitmaps, for the record: 0 = hinted monochrome, 1 = greyscale + threshold. Readers ignore it. |
-| 15 | 1 | `threshold` | for `render` = 1: ink where coverage ≥ threshold/255. Else 0. |
-| 16 | 2 | `pixel_size` | em size in px |
-| 18 | 2 | `line_height` | recommended baseline-to-baseline distance, px (ascent + descent + line gap of the source font) |
-| 20 | 2 | `ascent` | px above the baseline |
-| 22 | 2 | `descent` | px below the baseline |
-| 24 | 2 | `x_height` | px; used to centre ornaments and rules on the text |
+| 12 | 1 | `bpp` | 1. (2 e rezervat pentru 4 niveluri de gri; cititoarele v0.1 îl refuză.) |
+| 13 | 1 | `style` | bitul 0 bold, bitul 1 italic: aceiași biți ca la intervalele de stil IBV |
+| 14 | 1 | `render` | cum a făcut PC-ul bitmapurile, informativ: 0 = monocrom cu hinting, 1 = nuanțe de gri + prag. Cititoarele îl ignoră. |
+| 15 | 1 | `threshold` | pentru `render` = 1: cerneală unde acoperirea ≥ threshold/255. Altfel 0. |
+| 16 | 2 | `pixel_size` | mărimea em în px |
+| 18 | 2 | `line_height` | distanța recomandată între liniile de bază, px (ascent + descent + spațiul dintre rânduri al fontului sursă) |
+| 20 | 2 | `ascent` | px deasupra liniei de bază |
+| 22 | 2 | `descent` | px sub linia de bază |
+| 24 | 2 | `x_height` | px; folosită la centrarea ornamentelor și liniilor pe text |
 | 26 | 2 | `range_count` | |
 | 28 | 4 | `glyph_count` | ≤ 65535 |
-| 32 | 4 | `kern_count` | may be 0 |
-| 36 | 4 | `ranges_offset` | multiple of 4 |
-| 40 | 4 | `glyphs_offset` | multiple of 4 |
-| 44 | 4 | `kerns_offset` | multiple of 4 (also when `kern_count` = 0) |
+| 32 | 4 | `kern_count` | poate fi 0 |
+| 36 | 4 | `ranges_offset` | multiplu de 4 |
+| 40 | 4 | `glyphs_offset` | multiplu de 4 |
+| 44 | 4 | `kerns_offset` | multiplu de 4 (și când `kern_count` = 0) |
 | 48 | 4 | `bitmaps_offset` | |
-| 52 | 4 | `bitmaps_length` | bytes; the bitmaps end the file |
-| 56 | 32 | `name` | UTF-8 family name, NUL-padded, e.g. `PT Serif` |
-| 88 | 4 | `data_crc` | CRC32 of every byte from `header_size` to the end of the file |
-| 92 | 4 | `header_crc` | CRC32 of bytes 0–91 |
+| 52 | 4 | `bitmaps_length` | octeți; bitmapurile încheie fișierul |
+| 56 | 32 | `name` | numele familiei în UTF-8, completat cu NUL, de exemplu `PT Serif` |
+| 88 | 4 | `data_crc` | CRC32 al tuturor octeților de la `header_size` până la sfârșitul fișierului |
+| 92 | 4 | `header_crc` | CRC32 al octeților 0–91 |
 
-### 3.2 Ranges (8 bytes each)
+### 3.2 Intervalele (câte 8 octeți)
 
-| Offset | Size | Field |
+| Deplasament | Mărime | Câmp |
 |---:|---:|---|
-| 0 | 4 | `first_cp`: first codepoint of the range |
-| 4 | 2 | `count`: codepoints in the range, ≥ 1 |
-| 6 | 2 | `first_glyph`: glyph index of `first_cp` |
+| 0 | 4 | `first_cp`: primul punct de cod din interval |
+| 4 | 2 | `count`: punctele de cod din interval, ≥ 1 |
+| 6 | 2 | `first_glyph`: indicele glifei lui `first_cp` |
 
-Ranges are sorted by `first_cp` and don't overlap. Codepoint *c* in range *r* has glyph index `first_glyph + (c − first_cp)`. Glyphs are numbered in codepoint order, so `first_glyph` of each range is the sum of the counts before it.
+Intervalele sunt ordonate după `first_cp` și nu se suprapun. Punctul de cod *c* din intervalul *r* are indicele de glifă `first_glyph + (c − first_cp)`. Glifele sunt numerotate în ordinea punctelor de cod, deci `first_glyph` al fiecărui interval e suma numerelor de dinaintea lui.
 
-Lookup is a binary search over the ranges, then one addition. The default character set (section 5) is 12 ranges when the font has every character (PT Serif, which lacks some rare letters, has 17), so that's at most 4–5 comparisons, against 9 for a binary search over 435 glyphs, and the table needs no codepoint per glyph.
+Căutarea e o căutare binară în intervale, apoi o adunare. Setul implicit de caractere (secțiunea 5) înseamnă 12 intervale când fontul are toate caracterele (PT Serif, căruia îi lipsesc câteva litere rare, are 17), deci cel mult 4–5 comparații, față de 9 la o căutare binară în 435 de glife, iar tabelul nu are nevoie de câte un punct de cod pe glifă.
 
-### 3.3 Glyphs (12 bytes each)
+### 3.3 Glifele (câte 12 octeți)
 
-| Offset | Size | Field | Meaning |
+| Deplasament | Mărime | Câmp | Semnificație |
 |---:|---:|---|---|
-| 0 | 4 | `bitmap` | offset of the bitmap from `bitmaps_offset` |
-| 4 | 2 | `advance` | pen advance, **u** (1/64 px) |
-| 6 | 1 | `width` | bitmap box width, px (0 for blank glyphs such as the space) |
-| 7 | 1 | `height` | bitmap box height, px |
-| 8 | 1 | `x_off` (i8) | left edge of the box relative to the pen, px |
-| 9 | 1 | `y_off` (i8) | top edge of the box relative to the baseline, px (negative = above) |
-| 10 | 2 | `kern_as` | index of the glyph whose kerning pairs this glyph uses; its own index if it has its own (section 3.4) |
+| 0 | 4 | `bitmap` | deplasamentul bitmapului față de `bitmaps_offset` |
+| 4 | 2 | `advance` | avansul creionului, **u** (1/64 px) |
+| 6 | 1 | `width` | lățimea casetei bitmapului, px (0 pentru glifele goale, ca spațiul) |
+| 7 | 1 | `height` | înălțimea casetei bitmapului, px |
+| 8 | 1 | `x_off` (i8) | marginea stângă a casetei față de creion, px |
+| 9 | 1 | `y_off` (i8) | marginea de sus a casetei față de linia de bază, px (negativ = deasupra) |
+| 10 | 2 | `kern_as` | indicele glifei ale cărei perechi de kerning le folosește glifa; propriul indice dacă are perechile ei (secțiunea 3.4) |
 
-A glyph's bitmap is `height` rows of `ceil(width / 8)` bytes, MSB = leftmost pixel, **bit 1 = ink**. That is the opposite of the framebuffer (bit 1 = white): a set bit means "clear this framebuffer bit", so drawing is an AND-NOT per byte.
+Bitmapul unei glife are `height` rânduri a câte `ceil(width / 8)` octeți, MSB = pixelul cel mai din stânga, **bitul 1 = cerneală**. E invers față de framebuffer (bitul 1 = alb): un bit pus înseamnă „șterge bitul ăsta din framebuffer”, deci desenarea e un AND-NOT pe octet.
 
-A codepoint inside a range that the source font doesn't have isn't stored as a glyph. The writer splits the range around it.
+Un punct de cod din interiorul unui interval pe care fontul sursă nu-l are nu se păstrează ca glifă. Scriitorul împarte intervalul în jurul lui.
 
-### 3.4 Kerning pairs (6 bytes each)
+### 3.4 Perechile de kerning (câte 6 octeți)
 
-| Offset | Size | Field |
+| Deplasament | Mărime | Câmp |
 |---:|---:|---|
-| 0 | 2 | `left`: glyph index |
-| 2 | 2 | `right`: glyph index |
-| 4 | 2 | `value` (i16): added to the left glyph's advance when `right` follows it, **u**. May be 0. |
+| 0 | 2 | `left`: indicele glifei |
+| 2 | 2 | `right`: indicele glifei |
+| 4 | 2 | `value` (i16): se adaugă la avansul glifei din stânga când îi urmează `right`, **u**. Poate fi 0. |
 
-Sorted by (`left`, `right`), no duplicates. Kerning applies only between neighbouring glyphs of the **same face**. A style change in the middle of a word gets no kerning.
+Ordonate după (`left`, `right`), fără duplicate. Kerningul se aplică doar între glife vecine din **aceeași față**. O schimbare de stil în mijlocul unui cuvânt nu primește kerning.
 
-**Borrowed kerning.** An accented letter usually kerns like its base letter: *Àv* like *Av*, *Ță* like *Ta*. Storing those pairs again for every accented letter multiplied the table by 3 (PT Serif at 18 px: 7,596 pairs instead of 2,344). So a glyph's `kern_as` names the glyph whose pairs it uses (À → A, ă → a, Й → И). Every `kern_as` points at a glyph that kerns as itself, so there is never more than one step.
+**Kerningul împrumutat.** O literă cu diacritic face de obicei kerning ca litera ei de bază: *Àv* ca *Av*, *Ță* ca *Ta*. Păstrarea din nou a acestor perechi pentru fiecare literă cu diacritic triplă tabelul (PT Serif la 18 px: 7.596 de perechi în loc de 2.344). Așa că `kern_as` al unei glife numește glifa ale cărei perechi le folosește (À → A, ă → a, Й → И). Fiecare `kern_as` arată spre o glifă care face kerning ca ea însăși, deci nu e niciodată mai mult de un pas.
 
-Borrowing is not always right: fonts kern *Vă* less than *Va*, so that the breve clears the V. Where the real value differs from the borrowed one by ¼ px or more, the builder stores the pair under the glyphs' own indices (an **exception**, value 0 allowed). The lookup for glyphs *a*, *b* is:
+Împrumutul nu e mereu corect: fonturile fac mai puțin kerning la *Vă* decât la *Va*, ca semnul de deasupra lui ă să nu atingă V-ul. Unde valoarea reală diferă de cea împrumutată cu ¼ px sau mai mult, constructorul păstrează perechea cu indicii proprii ai glifelor (o **excepție**, valoarea 0 e permisă). Căutarea pentru glifele *a*, *b* e:
 
-1. the pair (*a*, *b*), if present;
-2. else, if `kern_as[a]` ≠ *a* or `kern_as[b]` ≠ *b*, the pair (`kern_as[a]`, `kern_as[b]`), if present;
-3. else 0.
+1. perechea (*a*, *b*), dacă există;
+2. altfel, dacă `kern_as[a]` ≠ *a* sau `kern_as[b]` ≠ *b*, perechea (`kern_as[a]`, `kern_as[b]`), dacă există;
+3. altfel 0.
 
-Each step is a binary search, about 12 comparisons for 3,000 pairs. The builder keeps a pair only if |value| ≥ 16 u (¼ px) at that size; smaller values don't move a 1-bit glyph often enough to matter. With exceptions, every pair the builder measures comes out within ¼ px of the font's own kerning. PT Serif 18 px: 2,344 pairs + 604 exceptions.
+Fiecare pas e o căutare binară, cam 12 comparații pentru 3.000 de perechi. Constructorul păstrează o pereche doar dacă |valoarea| ≥ 16 u (¼ px) la mărimea aceea; valorile mai mici nu mută o glifă de 1 bit destul de des ca să conteze. Cu excepțiile, fiecare pereche măsurată de constructor iese la cel mult ¼ px de kerningul fontului. PT Serif 18 px: 2.344 de perechi + 604 excepții.
 
-Pairs are measured within one script plus punctuation: Latin with Latin, Cyrillic with Cyrillic. Mixed-script pairs don't occur inside words.
+Perechile se măsoară în cadrul unei singure scrieri plus punctuație: latin cu latin, chirilic cu chirilic. Perechile din scrieri amestecate nu apar în interiorul cuvintelor.
 
-### 3.5 Bitmaps
+### 3.5 Bitmapurile
 
-Concatenated glyph bitmaps. Glyphs with identical bitmaps (for example U+00A0 and the space, or Latin A and Cyrillic А) may share one.
+Bitmapurile glifelor puse unul după altul. Glifele cu bitmapuri identice (de exemplu U+00A0 și spațiul, sau A latin și А chirilic) pot împărți unul.
 
-### 3.6 Stand-ins
+### 3.6 Înlocuitorii
 
-When the source font lacks a character of the default set, the builder stores a **stand-in**: a copy of a similar glyph's metrics, sharing its bitmap. U+2010 HYPHEN becomes `-`, U+2012 FIGURE DASH becomes `–`, U+201B becomes `’`, and an accented letter becomes its base letter (PT Serif has no *Ċ*, so it gets *C*). The builder lists the stand-ins. A character with no stand-in is left out, and the device draws U+FFFD for it.
+Când fontului sursă îi lipsește un caracter din setul implicit, constructorul păstrează un **înlocuitor**: o copie a metricilor unei glife asemănătoare, care îi împarte bitmapul. U+2010 HYPHEN devine `-`, U+2012 FIGURE DASH devine `–`, U+201B devine `’`, iar o literă cu diacritic devine litera de bază (PT Serif nu are *Ċ*, deci primește *C*). Constructorul afișează înlocuitorii. Un caracter fără înlocuitor e omis, iar dispozitivul desenează U+FFFD în locul lui.
 
-## 4. How the device uses a font
+## 4. Cum folosește dispozitivul un font
 
-**Open.** Read (or map) the file and check the magic, the version, `bpp` = 1 and both CRCs. Check every table lies inside the file and every offset is aligned. Then set pointers into the file. That's the whole of `font_open()`. Nothing is copied.
+**Deschiderea.** Se citește (sau se mapează) fișierul și se verifică codul magic, versiunea, `bpp` = 1 și ambele CRC-uri. Se verifică dacă fiecare tabel e în interiorul fișierului și fiecare deplasament e aliniat. Apoi se pun pointerii în fișier. Asta e tot `font_open()`. Nu se copiază nimic.
 
-**Draw a glyph.** Find it (section 3.2). If it's missing, use U+FFFD, which every font must have. Copy its bitmap at (`round(pen) + x_off`, `baseline + y_off`). Then pen += `advance` + the kerning with the next glyph.
+**Desenarea unei glife.** Se găsește (secțiunea 3.2). Dacă lipsește, se folosește U+FFFD, pe care trebuie să-l aibă orice font. Bitmapul se copiază la (`round(pen) + x_off`, `baseline + y_off`). Apoi pen += `advance` + kerningul cu glifa următoare.
 
-**Pen arithmetic.** The pen is kept in u. Each glyph is drawn at the pen rounded to the nearest pixel, so rounding errors don't add up along the line. Justified lines add their extra space in u too.
+**Aritmetica creionului.** Creionul se ține în u. Fiecare glifă se desenează la creionul rotunjit la cel mai apropiat pixel, deci erorile de rotunjire nu se adună de-a lungul rândului. Rândurile justificate își adaugă și ele spațiul suplimentar în u.
 
-**Faces.** On the card, fonts live in `/fonts/` as `<family>-<size>-<style>.ibf`. Style is `r`, `b`, `i` or `bi`, for example `ptserif-18-bi.ibf`. The device picks the family from the book's language and a size from one reader setting (below). A missing bold or italic face falls back to the regular face (bold is then drawn twice, 1 px apart).
+**Fețele.** Pe card, fonturile stau în `/fonts/` ca `<familie>-<mărime>-<stil>.ibf`. Stilul e `r`, `b`, `i` sau `bi`, de exemplu `ptserif-18-bi.ibf`. Dispozitivul alege familia după limba cărții și o mărime după o singură setare a cititorului (mai jos). O față bold sau italic lipsă revine la fața regular (bold se desenează atunci de două ori, la 1 px distanță).
 
-**Which font a book gets** (`fontsel.c`). A book whose META `language` is written in Cyrillic (`ru`, `uk`, `be`, `bg`, `sr`, `mk`, `kk` and a few more, or any tag with the `Cyrl` script subtag) is set in PT Serif; every other book in Libron, which has no Cyrillic. A `Latn` subtag makes it Libron (`sr-Latn`). The reader never picks a family. The size setting has five steps, and each step names one size per family. The sizes are matched on x-height and on page counts over the corpus, so changing to a book in the other script doesn't change how big the text looks:
+**Ce font primește o carte** (`fontsel.c`). O carte al cărei `language` din META se scrie în chirilică (`ru`, `uk`, `be`, `bg`, `sr`, `mk`, `kk` și încă câteva, sau orice etichetă cu subeticheta de scriere `Cyrl`) se culege cu PT Serif; orice altă carte cu Libron, care nu are chirilice. O subetichetă `Latn` o face Libron (`sr-Latn`). Cititorul nu alege niciodată o familie. Setarea de mărime are cinci trepte, iar fiecare treaptă numește câte o mărime pentru fiecare familie. Mărimile sunt potrivite după înălțimea x și după numărul de pagini pe corpus, deci trecerea la o carte în cealaltă scriere nu schimbă cât de mare pare textul:
 
-| Step | 1 | 2 | 3 (default) | 4 | 5 |
+| Treapta | 1 | 2 | 3 (implicit) | 4 | 5 |
 |---|---:|---:|---:|---:|---:|
 | Libron | 15 | 16 | 17 | 18 | 20 |
 | PT Serif | 16 | 17 | 18 | 19 | 21 |
-| x-height, px | 8 | 9 | 9 | 10 | 11 |
+| înălțimea x, px | 8 | 9 | 9 | 10 | 11 |
 
-**RAM.** One face at 18 px with the default character set is 20–38 KB including kerning (section 7). The four body faces plus a heading face come to about 150–190 KB, out of the S3's 512 KB SRAM. If that turns out too much next to the book buffers, the files can go in a flash partition and be memory-mapped instead, with no format change.
+**RAM.** O față la 18 px cu setul implicit de caractere are 20–38 KB cu tot cu kerningul (secțiunea 7). Cele patru fețe de text plus o față pentru titluri ajung la cam 150–190 KB din cei 512 KB de SRAM ai S3. Dacă se dovedește prea mult lângă bufferele cărții, fișierele pot sta într-o partiție de flash mapată în memorie, fără schimbarea formatului.
 
-## 5. Character set
+## 5. Setul de caractere
 
-`tools/fonttool/fonttool.py` `DEFAULT_RANGES`. The converter (`glyphs.py`) reads the same list, less what the book's own font lacks: for a Latin-script book that's Cyrillic and Ĳ ĳ ŉ ſ, which Libron doesn't have (ſ becomes s, the others their two-letter forms). So a book never needs a character its font lacks, and `sim/test/run.sh` checks that over the corpus.
+`tools/fonttool/fonttool.py` `DEFAULT_RANGES`. Convertorul (`glyphs.py`) citește aceeași listă, mai puțin ce îi lipsește fontului cărții: pentru o carte în alfabet latin, asta înseamnă chirilicele și Ĳ ĳ ŉ ſ, pe care Libron nu le are (ſ devine s, celelalte formele lor din două litere). Așa o carte nu are niciodată nevoie de un caracter care lipsește din fontul ei, iar `sim/test/run.sh` verifică asta pe corpus.
 
 - Basic Latin, Latin-1, Latin Extended-A
-- Romanian ș ț with comma below (U+0218–U+021B)
-- Cyrillic U+0400–U+045F (Russian, Ukrainian, Belarusian, Bulgarian, Serbian)
-- typographic punctuation: dashes, quotes, bullet, ellipsis, guillemets, euro sign
-- U+FFFD, the replacement character: **required**. The space (U+0020) and the hyphen (U+002D) are required too.
+- ș ț românești cu virgulă dedesubt (U+0218–U+021B)
+- Chirilicele U+0400–U+045F (rusă, ucraineană, belarusă, bulgară, sârbă)
+- punctuația tipografică: linii, ghilimele, buline, puncte de suspensie, ghilimele unghiulare, semnul euro
+- U+FFFD, caracterul de înlocuire: **obligatoriu**. Spațiul (U+0020) și cratima (U+002D) sunt și ele obligatorii.
 
-The device draws U+00A0 (no-break space) with the space's width, and draws U+002D at a soft-hyphen break. It never looks up U+00AD, U+200B or U+2028, which are layout controls.
+Dispozitivul desenează U+00A0 (spațiul neseparabil) cu lățimea spațiului și desenează U+002D la o rupere pe cratimă moale. Nu caută niciodată U+00AD, U+200B sau U+2028, care sunt caractere de control al paginării.
 
-## 6. Validator rules
+## 6. Regulile validatorului
 
-`fonttool.py validate` (in `ibf.py`) checks:
+`fonttool.py validate` (în `ibf.py`) verifică:
 
-1. Magic, major version, `header_size`, `bpp` = 1, `header_crc`, `data_crc`.
-2. Every table lies inside the file, at an aligned offset, and the tables don't overlap. The bitmaps end exactly at the end of the file.
-3. Ranges are sorted and non-overlapping, with count ≥ 1. `first_glyph` values are consecutive, and they add up to `glyph_count`.
-4. Every glyph's bitmap lies inside the bitmap area. Every `kern_as` is < `glyph_count` and points at a glyph whose `kern_as` is itself.
-5. Kerning pairs are sorted, have no duplicates, and both indices are < `glyph_count`.
-6. U+0020, U+002D and U+FFFD are present.
+1. Codul magic, versiunea majoră, `header_size`, `bpp` = 1, `header_crc`, `data_crc`.
+2. Fiecare tabel e în interiorul fișierului, la un deplasament aliniat, iar tabelele nu se suprapun. Bitmapurile se termină exact la sfârșitul fișierului.
+3. Intervalele sunt ordonate și nu se suprapun, cu numărul ≥ 1. Valorile `first_glyph` sunt consecutive și se adună la `glyph_count`.
+4. Bitmapul fiecărei glife e în interiorul zonei de bitmapuri. Fiecare `kern_as` e < `glyph_count` și arată spre o glifă al cărei `kern_as` e ea însăși.
+5. Perechile de kerning sunt ordonate, fără duplicate, și ambii indici sunt < `glyph_count`.
+6. U+0020, U+002D și U+FFFD există.
 
-## 7. Design choices, and the alternatives turned down
+## 7. Alegeri de proiectare și alternativele respinse
 
-| Choice | Alternative | Why |
+| Alegerea | Alternativa | De ce |
 |---|---|---|
-| Pre-rendered bitmaps | TrueType + FreeType on the device | No rasterizer in flash, constant draw time, and the 1-bit rendering is tuned once on the PC (hinted mono vs threshold, chosen per font). Cost: one file per size, so sizes are fixed (3+ is the requirement). |
-| One file per face and size | One file with every size and style | The device loads only what the reader setting needs. Files stay small enough to load whole. |
-| Advances and kerning in 1/64 px | Whole pixels | A justified 30-character line with whole-pixel advances is off by up to ±15 px in total, which is visible as uneven word spacing. In 26.6 fixed point the error stays under 1 px per glyph and doesn't accumulate. |
-| Range table | A codepoint in every glyph record (as `font_ui16` had in v0) | 4 bytes less per glyph and fewer comparisons per lookup. |
-| Pair kerning table with `kern_as` | No kerning, a full pair table, or class-based kerning (as in OpenType) | Pairs are the simplest to look up. A full table repeats every base letter's pairs for its accented forms (45 KB for PT Serif at 18 px). OpenType classes are smaller but need a class table per side. `kern_as` is a one-sided class that costs no extra bytes (it uses the glyph record's spare field), with exception pairs where it's wrong. With the ¼ px cut-off a face has 1,000–4,000 pairs (6–23 KB). |
-| Rows padded to whole bytes | One continuous bitstream per glyph | Drawing works on whole bytes. The padding costs about 28 % of the bitmap bytes (about 2.5 KB per face at 18 px), which is small next to the kerning table. |
-| In-place structs, 4-byte aligned | A compact encoding parsed at load time | Opening a font costs nothing, and the same file works from RAM, SD or a memory-mapped flash partition. |
+| Bitmapuri desenate dinainte | TrueType + FreeType pe dispozitiv | Fără rasterizator în flash, timp de desenare constant, iar desenarea pe 1 bit se reglează o singură dată pe PC (mono cu hinting sau prag, ales pe font). Costul: un fișier pe mărime, deci mărimile sunt fixe (cerința e 3+). |
+| Un fișier pe față și mărime | Un fișier cu toate mărimile și stilurile | Dispozitivul încarcă doar ce cere setarea cititorului. Fișierele rămân destul de mici ca să se încarce întregi. |
+| Avansuri și kerning în 1/64 px | Pixeli întregi | Un rând justificat de 30 de caractere cu avansuri în pixeli întregi greșește în total cu până la ±15 px, ceea ce se vede ca spațiere neuniformă între cuvinte. În virgulă fixă 26.6 eroarea rămâne sub 1 px pe glifă și nu se acumulează. |
+| Tabel de intervale | Un punct de cod în fiecare înregistrare de glifă (cum avea `font_ui16` în v0) | Cu 4 octeți mai puțin pe glifă și mai puține comparații pe căutare. |
+| Tabel de perechi de kerning cu `kern_as` | Fără kerning, un tabel complet de perechi sau kerning pe clase (ca în OpenType) | Perechile se caută cel mai simplu. Un tabel complet repetă perechile fiecărei litere de bază pentru formele ei cu diacritice (45 KB pentru PT Serif la 18 px). Clasele OpenType sunt mai mici, dar cer un tabel de clase pe fiecare parte. `kern_as` e o clasă pe o singură parte care nu costă octeți în plus (folosește câmpul liber al înregistrării de glifă), cu perechi de excepție unde e greșit. Cu pragul de ¼ px o față are 1.000–4.000 de perechi (6–23 KB). |
+| Rânduri completate la octeți întregi | Un singur flux continuu de biți pe glifă | Desenarea lucrează pe octeți întregi. Completarea costă cam 28 % din octeții bitmapurilor (cam 2,5 KB pe față la 18 px), puțin față de tabelul de kerning. |
+| Structuri pe loc, aliniate la 4 octeți | O codificare compactă parsată la încărcare | Deschiderea unui font nu costă nimic, iar același fișier merge din RAM, de pe SD sau dintr-o partiție de flash mapată în memorie. |
 
-## 8. Versioning
+## 8. Versionarea
 
-The same as IBV: a reader refuses a major version it doesn't know. During 0.x anything may change. The format freezes as 1.0 together with IBV (SPEC-4).
+La fel ca la IBV: un cititor refuză o versiune majoră pe care n-o cunoaște. În 0.x se poate schimba orice. Formatul se îngheață ca 1.0 împreună cu IBV (SPEC-4).
 
-## Changelog
+## Jurnalul de schimbări
 
-- **0.1** (2026-10-26) First draft, with `ibf.py`, `fonttool.py build` and the device reader. Borrowed kerning (`kern_as` in the glyph record's spare field, plus exception pairs) and stand-ins added the same day, after the first PT Serif build had 7,596 pairs.
-- **0.1** (2026-10-27) Font choice by the book's language (LAY-7): Libron for Latin script, PT Serif for Cyrillic, five matched size steps. The converter's character set follows the book's font.
+- **0.1** (2026-10-26) Prima ciornă, cu `ibf.py`, `fonttool.py build` și cititorul de pe dispozitiv. Kerningul împrumutat (`kern_as` în câmpul liber al înregistrării de glifă, plus perechi de excepție) și înlocuitorii adăugați în aceeași zi, după ce prima compilare PT Serif avea 7.596 de perechi.
+- **0.1** (2026-10-27) Alegerea fontului după limba cărții (LAY-7): Libron pentru alfabetul latin, PT Serif pentru chirilică, cinci trepte de mărime potrivite. Setul de caractere al convertorului urmează fontul cărții.

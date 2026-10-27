@@ -1,446 +1,447 @@
-# Master plan: e-ink reader diploma
+# Planul general: diploma cu cititorul e-ink
 
-v1.0, 2026-10-25. Approved. The remaining open questions in [section 12](#12-open-questions) don't block Phase 0.
+v1.0, 2026-10-25. Aprobat. Întrebările deschise rămase din [secțiunea 12](#12-întrebări-deschise) nu blochează Faza 0.
 
-This file is the single source of truth for what gets built, in what order, by whom, and how we prove it works. When something changes, update this file and add a line to the Log in `README.md`.
+Fișierul ăsta e singura sursă de adevăr pentru ce se construiește, în ce ordine, de cine și cum dovedim că merge. Când se schimbă ceva, se actualizează aici și se adaugă un rând în Jurnalul din `README.md`.
 
-**Status marks:** `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` dropped (say why)
+**Stări:** `[ ]` de făcut · `[~]` în lucru · `[x]` făcut · `[-]` renunțat (cu motivul)
 
 ---
 
-## 1. What we're building and why
+## 1. Ce construim și de ce
 
-A handheld e-ink e-reader, designed end to end:
+Un cititor de cărți electronice e-ink de mână, proiectat cap-coadă:
 
-1. **Hardware:** a perfboard prototype first, then a custom PCB.
-2. **Firmware:** our own "custom OS", a layered firmware platform on FreeRTOS. It has its own drivers, services and apps.
-3. **Book format:** our own file format, plus a PC tool that converts EPUB/FB2/TXT into it.
-4. **Text layout engine:** real typography on a 240×416 1-bit screen: reflow, justification, and Romanian and Russian hyphenation.
-5. **Measured evaluation:** every claim in the thesis is backed by a measurement.
+1. **Hardware:** întâi un prototip pe placă de prototipare, apoi un PCB propriu.
+2. **Firmware:** propriul nostru „sistem de operare”, o platformă de firmware pe straturi peste FreeRTOS. Are drivere, servicii și aplicații proprii.
+3. **Formatul de carte:** un format de fișier propriu, plus o unealtă pe PC care convertește EPUB/FB2/TXT în el.
+4. **Motorul de paginare a textului:** tipografie adevărată pe un ecran de 240×416 pe 1 bit: rearanjare, justificare și despărțire în silabe pentru română și rusă.
+5. **Evaluare măsurată:** fiecare afirmație din lucrare e susținută de o măsurătoare.
 
-**The thesis claim, in one sentence:** *Moving document parsing to a PC tool, together with a purpose-built format, layout engine and power-aware hardware, lets a low-cost microcontroller give a usable e-reading experience (good typography, fast page turns, weeks of battery life) without the application-processor-plus-Linux stack that commercial e-readers use.*
+**Teza lucrării, într-o propoziție:** *Mutarea parsării documentelor într-o unealtă pe PC, împreună cu un format, un motor de paginare și un hardware atent la consum făcute anume, permite unui microcontroler ieftin să ofere o experiență de lectură utilizabilă (tipografie bună, întoarcerea rapidă a paginii, săptămâni de autonomie) fără stiva procesor de aplicații plus Linux pe care o folosesc cititoarele comerciale.*
 
-**Why it fits an EE + CS degree:** the EE half is the circuit design, power electronics, PCB and current measurements. The CS half is the firmware architecture, file format design, text layout algorithms and the toolchain. Neither half is padding.
+**De ce se potrivește unei specializări de inginerie electrică + calculatoare:** jumătatea de electronică e proiectarea circuitului, electronica de putere, PCB-ul și măsurătorile de curent. Jumătatea de informatică e arhitectura firmware-ului, proiectarea formatului de fișier, algoritmii de paginare a textului și lanțul de unelte. Nicio jumătate nu e umplutură.
 
-## 2. Goals, non-goals, anti-goals
+## 2. Obiective, ce nu facem, ce ar fi un eșec
 
-**Goals (must ship)**
-- A device that opens a converted book and turns pages, with partial refresh, on battery.
-- Reflowable text: 3+ font sizes, justified, hyphenated, with full Romanian (ă â î ș ț) and Cyrillic coverage.
-- Library, reading progress, bookmarks, settings, sleep screen.
-- A custom PCB that replaces the dev board and gets sleep current down to microamps.
-- A converter for EPUB and TXT (FB2 if time allows) with a written, versioned format spec.
-- A measurement chapter: timings, power, battery life, format efficiency, layout quality.
+**Obiective (obligatorii)**
+- Un dispozitiv care deschide o carte convertită și întoarce paginile, cu reîmprospătare parțială, pe baterie.
+- Text rearanjabil: 3+ mărimi de font, justificat, despărțit în silabe, cu acoperire completă pentru română (ă â î ș ț) și chirilică.
+- Bibliotecă, progresul lecturii, semne de carte, setări, ecran de somn.
+- Un PCB propriu care înlocuiește placa de dezvoltare și coboară curentul de somn la microamperi.
+- Un convertor pentru EPUB și TXT (FB2 dacă e timp) cu o specificație scrisă și versionată a formatului.
+- Un capitol de măsurători: timpi, consum, autonomie, eficiența formatului, calitatea paginării.
 
-**Non-goals (deliberately out)**
-- Parsing EPUB, PDF or HTML on the device
-- DRM, online stores, cloud sync, accounts
-- Images inside books (v1). Only the cover, dithered, on the sleep screen.
-- Touchscreen, front light, audio
-- Linux, or a from-scratch kernel. FreeRTOS is the kernel; everything above it is ours.
-- Making it a product: no certification, no mass manufacturing
+**Ce nu facem (lăsate deliberat afară)**
+- Parsarea EPUB, PDF sau HTML pe dispozitiv
+- DRM, magazine online, sincronizare în cloud, conturi
+- Imagini în cărți (v1). Doar coperta, cu dithering, pe ecranul de somn.
+- Ecran tactil, iluminare frontală, audio
+- Linux sau un nucleu scris de la zero. FreeRTOS e nucleul; tot ce e peste el e al nostru.
+- Transformarea într-un produs: fără certificare, fără producție de serie
 
-**Anti-goals (would count as failure even if it "works")**
-- Many half-finished features instead of a few finished ones
-- A device that only works with the one demo book
-- Thesis claims with no measurement behind them
-- Anything you can't explain yourself at the defense
-- Unsafe LiPo handling: shorts, no protection, a battery that isn't secured
+**Ce ar fi un eșec (chiar dacă „merge”)**
+- Multe funcții pe jumătate în loc de câteva terminate
+- Un dispozitiv care merge doar cu cartea demonstrativă
+- Afirmații în lucrare fără o măsurătoare în spate
+- Orice nu poți explica singur la susținere
+- Manipularea nesigură a LiPo: scurtcircuite, fără protecție, o baterie neprinsă
 
-## 3. Constraints
+## 3. Constrângeri
 
 | | |
 |---|---|
-| Deadline | ~9 months: submission around **end of July 2027** (exact date: open question Q2) |
-| Degree | Electrical Engineering & Computer Science |
-| Must-dos (your call) | measured results, text layout engine |
-| Platform | ESP32-S3 (you own a DevKitC-1 16 MB). No PSRAM required by design. |
-| Memory budget | 512 KB SRAM. Framebuffer is 240×416 at 1 bpp = 12,480 B. |
-| Budget | Parts you've bought, plus roughly 600–900 RON more (see [section 9](#9-shopping-list)) |
-| Ordering | PCBs from JLCPCB/PCBWay, shipped to Romania (VAT collected at checkout) |
+| Termen | ~9 luni: predarea pe la **sfârșitul lui iulie 2027** (data exactă: întrebarea deschisă Q2) |
+| Specializarea | Inginerie electrică și calculatoare |
+| Obligatorii (decizia ta) | rezultate măsurate, motorul de paginare a textului |
+| Platforma | ESP32-S3 (ai un DevKitC-1 de 16 MB). Prin proiectare nu e nevoie de PSRAM. |
+| Bugetul de memorie | 512 KB SRAM. Framebufferul e 240×416 la 1 bpp = 12.480 B. |
+| Buget | Piesele cumpărate, plus cam 600–900 RON în plus (vezi [secțiunea 9](#9-lista-de-cumpărături)) |
+| Comenzi | PCB-uri de la JLCPCB/PCBWay, livrate în România (TVA încasat la plată) |
 
-## 4. System architecture
+## 4. Arhitectura sistemului
 
 ```
- PC side                                   Device side
+ Pe PC                                     Pe dispozitiv
  ┌─────────────────────────┐               ┌───────────────────────────────────────────┐
- │ converter (Python CLI)  │   microSD     │ Apps:      launcher · library · reader ·  │
- │  EPUB/FB2/TXT → parse   │  or USB-MSC   │            settings · sleep · diagnostics │
- │  → normalize (NFC, ș/ț) │ ────────────▶ │ Services:  layout engine · font renderer ·│
- │  → structure → hyphenate│   .book file  │            book reader · power manager ·  │
- │  → compress → write     │   + fonts     │            storage · settings · input     │
- │ fonttool: TTF → bitmap  │               │ Drivers:   UC8253 EPD · SD/FATFS · buttons│
- │ validator / dumper      │               │            · battery ADC / fuel gauge     │
+ │ convertor (Python CLI)  │   microSD     │ Aplicații: lansator · bibliotecă · lector·│
+ │  EPUB/FB2/TXT → parsare │  sau USB-MSC  │            setări · somn · diagnostic     │
+ │  → normalizare (NFC,ș/ț)│ ────────────▶ │ Servicii:  paginare · desenarea fonturilor│
+ │  → structură → silabe   │  fișier .ibv  │            · cititorul cărții · energie · │
+ │  → compresie → scriere  │  + fonturi    │            stocare · setări · intrare     │
+ │ fonttool: TTF → bitmap  │               │ Drivere:   EPD UC8253 · SD/FATFS · butoane│
+ │ validator / afișare     │               │            · ADC baterie / indicator      │
  └─────────────────────────┘               │ HAL:       ESP-IDF (SPI, GPIO, ADC, NVS)  │
-                                           │ Kernel:    FreeRTOS                       │
- PC simulator (same C core) → PNG pages    └───────────────────────────────────────────┘
+                                           │ Nucleu:    FreeRTOS                       │
+ Simulator pe PC (același nucleu C) → PNG  └───────────────────────────────────────────┘
 ```
 
-**Key idea, my call:** the **core** (format reader, font renderer, layout engine) is portable C with no ESP-IDF dependencies. It compiles for the ESP32 and for the PC. The PC build is a **simulator** that renders pages to PNG. That gives us:
-- unit tests that run on the PC
-- software development that doesn't wait for hardware
-- figures for the thesis
-- layout-quality experiments on hundreds of pages in seconds
+**Ideea cheie, decizia mea:** **nucleul** (cititorul formatului, desenarea fonturilor, motorul de paginare) e C portabil fără dependențe de ESP-IDF. Se compilează pentru ESP32 și pentru PC. Versiunea de PC e un **simulator** care desenează pagini în PNG. Asta ne dă:
+- teste unitare care rulează pe PC
+- dezvoltarea software fără să aștepte hardware-ul
+- figuri pentru lucrare
+- experimente de calitate a paginării pe sute de pagini în câteva secunde
 
-## 5. Repository layout (my call)
+## 5. Structura depozitului (decizia mea)
 
 ```
 eink-reader/
-  hardware/            prototype schematic (exists, v1.0)
-  hardware/pcb/        custom board: schematic, layout, fab outputs, BOM, review checklist
-  firmware/            ESP-IDF project
-    components/core/   portable C: format, fonts, layout (shared with sim/)
+  hardware/            schema prototipului (există, v1.0)
+  hardware/pcb/        placa proprie: schema, cablajul, fișierele de fabricație, BOM, lista de verificare
+  firmware/            proiectul ESP-IDF
+    components/core/   C portabil: format, fonturi, paginare (comun cu sim/)
     components/drivers/  epd_uc8253, sdcard, buttons, battery
-    components/services/ power, storage, settings, input, ui
-    main/              app manager + apps
-    boards/            board_devkit.h, board_pcb_v1.h (pin maps)
-  sim/                 PC build of core → PNG pages, tests
-  tools/converter/     Python converter + validator
-  tools/fonttool/      TTF → bitmap font
-  spec/                book-format.md, font-format.md (versioned)
-  measurements/<exp>/  raw CSV, scripts, generated figures (one folder per experiment)
+    components/services/ energie, stocare, setări, intrare, interfață
+    main/              managerul de aplicații + aplicațiile
+    boards/            board_devkit.h, board_pcb_v1.h (hărțile pinilor)
+  sim/                 nucleul compilat pe PC → pagini PNG, teste
+  tools/converter/     convertorul și validatorul în Python
+  tools/fonttool/      TTF → font bitmap
+  spec/                book-format.md, font-format.md (versionate)
+  measurements/<exp>/  CSV brut, scripturi, figuri generate (câte un dosar pe experiment)
   enclosure/           CAD + STL
-  docs/                README log, brief, this plan, photos/, decisions
-  thesis/              thesis source (format depends on Q1)
+  docs/                jurnalul din README, descrierea, planul ăsta, photos/, deciziile
+  thesis/              sursa lucrării (formatul depinde de Q1)
 ```
 
-Version control: a local git repo from day one. A private GitHub remote is open question Q6.
+Controlul versiunilor: un depozit git local din prima zi. Un depozit privat pe GitHub e întrebarea deschisă Q6.
 
 ---
 
-## 6. Workstreams
+## 6. Direcții de lucru
 
-Each workstream lists its deliverables, tasks, a "done when" check, and the thesis chapter it feeds.
+Fiecare direcție are livrabilele, sarcinile, o verificare „gata când” și capitolul din lucrare pe care îl alimentează.
 
-### HW: Prototype hardware (perfboard, DevKit)
+### HW: Hardware-ul prototipului (placă de prototipare, DevKit)
 
-**Deliverable:** a working handheld prototype matching `hardware/eink-reader.kicad_sch`.
-**Thesis:** Hardware design, plus the baseline for every before/after measurement.
+**Livrabil:** un prototip de mână funcțional, conform `hardware/eink-reader.kicad_sch`.
+**Lucrare:** proiectarea hardware, plus referința pentru fiecare măsurătoare înainte/după.
 
-- [ ] HW-1 Check the DevKit module marking: N16R8 (has PSRAM) or N16. Photograph it.
-- [ ] HW-2 EPD module: photograph the SB3/SB4/SB5 bridges and the SPI-mode pad before any power. Set it to 4-wire SPI. I'll tell you exactly what to bridge from the photos.
-- [ ] HW-3 Smoke test on a breadboard or jumpers with the bring-up app in `firmware/` (see `firmware/README.md`): text on the display, partial refresh, SD read and write, buttons, deep sleep and wake. App done 2026-10-25. Wire it up and flash it.
-- [ ] HW-4 Buy the missing parts (section 9, "Now").
-- [ ] HW-5 Check the LiPo JST polarity against the TP4056 B+/B− with the multimeter *before* connecting anything.
-- [ ] HW-6 Perfboard layout drawing: where each module sits and the wire routing, so it fits roughly behind the 106×54 mm display.
-- [ ] HW-7 Solder the prototype and photograph each stage.
-- [ ] HW-8 Bring-up checklist: rail voltages at no load and under refresh, battery-sense ADC reading vs the multimeter, every button, SD at full SPI speed.
-- [ ] HW-9 Update the schematic if anything changed during the build. Bump to v1.1 with a changelog.
+- [ ] HW-1 Verifică marcajul modulului DevKit: N16R8 (are PSRAM) sau N16. Fotografiază-l.
+- [ ] HW-2 Modulul EPD: fotografiază punțile SB3/SB4/SB5 și padul de mod SPI înainte de orice alimentare. Setează-l pe SPI cu 4 fire. Ce se leagă reiese din poze.
+- [ ] HW-3 Testul de fum pe breadboard sau cu fire jumper, cu aplicația de punere în funcțiune din `firmware/` (vezi `firmware/README.md`): text pe ecran, reîmprospătare parțială, citire și scriere pe SD, butoane, somn adânc și trezire. Aplicația e gata din 2026-10-25. Se leagă și se scrie flash-ul.
+- [ ] HW-4 Cumpără piesele lipsă (secțiunea 9, „Acum”).
+- [ ] HW-5 Verifică polaritatea JST a LiPo-ului față de B+/B− ale TP4056 cu multimetrul *înainte* de a conecta ceva.
+- [ ] HW-6 Desenul plăcii de prototipare: unde stă fiecare modul și traseul firelor, ca să încapă cam în spatele ecranului de 106×54 mm.
+- [ ] HW-7 Lipește prototipul și fotografiază fiecare etapă.
+- [ ] HW-8 Lista de punere în funcțiune: tensiunile pe linii în gol și în timpul reîmprospătării, citirea ADC a bateriei față de multimetru, fiecare buton, SD la viteza SPI maximă.
+- [ ] HW-9 Actualizează schema dacă s-a schimbat ceva la asamblare. Trece la v1.1 cu jurnal de schimbări.
 
-**Done when:** it runs on battery, charges over USB-C through the TP4056, and every item in HW-8 passes.
+**Gata când:** merge pe baterie, se încarcă prin USB-C prin TP4056 și trece fiecare punct din HW-8.
 
-### FW: Firmware platform ("custom OS")
+### FW: Platforma de firmware („sistem de operare propriu”)
 
-**Deliverable:** an ESP-IDF firmware with the layered architecture from section 4.
-**Thesis:** Firmware architecture.
+**Livrabil:** un firmware ESP-IDF cu arhitectura pe straturi din secțiunea 4.
+**Lucrare:** arhitectura firmware-ului.
 
-Language and stack (my call): **C on ESP-IDF** (latest stable), with **our own UC8253 driver**. GxEPD2 is only a reference for the init sequences and a hardware sanity check. It's not a dependency.
+Limbajul și stiva (decizia mea): **C pe ESP-IDF** (ultima versiune stabilă), cu **propriul nostru driver UC8253**. GxEPD2 e doar o referință pentru secvențele de inițializare și o verificare a hardware-ului. Nu e o dependență.
 
-- [x] FW-1 Project skeleton: components layout, `boards/*.h` pin maps, build and flash instructions. Install ESP-IDF, or run my install script. *Done 2026-10-25: `firmware/` builds on ESP-IDF v6.1, which was already installed.*
-- [ ] FW-2 EPD driver: init, full, fast and partial refresh, deep-sleep command, BUSY handling via interrupt. Optional 4-level grayscale, if the panel supports it. *v0 2026-10-25: everything except grayscale, plus per-phase timing. Builds, but hasn't run on the panel yet.*
-- [ ] FW-3 Graphics: 1 bpp framebuffer, rotation (portrait 240×416), dirty-rectangle tracking for partial refresh. *v0: framebuffer, UTF-8 text with a compiled-in font, dirty rectangles. No rotation yet.*
-- [ ] FW-4 Storage: SPI SD + FATFS mount and recovery, file API used by the services. *v0: mount at 20 MHz with a 5 MHz fallback; never formats. No recovery or file API yet.*
-- [ ] FW-5 Input: debounced buttons, short and long press, an event queue. *v0: all of it (10 ms polling, 30 ms debounce, 800 ms long press). Not run on hardware yet.*
-- [ ] FW-6 App manager: an app lifecycle (enter, event, render, exit) and a FreeRTOS task layout (UI task, input task, background task for pagination).
-- [ ] FW-7 Power manager:
-  - light sleep while reading, deep sleep after idle timeout, wake on any button (ext1 ANY_LOW, RTC pull-ups enabled). *The button wake already works in the bring-up app.*
-  - low-battery screen and shutdown below the cutoff
-  - every state change timestamped, for the measurements
-- [ ] FW-8 Battery: ADC calibration (eFuse curve), divider correction, a voltage→% curve for the LiPo, smoothing. *v0: calibration and divider correction. No percentage or smoothing yet.*
-- [ ] FW-9 Settings in NVS: font size, line spacing, margins, full-refresh interval N, sleep timeout, hyphenation on/off.
-- [ ] FW-10 Apps:
-  - boot screen
-  - launcher
-  - library: list books from the metadata, sort by recent
-  - reader
-  - settings
-  - sleep screen: cover or title, shown on an unpowered panel
-  - diagnostics: voltages, timings, versions
-- [ ] FW-11 Progress and bookmarks: sidecar files next to each book (see SPEC).
-- [ ] FW-12 USB mass storage over native USB (TinyUSB MSC): plug into a PC, the SD card appears as a drive, copy books. FATFS is unmounted on the device while USB is active.
-- [ ] FW-13 Measurement hooks: a `perf` log of timestamps (button edge, layout start/end, SPI transfer, BUSY low/high) written to SD as CSV, plus an "auto page-turn" test mode.
-- [ ] FW-14 Flash and test on the prototype after every feature. Report and photograph anything weird.
+- [x] FW-1 Scheletul proiectului: componentele, hărțile pinilor `boards/*.h`, instrucțiunile de compilare și scriere în flash. Instalează ESP-IDF sau rulează scriptul meu de instalare. *Făcut 2026-10-25: `firmware/` se compilează pe ESP-IDF v6.1, care era deja instalat.*
+- [ ] FW-2 Driverul EPD: inițializare, reîmprospătare completă, rapidă și parțială, comanda de somn adânc, BUSY pe întrerupere. Opțional 4 niveluri de gri, dacă panoul le suportă. *v0 2026-10-25: tot în afară de niveluri de gri, plus cronometrarea pe faze. Se compilează, dar încă n-a rulat pe panou.*
+- [ ] FW-3 Grafica: framebuffer de 1 bpp, rotație (portret 240×416), urmărirea dreptunghiurilor modificate pentru reîmprospătarea parțială. *v0: framebuffer, text UTF-8 cu un font compilat în program, dreptunghiuri modificate. Încă fără rotație.*
+- [ ] FW-4 Stocarea: SD pe SPI + montarea FATFS și recuperarea, API de fișiere folosit de servicii. *v0: montare la 20 MHz cu revenire la 5 MHz; nu formatează niciodată. Încă fără recuperare sau API de fișiere.*
+- [ ] FW-5 Intrarea: butoane cu debounce, apăsare scurtă și lungă, o coadă de evenimente. *v0: toate (interogare la 10 ms, debounce de 30 ms, apăsare lungă de 800 ms). Încă nerulat pe hardware.*
+- [ ] FW-6 Managerul de aplicații: ciclul de viață al unei aplicații (intrare, eveniment, desenare, ieșire) și împărțirea pe taskuri FreeRTOS (task de interfață, task de intrare, task de fundal pentru paginare).
+- [ ] FW-7 Managerul de energie:
+  - somn ușor în timpul lecturii, somn adânc după o perioadă de inactivitate, trezire din orice buton (ext1 ANY_LOW, pull-up RTC activate). *Trezirea din buton merge deja în aplicația de punere în funcțiune.*
+  - ecran de baterie descărcată și oprire sub pragul de tăiere
+  - fiecare schimbare de stare marcată în timp, pentru măsurători
+- [ ] FW-8 Bateria: calibrarea ADC (curba din eFuse), corecția divizorului, o curbă tensiune→% pentru LiPo, netezire. *v0: calibrarea și corecția divizorului. Încă fără procent sau netezire.*
+- [ ] FW-9 Setările în NVS: mărimea fontului, spațierea rândurilor, marginile, intervalul N de reîmprospătare completă, timpul până la somn, despărțirea în silabe pornită/oprită.
+- [ ] FW-10 Aplicațiile:
+  - ecranul de pornire
+  - lansatorul
+  - biblioteca: lista cărților din metadate, ordonate după cele recente
+  - lectorul
+  - setările
+  - ecranul de somn: coperta sau titlul, afișat pe un panou nealimentat
+  - diagnosticul: tensiuni, timpi, versiuni
+- [ ] FW-11 Progresul și semnele de carte: fișiere însoțitoare lângă fiecare carte (vezi SPEC).
+- [ ] FW-12 Stocare de masă USB pe USB nativ (TinyUSB MSC): conectat la un PC, cardul SD apare ca disc și se copiază cărțile. Pe dispozitiv FATFS e demontat cât USB-ul e activ.
+- [ ] FW-13 Puncte de măsurare: un jurnal `perf` de marcaje de timp (frontul butonului, începutul/sfârșitul paginării, transferul SPI, BUSY jos/sus) scris pe SD ca CSV, plus un mod de test cu „întoarcere automată a paginii”.
+- [ ] FW-14 Scrierea în flash și testarea pe prototip după fiecare funcție. Raportează și fotografiază orice e ciudat.
 
-**Done when:** you can read a whole novel on the prototype using only the device (library → book → read → sleep → wake → same page), with no crashes and no SD corruption after 100 sleep/wake cycles.
+**Gata când:** poți citi un roman întreg pe prototip folosind doar dispozitivul (bibliotecă → carte → lectură → somn → trezire → aceeași pagină), fără căderi și fără SD corupt după 100 de cicluri somn/trezire.
 
-### SPEC: Book format
+### SPEC: Formatul de carte
 
-**Deliverable:** `spec/book-format.md` (v0.1 → v1.0) and `spec/font-format.md`.
-**Thesis:** Book format design, with a comparison against EPUB/TXT/FB2.
+**Livrabil:** `spec/book-format.md` (v0.1 → v1.0) și `spec/font-format.md`.
+**Lucrare:** proiectarea formatului de carte, cu o comparație față de EPUB/TXT/FB2.
 
-My calls for design (to be justified in the spec):
-- **Reflowable, not pre-paginated.** Text layout is a must-do, so pagination happens on the device.
-- **Little-endian binary file:** magic + version header, metadata (title, author, language), a chapter table with byte offsets, and a content stream of paragraph records. Each record holds UTF-8 text plus style runs (bold, italic, heading level) and soft hyphens (U+00AD) inserted by the converter.
-- **Compression per block** of ≤ 32 KB (whole paragraphs, 16 KB target), so RAM use and seek time stay constant however long a chapter is. DEFLATE, decoded by the miniz `tinfl` already in the ESP32-S3 ROM. Experiment E5 measures block sizes and decode time. *(Was "per chapter"; changed in SPEC-1 because TXT books are one chapter and real chapters pass the 32 KB window.)*
-- **Cover:** an optional 1-bit dithered image block.
-- **Integrity:** CRC32 on the header, the section directory, every section and every decoded block. The validator checks all of it, and a test flips every bit of a sample file.
-- **Sidecar files** in `/.ibv/`, named by a content hash (`book_id`) so renaming a book keeps its progress: `<id>.pos` (progress), `<id>.bm` (bookmarks), `<id>-<layout>.pg` (pagination cache keyed by font, size, margins and spacing). Written atomically (tmp + rename).
-- **Font format:** a glyph table with Unicode ranges, 1 bpp (optional 2 bpp) bitmaps, advance widths and optional kerning pairs. Fonts live in a flash partition (16 MB is plenty) or on SD.
+Deciziile mele de proiectare (de justificat în specificație):
+- **Rearanjabil, nu pre-paginat.** Paginarea textului e obligatorie, deci paginarea se face pe dispozitiv.
+- **Fișier binar little-endian:** antet cu cod magic + versiune, metadate (titlu, autor, limbă), un tabel al capitolelor cu deplasamente în octeți și un flux de conținut din înregistrări de paragraf. Fiecare înregistrare are text UTF-8 plus intervale de stil (bold, italic, nivel de titlu) și cratime moi (U+00AD) puse de convertor.
+- **Compresie pe bloc** de ≤ 32 KB (paragrafe întregi, țintă 16 KB), ca memoria folosită și timpul de salt să rămână constante oricât de lung ar fi un capitol. DEFLATE, decodat de `tinfl` din miniz, care e deja în ROM-ul ESP32-S3. Experimentul E5 măsoară mărimile blocurilor și timpul de decodare. *(Era „pe capitol”; schimbat în SPEC-1 pentru că o carte TXT e un singur capitol, iar capitolele reale depășesc fereastra de 32 KB.)*
+- **Coperta:** un bloc opțional cu o imagine pe 1 bit, cu dithering.
+- **Integritatea:** CRC32 pe antet, pe directorul de secțiuni, pe fiecare secțiune și pe fiecare bloc decodat. Validatorul le verifică pe toate, iar un test inversează fiecare bit al unui fișier exemplu.
+- **Fișiere însoțitoare** în `/.ibv/`, numite după un hash al conținutului (`book_id`), ca redenumirea unei cărți să-i păstreze progresul: `<id>.pos` (progresul), `<id>.bm` (semnele de carte), `<id>-<layout>.pg` (cache-ul paginării, identificat după font, mărime, margini și spațiere). Scrise atomic (tmp + redenumire).
+- **Formatul de font:** un tabel de glife cu intervale Unicode, bitmapuri de 1 bpp (opțional 2 bpp), lățimile de avans și perechi de kerning opționale. Fonturile stau într-o partiție de flash (16 MB ajung din plin) sau pe SD.
 
-- [x] SPEC-1 Write v0.1 with a byte-level layout diagram and a worked example. Done 2026-10-26: `spec/book-format.md`, reference codec + validator `tools/converter/ibv.py` (15 tests), example `spec/examples/example.ibv`.
-- [ ] SPEC-2 Review it. Pick the name and file extension (Q5). Name done: IBV.
-- [x] SPEC-3 Font format spec v0.1. Done 2026-10-26: `spec/font-format.md` (IBF), reference codec + validator `tools/fonttool/ibf.py`, C loader `firmware/components/core/font.c` that checks the same rules.
-- [ ] SPEC-4 Freeze v1.0 after the converter and firmware both implement it. Changes after that bump the version.
+- [x] SPEC-1 Scrierea v0.1 cu o diagramă la nivel de octet și un exemplu lucrat. Făcut 2026-10-26: `spec/book-format.md`, codecul + validatorul de referință `tools/converter/ibv.py` (15 teste), exemplul `spec/examples/example.ibv`.
+- [ ] SPEC-2 Revizuirea. Alegerea numelui și a extensiei (Q5). Numele e ales: IBV.
+- [x] SPEC-3 Specificația formatului de font v0.1. Făcut 2026-10-26: `spec/font-format.md` (IBF), codecul + validatorul de referință `tools/fonttool/ibf.py`, încărcătorul C `firmware/components/core/font.c` care verifică aceleași reguli.
+- [ ] SPEC-4 Înghețarea v1.0 după ce convertorul și firmware-ul o implementează amândouă. Schimbările de după cresc versiunea.
 
-**Done when:** the converter writes it, the validator checks it, the firmware and simulator read it, and the spec matches all three.
+**Gata când:** convertorul îl scrie, validatorul îl verifică, firmware-ul și simulatorul îl citesc, iar specificația se potrivește cu toate trei.
 
-### CONV: PC converter and tools
+### CONV: Convertorul și uneltele de pe PC
 
-**Deliverable:** `tools/converter`, a Python 3 CLI: `convert`, `validate`, `dump`. Plus `tools/fonttool`.
-**Thesis:** Toolchain.
+**Livrabil:** `tools/converter`, o aplicație Python 3 în linia de comandă: `convert`, `validate`, `dump`. Plus `tools/fonttool`.
+**Lucrare:** lanțul de unelte.
 
-- [x] CONV-1 TXT input: UTF-8, plus CP1250/CP1251 detection for old Romanian/Russian files, and paragraph detection. Done 2026-10-26 (`txt.py`): BOM / UTF-8 / CP1250 / ISO-8859-2/-16 / CP1251 / KOI8-R / CP1252 scored per word; blank-line, indented and line-per-paragraph modes; Gutenberg and lib.ru headers; headings, scene breaks, verse, printed contents lists.
-- [x] CONV-2 EPUB 2/3 input: OPF spine, NCX/nav TOC, XHTML → paragraph records with basic styles. Unknown tags degrade to plain text. Done 2026-10-26 (`epub.py`): nav → NCX → headings for the TOC, CSS bold/italic, footnotes and PG boilerplate dropped, poems → VERSE.
-- [x] CONV-3 Normalization:
+- [x] CONV-1 Intrarea TXT: UTF-8, plus detectarea CP1250/CP1251 pentru fișierele vechi românești/rusești și detectarea paragrafelor. Făcut 2026-10-26 (`txt.py`): BOM / UTF-8 / CP1250 / ISO-8859-2/-16 / CP1251 / KOI8-R / CP1252 punctate pe cuvânt; modurile cu rând gol, cu alineat și cu un rând pe paragraf; antete Gutenberg și lib.ru; titluri, separatoare de scenă, versuri, cuprinsuri tipărite.
+- [x] CONV-2 Intrarea EPUB 2/3: spine-ul OPF, cuprinsul NCX/nav, XHTML → înregistrări de paragraf cu stiluri de bază. Etichetele necunoscute devin text simplu. Făcut 2026-10-26 (`epub.py`): nav → NCX → titluri pentru cuprins, bold/italic din CSS, notele de subsol și textul standard PG scoase, poezii → VERSE.
+- [x] CONV-3 Normalizarea:
   - Unicode NFC
-  - Romanian cedilla ş/ţ → comma ș/ț
-  - quotes, dashes, ellipsis
-  - whitespace
+  - ş/ţ românești cu sedilă → ș/ț cu virgulă
+  - ghilimele, linii, puncte de suspensie
+  - spațiile
 
-  Done 2026-10-26 (`textnorm.py`), plus per-language quotes, no space before punctuation, and Romanian typed with ã/º/þ mapped back.
-- [x] CONV-4 Hyphenation: Liang's algorithm with the TeX hyphenation patterns for RO, RU and EN (check the licenses), selected by the book's language. Inserts soft hyphens. Done 2026-10-26 (`hyphenate.py`): own Liang implementation (not pyphen, so it stays portable) reading hyph-utf8 patterns. Licences in `tools/converter/patterns/README.md`: en-gb MIT, en-us permissive, ru LPPL, ro none stated (fallback: LibreOffice `hyph_ro_RO`).
-- [x] CONV-5 Glyph coverage check against the target font. Warn about missing characters and map common fallbacks. Done 2026-10-26 (`glyphs.py`): character set read from fonttool's ranges, fallbacks, the rest → U+FFFD and reported.
-- [x] CONV-6 Cover extraction → resize → Floyd–Steinberg dither → 1 bpp. Done 2026-10-26 (`cover.py`): fit 240×416, serpentine Floyd–Steinberg, ~50 ms.
-- [x] CONV-7 Writer, validator, and a dumper that prints the human-readable structure. Done 2026-10-26 (`ibv.py`, `convert.py`): `convert`, `validate`, `dump`, `preview-cover`; every output is validated before it's written.
-- [x] CONV-8 fonttool: TTF/OTF → our font format at chosen sizes, with the RO + Cyrillic + punctuation ranges. Font choice: open-licensed, e.g. Literata, Noto Serif or PT Serif (to compare in the simulator). Done 2026-10-26 (`tools/fonttool`, 23 tests): all three families × 4 styles × 16/18/20 px build, 19–41 KB per face; borrowed kerning (`kern_as`) for accented letters; stand-ins for missing glyphs. The pick is LAY-7.
-- [x] CONV-9 FB2 input (common for Russian books). Should-have. Done 2026-10-26 (`fb2.py`): FB2 and `.fb2.zip`; tested on a synthetic book only.
-- [x] CONV-10 Tests on the test corpus (see MEAS). Every book converts and validates. Done 2026-10-26: 66 tests; all 15 corpus files convert and validate (`corpus/README.md`). Opening them on the device waits for LAY/FW.
+  Făcut 2026-10-26 (`textnorm.py`), plus ghilimele după limbă, fără spațiu înainte de punctuație și româna tastată cu ã/º/þ readusă la forma corectă.
+- [x] CONV-4 Despărțirea în silabe: algoritmul lui Liang cu modelele de despărțire TeX pentru RO, RU și EN (de verificat licențele), alese după limba cărții. Pune cratime moi. Făcut 2026-10-26 (`hyphenate.py`): implementare Liang proprie (nu pyphen, ca să rămână portabilă) care citește modelele hyph-utf8. Licențele în `tools/converter/patterns/README.md`: en-gb MIT, en-us permisivă, ru LPPL, ro nedeclarată (rezerva: LibreOffice `hyph_ro_RO`).
+- [x] CONV-5 Verificarea acoperirii glifelor față de fontul țintă. Avertizează despre caracterele lipsă și aplică înlocuirile obișnuite. Făcut 2026-10-26 (`glyphs.py`): setul de caractere citit din intervalele fonttool, înlocuiri, restul → U+FFFD și raportate.
+- [x] CONV-6 Extragerea copertei → redimensionare → dithering Floyd–Steinberg → 1 bpp. Făcut 2026-10-26 (`cover.py`): încadrare în 240×416, Floyd–Steinberg în serpentină, ~50 ms.
+- [x] CONV-7 Scriitorul, validatorul și o afișare care tipărește structura într-o formă ușor de citit. Făcut 2026-10-26 (`ibv.py`, `convert.py`): `convert`, `validate`, `dump`, `preview-cover`; fiecare rezultat e validat înainte de a fi scris.
+- [x] CONV-8 fonttool: TTF/OTF → formatul nostru de font la mărimile alese, cu intervalele RO + chirilice + punctuație. Alegerea fontului: licență liberă, de exemplu Literata, Noto Serif sau PT Serif (de comparat în simulator). Făcut 2026-10-26 (`tools/fonttool`, 23 de teste): toate trei familiile × 4 stiluri × 16/18/20 px se compilează, 19–41 KB pe față; kerning împrumutat (`kern_as`) pentru literele cu diacritice; înlocuitori pentru glifele lipsă. Alegerea e LAY-7.
+- [x] CONV-9 Intrarea FB2 (obișnuită pentru cărțile rusești). De dorit. Făcut 2026-10-26 (`fb2.py`): FB2 și `.fb2.zip`; testat doar pe o carte sintetică.
+- [x] CONV-10 Teste pe corpusul de test (vezi MEAS). Fiecare carte se convertește și se validează. Făcut 2026-10-26: 66 de teste; toate cele 15 fișiere din corpus se convertesc și se validează (`corpus/README.md`). Deschiderea lor pe dispozitiv așteaptă LAY/FW.
 
-**Done when:** all corpus books convert and validate, and they open on the device.
+**Gata când:** toate cărțile din corpus se convertesc și se validează și se deschid pe dispozitiv.
 
-### LAYOUT: Text layout engine (must-do)
+### LAYOUT: Motorul de paginare a textului (obligatoriu)
 
-**Deliverable:** the layout part of `firmware/components/core`, shared with `sim/`.
-**Thesis:** Text layout.
+**Livrabil:** partea de paginare din `firmware/components/core`, comună cu `sim/`.
+**Lucrare:** paginarea textului.
 
-- [x] LAY-1 Font renderer: glyph lookup, blit to the 1 bpp framebuffer, bold and italic (separate font files). Done 2026-10-26 (`font.c`, `gfx_glyph`): byte-shift blit, 1/64 px pen with kerning.
-- [x] LAY-2 Line breaking v1: greedy, with soft hyphens as break points and justification by distributing spaces. Done 2026-10-26 (`layout.c`): also U+200B, in-word dashes, U+00A0 ties, U+2028, emergency cuts; ~20–30 µs per page on the PC.
-- [x] LAY-3 Paginator:
-  - lines → pages
-  - margins, line spacing, paragraph indent, headings
-  - widow/orphan control (should-have)
+- [x] LAY-1 Desenarea fonturilor: căutarea glifelor, copierea în framebufferul de 1 bpp, bold și italic (fișiere de font separate). Făcut 2026-10-26 (`font.c`, `gfx_glyph`): blit cu deplasare pe octet, creion în 1/64 px cu kerning.
+- [x] LAY-2 Ruperea în rânduri v1: greedy, cu cratimele moi ca puncte de rupere și justificare prin distribuirea spațiilor. Făcut 2026-10-26 (`layout.c`): și U+200B, linii în interiorul cuvintelor, legături U+00A0, U+2028, tăieri de urgență; ~20–30 µs pe pagină pe PC.
+- [x] LAY-3 Paginatorul:
+  - rânduri → pagini
+  - margini, spațierea rândurilor, alineatul paragrafului, titluri
+  - controlul rândurilor văduve/orfane (de dorit)
 
-  Partly done 2026-10-26 (`layout_page`): forward pagination, margins, line and paragraph gaps, indent, headings centred with keep-with-next and chapters on a new page, breaks and ornaments, verse hanging indent, quote margins, footer with chapter and percent. Still open: widows/orphans, going back a page (needs LAY-4's page index).
+  Parțial făcut 2026-10-26 (`layout_page`): paginare înainte, margini, spații între rânduri și paragrafe, alineat, titluri centrate și ținute cu ce urmează, capitole pe pagină nouă, separatoare și ornamente, alineat agățat la versuri, marginile citatelor, subsol cu capitolul și procentul. Încă deschis: rândurile văduve/orfane, pagina înapoi (are nevoie de indexul paginilor din LAY-4).
 
-  Done 2026-10-27: widow and orphan control (`keep_lines`), a heading left at the bottom of a page moves to the next, BREAKs at a page end are skipped so page starts are canonical. Going back a page (`layout_prev`) and finding the page that holds a position (`layout_locate`) lay out forward from the nearest sync point: the book start or a record flagged `PAGE` (new in the format, set on chapter headings by the converter).
-- [ ] LAY-4 Pagination cache plus background pagination task, for page numbers and "x of y". Jumping to a chapter goes through the chapter offsets.
+  Făcut 2026-10-27: controlul rândurilor văduve și orfane (`keep_lines`), un titlu rămas jos pe pagină trece pe următoarea, BREAK-urile de la capătul paginii se sar ca începuturile de pagină să fie canonice. Pagina înapoi (`layout_prev`) și găsirea paginii care conține o poziție (`layout_locate`) paginează înainte de la cel mai apropiat punct de sincronizare: începutul cărții sau o înregistrare cu indicatorul `PAGE` (nou în format, pus de convertor pe titlurile de capitol).
+- [ ] LAY-4 Cache-ul paginării plus un task de paginare în fundal, pentru numerele paginilor și „x din y”. Saltul la un capitol trece prin deplasamentele capitolelor.
 
-  Partly done 2026-10-27 (`pageidx.c`): the page index (8 B per page, built a few pages at a time, binary search) and its `.pg` sidecar (save, load, resume, CRC and layout-hash checks); the simulator footer shows "n / total" once it's complete. Still open: the background task that drives it on the device (with FW-5).
-- [x] LAY-5 Line breaking v2: Knuth–Plass (total-fit) per paragraph, with a memory cap and fallback to greedy for huge paragraphs. Făcut 2026-10-27: `layout.c` (zonă de lucru `layout_fit_t` ~66 KB, max 2048 puncte de rupere, altfel greedy); față de greedy mai puține cratime, de 2–10× mai puține cratime consecutive, spații cu ~30 % mai puțin lățite (vezi Log). Rămâne timpul pe dispozitiv (E6).
-- [x] LAY-6 Simulator: render any book or page to PNG at any setting, a batch mode for experiments, and golden-image tests. Done 2026-10-26 (`sim/`): `pages`, `stats` (whole books: chaining, overhang, timings, page hashes), `compare` (font sheets), `test/run.sh` golden test on a fixture book with every record kind.
-- [x] LAY-7 Visual review: I render comparison sheets and you judge them on the real screen. Candidates: Literata, PT Serif, Noto Serif, and Libron (added 2026-10-27: Latin only, so it needs a Cyrillic fallback). Decided 2026-10-27 (you, from the sheets): **Libron for Latin-script books, PT Serif for Cyrillic, picked automatically by the book's language** (`fontsel.c`), five size steps matched across the two (spec/font-format.md, section 4). Still to confirm on the real screen once the prototype runs.
+  Parțial făcut 2026-10-27 (`pageidx.c`): indexul paginilor (8 B pe pagină, construit câte câteva pagini, căutare binară) și fișierul lui însoțitor `.pg` (salvare, încărcare, reluare, verificări de CRC și de hash al paginării); subsolul din simulator arată „n / total” după ce e complet. Încă deschis: taskul de fundal care îl conduce pe dispozitiv (cu FW-5).
+- [x] LAY-5 Ruperea în rânduri v2: Knuth–Plass (încadrare totală) pe paragraf, cu o limită de memorie și revenire la greedy pentru paragrafele uriașe. Făcut 2026-10-27: `layout.c` (zonă de lucru `layout_fit_t` ~66 KB, max 2048 puncte de rupere, altfel greedy); față de greedy mai puține cratime, de 2–10× mai puține cratime consecutive, spații cu ~30 % mai puțin lățite (vezi Jurnalul). Rămâne timpul pe dispozitiv (E6).
+- [x] LAY-6 Simulatorul: desenarea oricărei cărți sau pagini în PNG la orice setare, un mod în lot pentru experimente și teste cu imagini de referință. Făcut 2026-10-26 (`sim/`): `pages`, `stats` (cărți întregi: înlănțuire, depășire, timpi, hash-uri de pagini), `compare` (foi de fonturi), testul de referință `test/run.sh` pe o carte de test cu fiecare tip de înregistrare.
+- [x] LAY-7 Verificarea vizuală: foi de comparație, judecate pe ecranul real. Candidați: Literata, PT Serif, Noto Serif și Libron (adăugat 2026-10-27: doar latin, deci îi trebuie o rezervă pentru chirilică). Decis 2026-10-27 (tu, după foi): **Libron pentru cărțile în alfabet latin, PT Serif pentru chirilică, ales automat după limba cărții** (`fontsel.c`), cinci trepte de mărime potrivite între cele două (spec/font-format.md, secțiunea 4). Rămâne de confirmat pe ecranul real când prototipul merge.
 
-**Done when:** Romanian, Russian and English books lay out with no overflow, missing glyphs or broken diacritics at every font size. Knuth–Plass beats greedy on the E6 metrics and fits the page-turn time budget.
+**Gata când:** cărțile în română, rusă și engleză se paginează fără depășiri, glife lipsă sau diacritice stricate la fiecare mărime de font. Knuth–Plass e mai bun decât greedy la metricile E6 și încape în bugetul de timp al întoarcerii paginii.
 
-### PCB: Custom board
+### PCB: Placa proprie
 
-**Deliverable:** `hardware/pcb/` with the schematic v2, the layout, fab files (Gerbers, BOM, CPL), the assembled boards and a bring-up report.
-**Thesis:** Hardware design (custom board) and power design.
+**Livrabil:** `hardware/pcb/` cu schema v2, cablajul, fișierele de fabricație (Gerber, BOM, CPL), plăcile asamblate și un raport de punere în funcțiune.
+**Lucrare:** proiectarea hardware (placa proprie) și proiectarea alimentării.
 
-Design direction (my call; part choices get final checks against JLCPCB stock when we design):
-- **MCU:** ESP32-S3-WROOM-1-N16R8 module, with the antenna keep-out respected.
-- **USB-C:** native USB for flashing, logs and mass storage, plus charging input. ESD protection.
-- **Charger:** a single-cell charger with a power path, so it can run while charging. Candidates: BQ24074 / MCP73831 + load sharing. Plus battery protection (DW01 + dual MOSFET, or a protected cell).
-- **3.3 V regulator:** a low-quiescent buck-boost. Candidates: TPS63802, or TPS63020 (same as your module).
-- **Fuel gauge:** MAX17048 (I²C), compared against the ADC divider in the measurements.
-- **Display:** v1 keeps the WeAct module on a header, which is low-risk. Stretch: drive the bare panel through a 24-pin FPC with our own boost circuit (Q4).
-- microSD socket, 3 buttons, power switch, test points on every rail, a UART header, mounting holes matched to the display's 93×48 mm pattern.
-- 4 layers (solid ground plane, good for the antenna and noise) unless cost forces 2.
+Direcția de proiectare (decizia mea; alegerea pieselor se verifică final după stocul JLCPCB la proiectare):
+- **MCU:** modulul ESP32-S3-WROOM-1-N16R8, cu zona liberă a antenei respectată.
+- **USB-C:** USB nativ pentru scrierea flash-ului, jurnale și stocare de masă, plus intrarea de încărcare. Protecție ESD.
+- **Încărcătorul:** un încărcător pentru o celulă cu power path, ca să meargă în timpul încărcării. Candidați: BQ24074 / MCP73831 + împărțirea sarcinii. Plus protecția bateriei (DW01 + MOSFET dublu sau o celulă protejată).
+- **Regulatorul de 3,3 V:** un buck-boost cu curent de repaus mic. Candidați: TPS63802 sau TPS63020 (ca modulul tău).
+- **Indicatorul de baterie:** MAX17048 (I²C), comparat cu divizorul ADC în măsurători.
+- **Ecranul:** v1 păstrează modulul WeAct pe o baretă, ceea ce e puțin riscant. Ambiție: comanda panoului gol printr-un FPC de 24 de pini cu propriul nostru circuit de ridicare a tensiunii (Q4).
+- Soclu microSD, 3 butoane, comutator de alimentare, puncte de test pe fiecare linie, o baretă UART, găuri de prindere potrivite cu tiparul de 93×48 mm al ecranului.
+- 4 straturi (plan de masă continuu, bun pentru antenă și zgomot), dacă prețul nu impune 2.
 
-- [ ] PCB-1 Requirements + parts selection table, with the reason for each part.
-- [ ] PCB-2 Schematic v2 + ERC. Power budget calculation (feeds E3/E4 predictions).
-- [ ] PCB-3 Board outline from the display dimensions + enclosure, placement, routing, DRC with JLCPCB rules.
-- [ ] PCB-4 Design review against a checklist: footprints, polarity, boot/strapping pins, USB pinout, antenna clearance, test points. Read it through with me. Show it to your supervisor if they're willing.
-- [ ] PCB-5 Order: 5 boards, JLCPCB assembly of the fine-pitch parts. I prepare the order files and say exactly what to click.
-- [ ] PCB-6 Hand-solder the big parts (connectors, buttons, battery plug, display header).
-- [ ] PCB-7 Bring-up, step by step:
-  1. current-limited first power
-  2. rails
-  3. charger
-  4. flash
-  5. peripherals
-  6. sleep current
+- [ ] PCB-1 Cerințele + tabelul alegerii pieselor, cu motivul fiecărei piese.
+- [ ] PCB-2 Schema v2 + ERC. Calculul bugetului de consum (alimentează predicțiile E3/E4).
+- [ ] PCB-3 Conturul plăcii din dimensiunile ecranului + carcasă, plasarea, rutarea, DRC cu regulile JLCPCB.
+- [ ] PCB-4 Revizuirea proiectului după o listă de verificare: amprente, polaritate, pinii de boot/strapping, pinii USB, distanța față de antenă, puncte de test. O citești cu mine. O arăți coordonatorului, dacă vrea.
+- [ ] PCB-5 Comanda: 5 plăci, cu asamblarea JLCPCB a pieselor cu pas fin. Fișierele comenzii ies din `make.sh`.
+- [ ] PCB-6 Lipirea manuală a pieselor mari (conectori, butoane, mufa bateriei, bareta ecranului).
+- [ ] PCB-7 Punerea în funcțiune, pas cu pas:
+  1. prima alimentare cu curent limitat
+  2. liniile de alimentare
+  3. încărcătorul
+  4. scrierea flash-ului
+  5. perifericele
+  6. curentul de somn
 
-  Log every bug in a bring-up report.
-- [ ] PCB-8 Add `board_pcb_v1.h`. The firmware runs unchanged otherwise.
-- [ ] PCB-9 If v1 has a blocking bug: a bodge-wire fix, or a v2 respin. There's slack for one respin in April.
+  Fiecare eroare se notează într-un raport de punere în funcțiune.
+- [ ] PCB-8 Adăugarea `board_pcb_v1.h`. În rest firmware-ul rulează neschimbat.
+- [ ] PCB-9 Dacă v1 are o eroare care blochează: o reparație cu fir sau o refacere v2. E rezervă de timp pentru o refacere în aprilie.
 
-**Done when:** the device runs entirely on the custom PCB, and deep-sleep current is measured in microamps.
+**Gata când:** dispozitivul merge în întregime pe PCB-ul propriu, iar curentul de somn adânc se măsoară în microamperi.
 
-### ENC: Enclosure
+### ENC: Carcasa
 
-**Deliverable:** printed case holding the PCB, display, battery, buttons; CAD in `enclosure/`.
-**Thesis:** Mechanical (short section + photos).
+**Livrabil:** o carcasă printată care ține PCB-ul, ecranul, bateria și butoanele; CAD în `enclosure/`.
+**Lucrare:** partea mecanică (o secțiune scurtă + fotografii).
 
-- [ ] ENC-1 Parametric CAD (OpenSCAD or similar). Inputs: display 105.79×53.80 mm with holes 93×48 mm, PCB outline, battery size.
-- [ ] ENC-2 Print it: at the faculty, a maker space or an online service (Q3).
-- [ ] ENC-3 Fit check → revise → final print.
+- [ ] ENC-1 CAD parametric (OpenSCAD sau similar). Intrări: ecranul de 105,79×53,80 mm cu găuri la 93×48 mm, conturul PCB-ului, mărimea bateriei.
+- [ ] ENC-2 Printarea: la facultate, într-un maker space sau la un serviciu online (Q3).
+- [ ] ENC-3 Verificarea potrivirii → revizuire → printul final.
 
-**Done when:** it's handheld, closed, buttons work, USB-C reachable, battery can't move.
+**Gata când:** se ține în mână, e închisă, butoanele merg, USB-C e accesibil, bateria nu se poate mișca.
 
-### MEAS: Measurements and evaluation (must-do)
+### MEAS: Măsurători și evaluare (obligatoriu)
 
-**Deliverable:** `measurements/<exp>/` holds the method, raw CSV data, a script and the generated figures. Every number in the thesis comes from one of these folders.
-**Thesis:** Evaluation.
+**Livrabil:** `measurements/<exp>/` conține metoda, datele CSV brute, un script și figurile generate. Fiecare număr din lucrare vine dintr-unul din aceste dosare.
+**Lucrare:** evaluarea.
 
-Each experiment's method gets written **before** we run it, so results can't steer it.
+Metoda fiecărui experiment se scrie **înainte** de a-l rula, ca rezultatele să n-o poată influența.
 
-| ID | Question | Setup | Metric | When |
+| ID | Întrebare | Montaj | Metrică | Când |
 |---|---|---|---|---|
-| E1 | How long does each refresh mode take? | FW perf log + logic analyzer on BUSY | ms, full/fast/partial, n≥50 | Dec |
-| E2 | How long is a page turn end to end, and where does the time go? | button edge → BUSY release. Breakdown: layout, render, SPI, panel. Light vs deep sleep between turns. | ms, mean/p95 | Feb + May |
-| E3 | How much current does each state draw? | INA226 + logger board in series with the battery for the mA-level states. Deep sleep on the PCB (µA) is below the INA226's ~25 µA resolution with a 0.1 Ω shunt, so it's measured with the multimeter's µA range, with a jumper to bypass the meter during wake. | mA/µA per state, energy per page turn | Feb (DevKit) + May (PCB) |
-| E4 | How long does the battery really last? | auto page-turn mode (1 page/min) until cutoff, both boards | hours/pages measured vs predicted from E3 | Mar (DevKit) + May (PCB) |
-| E5 | Is our format worth it? | 20-book corpus | size (EPUB/TXT/ours ± compression), convert time, open time, chapter-jump time, peak RAM | Feb |
-| E6 | Does better line breaking actually help? | simulator over the corpus: greedy vs Knuth–Plass × hyphenation on/off | adjustment-ratio stats, % hyphenated lines, consecutive hyphens, layout ms/page on device | Feb–Mar |
-| E7 | How often do we need a full refresh? | photos at fixed lighting after N = 1/5/10/20 partial turns | ghosting (visual + contrast from photos) | Jan |
-| E8 | Charging behaviour | USB-C tester | charge time, current curve | May (optional) |
-| E9 | Do real readers like it? | 3–5 people read 20 min, short questionnaire | ratings + comments | May (optional) |
+| E1 | Cât durează fiecare mod de reîmprospătare? | jurnalul perf din FW + analizor logic pe BUSY | ms, completă/rapidă/parțială, n≥50 | dec. |
+| E2 | Cât durează întoarcerea unei pagini cap-coadă și unde se duce timpul? | frontul butonului → eliberarea BUSY. Defalcare: paginare, desenare, SPI, panou. Somn ușor față de somn adânc între pagini. | ms, medie/p95 | feb. + mai |
+| E3 | Cât curent consumă fiecare stare? | INA226 + placă de înregistrare în serie cu bateria pentru stările de ordinul mA. Somnul adânc pe PCB (µA) e sub rezoluția de ~25 µA a INA226 cu un șunt de 0,1 Ω, deci se măsoară cu domeniul de µA al multimetrului, cu un jumper care ocolește aparatul la trezire. | mA/µA pe stare, energie pe pagină întoarsă | feb. (DevKit) + mai (PCB) |
+| E4 | Cât ține de fapt bateria? | modul de întoarcere automată (1 pagină/min) până la pragul de tăiere, pe ambele plăci | ore/pagini măsurate față de cele prezise din E3 | mar. (DevKit) + mai (PCB) |
+| E5 | Merită formatul nostru? | corpus de 20 de cărți | mărime (EPUB/TXT/al nostru ± compresie), timpul de conversie, de deschidere, de salt la capitol, RAM maxim | feb. |
+| E6 | Ajută cu adevărat o rupere mai bună în rânduri? | simulator pe corpus: greedy față de Knuth–Plass × despărțire în silabe pornită/oprită | statistici ale raportului de ajustare, % rânduri cu cratimă, cratime consecutive, ms de paginare/pagină pe dispozitiv | feb.–mar. |
+| E7 | Cât de des e nevoie de o reîmprospătare completă? | fotografii la lumină fixă după N = 1/5/10/20 întoarceri parțiale | urmele (vizual + contrast din fotografii) | ian. |
+| E8 | Comportamentul la încărcare | tester USB-C | timpul de încărcare, curba curentului | mai (opțional) |
+| E9 | Le place cititorilor reali? | 3–5 oameni citesc 20 min, chestionar scurt | note + comentarii | mai (opțional) |
 
-- [ ] MEAS-1 Test corpus: ~20 public-domain books in EN, RO and RU (Project Gutenberg, Wikisource), short and long, plain and with heavy formatting. List them with sources and licenses. In progress: 15 files / 13 books in `corpus/` (`fetch.sh`, README with sources and results). Missing: a real FB2 and a CP1250 Romanian TXT.
-- [ ] MEAS-2 Logger firmware for the INA226 board, plus CSV → figure scripts.
-- [ ] MEAS-3 One-page method sheet per experiment.
-- [ ] MEAS-4 Run them: wiring photos, the raw data stays raw.
-- [ ] MEAS-5 Analysis + figures + a short findings note per experiment. Each note goes straight into the thesis chapter.
+- [ ] MEAS-1 Corpusul de test: ~20 de cărți din domeniul public în EN, RO și RU (Project Gutenberg, Wikisource), scurte și lungi, simple și cu formatare bogată. Listate cu sursele și licențele. În lucru: 15 fișiere / 13 cărți în `corpus/` (`fetch.sh`, README cu surse și rezultate). Lipsesc: un FB2 real și un TXT românesc CP1250.
+- [ ] MEAS-2 Firmware-ul de înregistrare pentru placa INA226, plus scripturile CSV → figură.
+- [ ] MEAS-3 O fișă de metodă de o pagină pentru fiecare experiment.
+- [ ] MEAS-4 Rularea lor: fotografii ale montajului, datele brute rămân brute.
+- [ ] MEAS-5 Analiza + figurile + o notă scurtă cu concluziile fiecărui experiment. Fiecare notă intră direct în capitolul lucrării.
 
-**Done when:** E1–E7 have data for both boards where relevant, with figures.
+**Gata când:** E1–E7 au date pentru ambele plăci, unde e cazul, cu figuri.
 
-### THESIS: Writing and defense
+### THESIS: Redactarea și susținerea
 
-**Deliverable:** the thesis document, slides, a demo, and a backup video.
+**Livrabil:** lucrarea, prezentarea, o demonstrație și un video de rezervă.
 
-In **Romanian**, about **40 pages** (your answer to Q1). The topic is approved. Draft outline with a page budget (appendices on top). It gets adjusted to the faculty template:
+În **română**, cam **40 de pagini** (răspunsul tău la Q1). Tema e aprobată. Ciorna cuprinsului cu un buget de pagini (anexele în plus). Se ajustează după șablonul facultății:
 
-1. Introduction: motivation, goal, contributions (2–3 p)
-2. State of the art:
-   - commercial readers (Kindle, Kobo, PocketBook, which run Linux on application processors)
-   - open-source projects (KOReader, Inkplate, ESP32 reader projects)
-   - e-paper technology
-   - file formats
-   - line-breaking algorithms
+1. Introducere: motivația, scopul, contribuțiile (2–3 p)
+2. Stadiul actual:
+   - cititoarele comerciale (Kindle, Kobo, PocketBook, care rulează Linux pe procesoare de aplicații)
+   - proiectele open-source (KOReader, Inkplate, proiecte de cititoare pe ESP32)
+   - tehnologia e-paper
+   - formatele de fișier
+   - algoritmii de rupere în rânduri
 
    (5–6 p)
-3. Requirements and system architecture (3–4 p)
-4. Hardware: prototype, custom PCB, power design (7–8 p)
-5. Firmware platform (5–6 p)
-6. Book format and converter (4–5 p)
-7. Text layout engine (4–5 p)
-8. Evaluation (MEAS) (6–7 p)
-9. Conclusions and future work (1–2 p)
+3. Cerințele și arhitectura sistemului (3–4 p)
+4. Hardware: prototipul, PCB-ul propriu, proiectarea alimentării (7–8 p)
+5. Platforma de firmware (5–6 p)
+6. Formatul de carte și convertorul (4–5 p)
+7. Motorul de paginare a textului (4–5 p)
+8. Evaluarea (MEAS) (6–7 p)
+9. Concluzii și direcții viitoare (1–2 p)
 
-40 pages is tight for this much work, so the detail goes into the appendices (spec, schematics, BOM, measurement tables). The chapters keep only the decisions and the results.
+40 de pagini e strâmt pentru atâta muncă, deci detaliile merg în anexe (specificația, schemele, BOM-ul, tabelele de măsurători). Capitolele păstrează doar deciziile și rezultatele.
 
-Appendices: schematics, format spec, BOM, test corpus.
+Anexe: scheme, specificația formatului, BOM, corpusul de test.
 
-- [~] TH-1 Faculty requirements. Known: Romanian, ~40 pages, topic approved. Still needed: the template file, citation style, whether appendices count toward the 40 pages, the plagiarism-check rules.
-- [ ] TH-2 State-of-the-art survey with real, checked references. I find and verify sources; no made-up citations.
-- [ ] TH-3 Write each chapter when its phase closes, not all in June. I draft from the Log, the specs and the measurements. You rewrite it in your own voice and make sure you can explain every paragraph.
-- [ ] TH-4 Figures: block diagrams, schematics, measurement plots, layout comparisons.
-- [ ] TH-5 Slides plus demo script. Rehearse, and do a mock defense with me asking committee-style questions.
-- [ ] TH-6 Record a backup demo video, in case the device misbehaves on the day.
+- [~] TH-1 Cerințele facultății. Se știe: română, ~40 de pagini, temă aprobată. Încă trebuie: fișierul șablon, stilul de citare, dacă anexele intră în cele 40 de pagini, regulile verificării antiplagiat.
+- [ ] TH-2 Studiul stadiului actual cu referințe reale, verificate. Găsesc și verific sursele; fără citări inventate.
+- [ ] TH-3 Fiecare capitol se scrie când se închide faza lui, nu toate în iunie. Ciorna pornește din Jurnal, din specificații și din măsurători.
+- [ ] TH-4 Figurile: scheme bloc, scheme electrice, grafice ale măsurătorilor, comparații de paginare.
+- [ ] TH-5 Prezentarea plus scenariul demonstrației. Repetiții și o susținere de probă cu întrebări ca la comisie.
+- [ ] TH-6 Înregistrarea unui video demonstrativ de rezervă, în caz că dispozitivul face figuri în ziua aceea.
 
-### DOCS: Documentation, running the whole time
+### DOCS: Documentația, pe tot parcursul
 
-- After each work session that matters, add a dated **Log** entry in `docs/README.md`: what was done and why.
-- Decisions go in [section 11](#11-decisions) here, with the reason.
-- Photos: `docs/photos/YYYY-MM-DD-<what>.jpg`. Take a lot; they're thesis material. Drop them in, and I'll rename and caption them.
-- Each workstream's "done when" gets checked off here, with the date.
+- După fiecare sesiune de lucru care contează, o intrare datată în **Jurnalul** din `docs/README.md`: ce s-a făcut și de ce.
+- Deciziile merg în [secțiunea 11](#11-decizii) de aici, cu motivul.
+- Fotografiile: `docs/photos/YYYY-MM-DD-<ce>.jpg`. Fă multe; sunt material pentru lucrare. Se redenumesc și primesc legende.
+- „Gata când” al fiecărei direcții se bifează aici, cu data.
 
 ---
 
-## 7. Timeline and milestones
+## 7. Calendarul și etapele
 
-Today is 2026-10-25. Assumed submission: end of July 2027. Winter exams (Jan–Feb) are lighter months for hands-on work.
+Azi e 2026-10-25. Predarea presupusă: sfârșitul lui iulie 2027. Sesiunea de iarnă (ian.–feb.) înseamnă luni mai ușoare pentru munca practică.
 
-| When | Focus | Milestone (done when) |
+| Când | Accent | Etapa (gata când) |
 |---|---|---|
-| **Oct 26 – Nov 8** | Phase 0: setup. HW-1…5, FW-1, git repo, TH-1 (faculty rules, supervisor), order the "Now" parts | **M0:** text on the display, a file read from SD, faculty rules known |
-| **Nov – Dec** | Prototype soldered (HW-6…9). Driver, storage, input, app manager (FW-2…6). SPEC v0.1. Converter TXT + EPUB (CONV-1…3, 7). Greedy layout + simulator (LAY-1, 2, 6). E1. | **M1 (Dec 20):** a converted book reads page by page on the prototype at one font size |
-| **Jan – Feb** | Power manager, settings, apps, USB-MSC (FW-7…13). Hyphenation, fonts, paginator, Knuth–Plass (CONV-4…6, 8; LAY-3…5). E2, E3 (DevKit), E5, E6, E7. PCB-1, PCB-2 start in Feb. Write the chapter 2 draft. | **M2 (Feb 28):** firmware feature-complete on the prototype; DevKit baseline measured |
-| **Mar – Apr** | PCB-3…8: order by **~Mar 15**, boards ~Apr 1, bring-up. E4 (DevKit). ENC. Respin slack in April. Draft chapters 3–7. | **M3 (Apr 30):** the device runs on the custom PCB inside the case |
-| **May** | E2/E3/E4 on the PCB, E8/E9 optional. Bug fixes only, no new features. Draft chapter 8. | **M4 (May 31):** all measurement data in; feature freeze |
-| **Jun – Jul** | Thesis complete, supervisor review rounds, slides, video, mock defense. Buffer weeks. | **M5:** submitted |
+| **26 oct. – 8 nov.** | Faza 0: pregătirea. HW-1…5, FW-1, depozitul git, TH-1 (regulile facultății, coordonatorul), comanda pieselor „Acum” | **M0:** text pe ecran, un fișier citit de pe SD, regulile facultății cunoscute |
+| **nov. – dec.** | Prototipul lipit (HW-6…9). Driverul, stocarea, intrarea, managerul de aplicații (FW-2…6). SPEC v0.1. Convertorul TXT + EPUB (CONV-1…3, 7). Paginare greedy + simulator (LAY-1, 2, 6). E1. | **M1 (20 dec.):** o carte convertită se citește pagină cu pagină pe prototip la o singură mărime de font |
+| **ian. – feb.** | Managerul de energie, setările, aplicațiile, USB-MSC (FW-7…13). Despărțirea în silabe, fonturile, paginatorul, Knuth–Plass (CONV-4…6, 8; LAY-3…5). E2, E3 (DevKit), E5, E6, E7. PCB-1, PCB-2 încep în feb. Ciorna capitolului 2. | **M2 (28 feb.):** firmware-ul complet ca funcții pe prototip; referința DevKit măsurată |
+| **mar. – apr.** | PCB-3…8: comanda pe la **~15 mar.**, plăcile pe la ~1 apr., punerea în funcțiune. E4 (DevKit). ENC. Rezervă pentru refacere în aprilie. Ciornele capitolelor 3–7. | **M3 (30 apr.):** dispozitivul merge pe PCB-ul propriu, în carcasă |
+| **mai** | E2/E3/E4 pe PCB, E8/E9 opțional. Doar reparații de erori, fără funcții noi. Ciorna capitolului 8. | **M4 (31 mai):** toate datele măsurătorilor adunate; funcțiile înghețate |
+| **iun. – iul.** | Lucrarea completă, runde de revizuire cu coordonatorul, prezentarea, videoul, susținerea de probă. Săptămâni de rezervă. | **M5:** predată |
 
-**Rule:** if a milestone slips by more than 2 weeks, we cut should-haves (FB2, 2 bpp fonts, E8/E9, widow control) before touching must-haves.
+**Regulă:** dacă o etapă întârzie mai mult de 2 săptămâni, tăiem din cele de dorit (FB2, fonturi de 2 bpp, E8/E9, controlul rândurilor văduve) înainte să ne atingem de cele obligatorii.
 
-## 8. Priorities
+## 8. Priorități
 
-| Must | Should | Stretch |
+| Obligatoriu | De dorit | Ambiție |
 |---|---|---|
-| Prototype, own EPD driver, firmware platform, apps, power manager | FB2 input | Bare-panel drive circuit on PCB v2 |
-| Format spec + converter (TXT, EPUB) | USB mass storage | 4-level grayscale / antialiased fonts |
-| Layout: reflow, justification, hyphenation, 3+ sizes | Knuth–Plass (greedy is the fallback) | Wi-Fi book upload page |
-| Custom PCB v1 + enclosure | Fuel gauge IC vs ADC comparison | Usability study (E9) |
-| Measurements E1–E7 | Widow/orphan control | |
+| Prototipul, driverul EPD propriu, platforma de firmware, aplicațiile, managerul de energie | Intrarea FB2 | Circuitul de comandă al panoului gol pe PCB v2 |
+| Specificația formatului + convertorul (TXT, EPUB) | Stocare de masă USB | 4 niveluri de gri / fonturi cu antialiasing |
+| Paginarea: rearanjare, justificare, despărțire în silabe, 3+ mărimi | Knuth–Plass (greedy e rezerva) | Pagină Wi-Fi pentru încărcarea cărților |
+| PCB-ul propriu v1 + carcasa | Comparația indicator de baterie IC față de ADC | Studiu de utilizare (E9) |
+| Măsurătorile E1–E7 | Controlul rândurilor văduve/orfane | |
 
-## 9. Shopping list
+## 9. Lista de cumpărături
 
-Prices are rough (RON). I'll check current ones before each purchase.
+Prețurile sunt aproximative (RON). Le verific pe cele actuale înainte de fiecare cumpărătură.
 
-**Now (Phase 0–1)**
-- [ ] Multimeter UT33A, unless your soldering kit has one: ~92. It **must have a µA DC range** for the deep-sleep measurements. The UT33A does (200/2000 µA or 400/4000 µA, depending on the version).
-- [ ] 3–5 tact buttons, SS12D00 slide switch, perfboard, female headers, JST PH2.0 pigtail: ~40–60
-- [ ] Dupont jumper wires, female–female, ~40 pcs, for the smoke test before soldering: ~10–15 (skip if you have them)
-- [ ] Flux (pen or paste), unless the kit has it: ~15–25
-- [ ] Check you have: 2× 100 kΩ resistors and a 100 nF capacitor (battery sense)
-- [ ] USB logic analyzer, 24 MHz 8-channel (Saleae-clone class): ~50–90. Needed for E1/E2 and driver debugging.
-- [ ] INA226 current-sensor module: ~25–45 (INA219 works as a fallback). [Sigmanortec](https://sigmanortec.ro/en/current-and-power-monitor-sensor-ina226-i2c-iic-bidirectional-16bit-27-55v)
-- [ ] Logger board for the INA226. Your old ESP32-WROOM-32D if you still have it; otherwise an ESP32-C3 SuperMini, ~27 at [Sigmanortec](https://sigmanortec.ro/en/esp32-c3-supermini-development-board-33v-wifi-bluetooth) (2026-10-25).
+**Acum (Faza 0–1)**
+- [ ] Multimetru UT33A, dacă trusa de lipit n-are unul: ~92. **Trebuie să aibă domeniu de µA DC** pentru măsurătorile de somn adânc. UT33A are (200/2000 µA sau 400/4000 µA, după versiune).
+- [ ] 3–5 butoane tactile, comutator glisant SS12D00, placă de prototipare, barete mamă, cablu JST PH2.0: ~40–60
+- [ ] Fire jumper Dupont mamă–mamă, ~40 buc., pentru testul de fum dinainte de lipire: ~10–15 (sari dacă le ai)
+- [ ] Flux (pix sau pastă), dacă trusa n-are: ~15–25
+- [ ] De verificat că ai: 2 rezistoare de 100 kΩ și un condensator de 100 nF (măsurarea bateriei)
+- [ ] Analizor logic USB, 24 MHz, 8 canale (clasa clonelor Saleae): ~50–90. Necesar pentru E1/E2 și depanarea driverului.
+- [ ] Modul senzor de curent INA226: ~25–45 (INA219 merge ca rezervă). [Sigmanortec](https://sigmanortec.ro/en/current-and-power-monitor-sensor-ina226-i2c-iic-bidirectional-16bit-27-55v)
+- [ ] Placă de înregistrare pentru INA226. Vechiul tău ESP32-WROOM-32D, dacă îl mai ai; altfel un ESP32-C3 SuperMini, ~27 la [Sigmanortec](https://sigmanortec.ro/en/esp32-c3-supermini-development-board-33v-wifi-bluetooth) (2026-10-25).
 
-**Phase 3 (March)**
-- [ ] PCB order, 5 boards + assembly + shipping: ~$30–60 (~140–280)
-- [ ] Spare LiPo, the same type: ~30–50
-- [ ] Enclosure printing: depends on Q3
-- [ ] USB-C power tester, for E8: ~40–60 (optional)
+**Faza 3 (martie)**
+- [ ] Comanda PCB, 5 plăci + asamblare + livrare: ~30–60 $ (~140–280)
+- [ ] Un LiPo de rezervă, de același tip: ~30–50
+- [ ] Printarea carcasei: depinde de Q3
+- [ ] Tester de alimentare USB-C, pentru E8: ~40–60 (opțional)
 
-**Stretch only:** a bare GDEY037T03 panel, ~$10–15.
+**Doar pentru ambiție:** un panou GDEY037T03 gol, ~10–15 $.
 
-## 10. Risks
+## 10. Riscuri
 
-| Risk | Likelihood | Impact | What we do |
+| Risc | Probabilitate | Impact | Ce facem |
 |---|---|---|---|
-| EPD driver quirks (ghosting, partial-refresh LUTs) | Medium | Medium | GxEPD2 as a reference, logic analyzer, E7 to pick N |
-| Knuth–Plass too slow or too memory-hungry on long paragraphs | Medium | Low | Memory cap + greedy fallback, measured in E6 |
-| PCB v1 has a bug | Medium | High | Review checklist, test points, current-limited bring-up, bodge wires, respin slack in April. The prototype stays a working fallback demo. |
-| Fine-pitch soldering | High if done by hand | Medium | JLCPCB assembles those parts |
-| Your available time (job, exams) | High | High | The simulator lets software move without hardware. Hands-on tasks are batched, and you get a checklist before each one. |
-| LiPo damage or fire | Low | High | Protected circuit, polarity check (HW-5), never charge unattended at first, keep the battery secured in the case |
-| Faculty rules (format, scope approval) clash with the plan | Unknown | High | TH-1 in Phase 0 |
-| Lost work | Low | High | git from day one + remote (Q6) |
-| Missing glyphs or broken diacritics | Medium | Medium | CONV-5 coverage check, RO/RU books in the corpus from day one |
+| Ciudățenii ale driverului EPD (urme, LUT-uri pentru reîmprospătarea parțială) | Medie | Mediu | GxEPD2 ca referință, analizor logic, E7 pentru alegerea lui N |
+| Knuth–Plass prea lent sau prea mâncăcios de memorie pe paragrafe lungi | Medie | Mic | Limită de memorie + revenire la greedy, măsurat în E6 |
+| PCB v1 are o eroare | Medie | Mare | Lista de verificare, puncte de test, punere în funcțiune cu curent limitat, fire de reparație, rezervă pentru refacere în aprilie. Prototipul rămâne o demonstrație de rezervă funcțională. |
+| Lipirea pieselor cu pas fin | Mare dacă e făcută manual | Mediu | Piesele astea le asamblează JLCPCB |
+| Timpul tău disponibil (serviciu, examene) | Mare | Mare | Simulatorul lasă software-ul să avanseze fără hardware. Sarcinile practice se grupează și primești o listă de verificare înainte de fiecare. |
+| Deteriorarea sau aprinderea LiPo | Mică | Mare | Circuit protejat, verificarea polarității (HW-5), la început nu încărca niciodată nesupravegheat, bateria prinsă în carcasă |
+| Regulile facultății (formatul, aprobarea temei) se bat cap în cap cu planul | Necunoscută | Mare | TH-1 în Faza 0 |
+| Muncă pierdută | Mică | Mare | git din prima zi + depozit la distanță (Q6) |
+| Glife lipsă sau diacritice stricate | Medie | Mediu | Verificarea acoperirii CONV-5, cărți RO/RU în corpus din prima zi |
 
-## 11. Decisions
+## 11. Decizii
 
-**Yours**
-- 2026-10-25: Measurements and the text layout engine are must-dos.
-- 2026-10-25: Custom OS on the ESP32 (FreeRTOS + our layers), not a Linux distro.
-- 2026-10-25: I do the build work; you do the hands-on work and the defense.
-- 2026-10-25: Thesis in Romanian, ~40 pages. The topic is approved.
-- 2026-10-25: Custom PCB, ordered for delivery in Romania. *(My reading of "how can I get the custom PCB in Romania". Correct me if that's wrong.)*
-- 2026-10-26: The book format is named IBV, *Ink Book Volume* (also your initials), extension `.ibv`.
+**Ale tale**
+- 2026-10-25: Măsurătorile și motorul de paginare a textului sunt obligatorii.
+- 2026-10-25: Sistem de operare propriu pe ESP32 (FreeRTOS + straturile noastre), nu o distribuție Linux.
+- 2026-10-25: Lucrarea în română, ~40 de pagini. Tema e aprobată.
+- 2026-10-25: PCB propriu, comandat cu livrare în România. *(Așa am înțeles „cum pot face rost de PCB-ul propriu în România”. Corectează-mă dacă e greșit.)*
+- 2026-10-26: Formatul de carte se numește IBV, *Ink Book Volume* (și inițialele tale), extensia `.ibv`.
+- 2026-10-27: Fonturile cărților: Libron pentru alfabetul latin, PT Serif pentru chirilică, alese automat după limba cărții (LAY-7).
+- 2026-10-27: Tot depozitul e în română: documentația, specificațiile, comentariile din cod, textele de pe dispozitiv și din unelte, mesajele de commit. Identificatorii rămân în engleză.
 
-**My calls** (change any of them; each one gets a reason in the thesis)
-- C on ESP-IDF; our own UC8253 driver
-- Portable C core shared with a PC simulator
-- Reflowable binary format, hyphenation done in the converter as soft hyphens, line breaking on the device
-- Greedy line breaking first, then Knuth–Plass
-- Compression per ≤ 32 KB block (ROM miniz/DEFLATE), measured in E5
-- Python converter (CLI only, no GUI)
-- PCB v1 keeps the WeAct display module; fuel gauge IC; 4-layer board
-- JLCPCB with assembly
-- INA226 + logic analyzer for measurements
-- Methods written before experiments
-- Repository layout in section 5
-- Phase 0 smoke test: our own ESP-IDF bring-up app instead of an Arduino + GxEPD2 sketch (2026-10-25). It tests our driver from day one. If the panel stays blank, GxEPD2's example is the fallback, to tell a wiring fault from a driver bug.
+**Deciziile mele** (poți schimba oricare; fiecare primește un motiv în lucrare)
+- C pe ESP-IDF; propriul nostru driver UC8253
+- Nucleu C portabil comun cu un simulator pe PC
+- Format binar rearanjabil, despărțirea în silabe făcută în convertor ca cratime moi, ruperea în rânduri pe dispozitiv
+- Întâi rupere greedy în rânduri, apoi Knuth–Plass
+- Compresie pe bloc de ≤ 32 KB (miniz/DEFLATE din ROM), măsurată în E5
+- Convertor în Python (doar linie de comandă, fără interfață grafică)
+- PCB v1 păstrează modulul de ecran WeAct; IC indicator de baterie; placă cu 4 straturi
+- JLCPCB cu asamblare
+- INA226 + analizor logic pentru măsurători
+- Metodele scrise înainte de experimente
+- Structura depozitului din secțiunea 5
+- Testul de fum din Faza 0: propria noastră aplicație ESP-IDF de punere în funcțiune în loc de o schiță Arduino + GxEPD2 (2026-10-25). Testează driverul nostru din prima zi. Dacă panoul rămâne gol, exemplul GxEPD2 e rezerva, ca să deosebim o greșeală de cablaj de o eroare de driver.
 
-## 12. Open questions
+## 12. Întrebări deschise
 
-These are yours to answer; each one changes the plan:
+Fiecare dintre ele schimbă planul:
 
-- ~~Q1~~ Answered: Romanian, ~40 pages, topic approved. Still to get: the template file and citation style (TH-1).
-- **Q2** The exact submission date and defense date.
-- **Q3** Do you have access to a 3D printer (faculty, maker space, friend), or should we plan an online print service?
-- **Q4** Stretch goal: should PCB v2 drive the bare display panel with our own boost circuit? It's more EE depth, but it costs ~3 extra weeks plus the risk.
-- ~~Q5~~ Answered: the book format is **IBV** (*Ink Book Volume*), extension `.ibv`.
-- **Q6** Should the code go to a private GitHub repo on your account (iliev-blnk) as an off-machine backup?
-- **Q7** Roughly how many hours a week can you give to the hands-on tasks?
+- ~~Q1~~ Răspuns: română, ~40 de pagini, temă aprobată. Încă de obținut: fișierul șablon și stilul de citare (TH-1).
+- **Q2** Data exactă a predării și a susținerii.
+- **Q3** Ai acces la o imprimantă 3D (facultate, maker space, un prieten) sau plănuim un serviciu de printare online?
+- **Q4** Ambiție: PCB v2 să comande panoul gol cu propriul nostru circuit de ridicare a tensiunii? E mai multă electronică, dar costă ~3 săptămâni în plus, plus riscul.
+- ~~Q5~~ Răspuns: formatul de carte e **IBV** (*Ink Book Volume*), extensia `.ibv`.
+- **Q6** Codul să meargă într-un depozit privat pe GitHub pe contul tău (iliev-blnk), ca copie de siguranță în afara calculatorului?
+- **Q7** Cam câte ore pe săptămână poți da sarcinilor practice?

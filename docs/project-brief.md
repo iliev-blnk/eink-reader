@@ -1,76 +1,76 @@
-# Project brief
+# Descrierea proiectului
 
-Bachelor's diploma project: a custom e-ink e-reader with its own firmware (a "custom OS") and its own book format.
+Proiect de diplomă de licență: un cititor de cărți electronice cu ecran e-ink, cu firmware propriu (un „sistem de operare propriu”) și format de carte propriu.
 
-Collected 2026-10-25 from earlier planning chats (Oct 19 parts planning, Oct 25 purchased-parts list).
+Adunat pe 2026-10-25 din discuțiile de planificare de mai devreme (19 oct. planificarea pieselor, 25 oct. lista pieselor cumpărate).
 
-## Hardware: purchased (as of 2026-10-25)
+## Hardware: cumpărat (la 2026-10-25)
 
-| Part | Notes |
+| Piesă | Note |
 |---|---|
-| ESP32-S3 DevKitC-1, 16 MB flash | Replaced the ESP32-WROOM-32D (48 lei). PSRAM (N16R8 or not) unconfirmed. |
-| WeAct Studio 3.7" e-paper module, 416×240 | ~93.92 lei, Elektroweb |
-| TPS63020 buck-boost module, 3.3 V out | 49.09 lei |
-| TP4056 LiPo charger module | |
-| LiPo battery | |
-| microSD card module | |
-| MediaRange microSDHC card | SDHC (FAT32) instead of the 128 GB card, to avoid exFAT issues |
-| USB-C microSD card reader | for loading books from the PC |
-| 15-in-1 60 W soldering kit | |
-| Existing wires, resistors, misc parts | |
+| ESP32-S3 DevKitC-1, flash de 16 MB | A înlocuit ESP32-WROOM-32D (48 lei). PSRAM (N16R8 sau nu) neconfirmat. |
+| Modul e-paper WeAct Studio 3,7", 416×240 | ~93,92 lei, Elektroweb |
+| Modul buck-boost TPS63020, ieșire 3,3 V | 49,09 lei |
+| Modul de încărcare LiPo TP4056 | |
+| Acumulator LiPo | |
+| Modul pentru card microSD | |
+| Card microSDHC MediaRange | SDHC (FAT32) în locul cardului de 128 GB, ca să evităm problemele cu exFAT |
+| Cititor de carduri microSD USB-C | pentru încărcarea cărților de pe PC |
+| Trusă de lipit 15-în-1, 60 W | |
+| Fire, rezistoare și piese diverse existente | |
 
-## Hardware: still open
+## Hardware: încă deschis
 
-- Multimeter (UT33A, 92.25 lei), unless the soldering kit includes one
-- 3–5 tact buttons and an SS12D00 slide switch, unless the kit has them
-- Perfboard, female headers, JST PH2.0 pigtail for the LiPo (**check polarity**)
-- Case: 3D print or a project box
-- Check whether the ESP32-S3 is N16R8 (with PSRAM). It matters less now; see the book format section.
+- Multimetru (UT33A, 92,25 lei), dacă trusa de lipit nu are unul
+- 3–5 butoane tactile și un comutator glisant SS12D00, dacă trusa nu le are
+- Placă de prototipare, barete mamă, cablu JST PH2.0 pentru LiPo (**verificați polaritatea**)
+- Carcasă: printare 3D sau o cutie de proiect
+- De verificat dacă ESP32-S3 e N16R8 (cu PSRAM). Acum contează mai puțin; vezi secțiunea despre formatul cărții.
 
-## Display: WeAct 3.7"
+## Ecranul: WeAct 3,7"
 
-- Panel is likely the GDEY037T03 (UC8253). GxEPD2 class: `GxEPD2_370_GDEY037T03`
-- Refresh times: about 3 s full, 1 s fast, 0.2 s partial
-- 8 pins: VCC, GND, SDA (MOSI), SCL (SCK), CS, D/C, RES, BUSY. 3.3 V logic, so no level shifter is needed.
-- Power is selected by solder bridges: SB4+SB5 for 3.3–5 V, SB3 for 3.3 V only. **Check the default bridges on arrival.**
-- **Set the 4-wire SPI pad before the first power-up.**
-- Board is 105.79 × 53.80 mm. The 3.2 mm mounting holes are about 93 × 48 mm apart (needed for the case).
-- In portrait orientation the page is 240×416, which is narrow.
+- Panoul e probabil GDEY037T03 (UC8253). Clasa GxEPD2: `GxEPD2_370_GDEY037T03`
+- Timpi de reîmprospătare: cam 3 s complet, 1 s rapid, 0,2 s parțial
+- 8 pini: VCC, GND, SDA (MOSI), SCL (SCK), CS, D/C, RES, BUSY. Logică de 3,3 V, deci nu trebuie convertor de nivel.
+- Alimentarea se alege prin punți de lipire: SB4+SB5 pentru 3,3–5 V, SB3 doar pentru 3,3 V. **Verificați punțile implicite la primire.**
+- **Setați padul SPI pe 4 fire înainte de prima alimentare.**
+- Placa are 105,79 × 53,80 mm. Găurile de prindere de 3,2 mm sunt la vreo 93 × 48 mm una de alta (necesar pentru carcasă).
+- În orientare portret pagina are 240×416, adică e îngustă.
 
-## Power
+## Alimentarea
 
-- Path: LiPo → TP4056 OUT → slide switch → TPS63020 IN → TPS63020 OUT → ESP32 3V3 pin.
-- Don't feed the DevKit's 5V pin: its onboard AMS1117 browns out at around 3.9 V.
-- Battery gauge: 2× 100k divider plus 100 nF into an ADC pin.
-- The DevKit draws a few mA in deep sleep (USB-UART chip, LED), so expect battery life in days, not weeks. That's fine for a prototype. If battery life matters at the defense, a LOLIN D32 or FireBeetle-style board fixes it.
-- The display and SD card share SPI, with a separate CS pin each.
-- Buttons go on RTC-capable GPIOs so they can wake the chip from deep sleep.
+- Traseul: LiPo → TP4056 OUT → comutator glisant → TPS63020 IN → TPS63020 OUT → pinul 3V3 al ESP32.
+- Nu alimentați pinul 5V al DevKit-ului: AMS1117 de pe placă cade pe la 3,9 V.
+- Indicatorul bateriei: divizor 2× 100k plus 100 nF într-un pin ADC.
+- DevKit-ul consumă câțiva mA în somn adânc (cipul USB-UART, LED-ul), deci autonomia va fi de zile, nu de săptămâni. Pentru un prototip e în regulă. Dacă autonomia contează la susținere, o placă LOLIN D32 sau de tip FireBeetle rezolvă problema.
+- Ecranul și cardul SD împart SPI, fiecare cu pinul CS propriu.
+- Butoanele merg pe GPIO-uri cu RTC, ca să poată trezi cipul din somn adânc.
 
-## Firmware ("custom OS")
+## Firmware („sistem de operare propriu”)
 
-Custom firmware on ESP-IDF/FreeRTOS, not a from-scratch kernel. It covers:
+Firmware propriu pe ESP-IDF/FreeRTOS, nu un nucleu scris de la zero. Cuprinde:
 
-- Boot screen and launcher (library, settings, sleep)
-- Button input and wake from deep sleep
-- Storage layer on the SD card's FAT filesystem
-- Power management: deep sleep, battery gauge, low-voltage shutdown
-- Display layer: partial refresh on page turns, full refresh every N pages to clear ghosting
+- Ecranul de pornire și lansatorul (bibliotecă, setări, somn)
+- Butoanele și trezirea din somn adânc
+- Stratul de stocare pe sistemul de fișiere FAT al cardului SD
+- Gestionarea energiei: somn adânc, indicatorul bateriei, oprire la tensiune mică
+- Stratul de afișare: reîmprospătare parțială la întoarcerea paginii, completă la fiecare N pagini ca să șteargă urmele (ghosting)
 
-## Custom book format
+## Formatul de carte propriu
 
-A PC-side converter turns EPUB/TXT into the device format, so the device never parses EPUB. That removes the need for PSRAM. The S3 is still useful for native USB and for the 16 MB of flash, which holds the fonts.
+Un convertor pe PC transformă EPUB/TXT în formatul dispozitivului, așa că dispozitivul nu parsează niciodată EPUB. Asta elimină nevoia de PSRAM. S3 rămâne util pentru USB nativ și pentru cei 16 MB de flash, unde stau fonturile.
 
-Design points:
+Puncte de proiectare:
 
-- Header and index: metadata, chapter table, byte offsets for seeking
-- Pre-paginated (simple and fast, but locked to one screen and font) **or** reflowable (needs layout on the device). Not decided yet.
-- Bitmap fonts with Romanian diacritics and Cyrillic
-- Optional compression
-- Bookmarks in a separate small file
+- Antet și index: metadate, tabelul capitolelor, deplasamente în octeți pentru salt
+- Pre-paginat (simplu și rapid, dar legat de un singur ecran și font) **sau** reflowable (are nevoie de paginare pe dispozitiv). Încă nedecis.
+- Fonturi bitmap cu diacritice românești și chirilice
+- Compresie opțională
+- Semnele de carte într-un fișier mic separat
 
-For the thesis, the converter tool, the format spec and the device firmware together make the strongest case.
+Pentru lucrare, convertorul, specificația formatului și firmware-ul dispozitivului luate împreună sunt argumentul cel mai puternic.
 
-## Next steps (open)
+## Pașii următori (deschiși)
 
-- [x] ESP32-S3 pin map: done as the KiCad schematic, 2026-10-25 (see `../hardware/` and the Log in `README.md`)
-- [ ] Book format spec v0.1
+- [x] Harta pinilor ESP32-S3: făcută ca schemă KiCad, 2026-10-25 (vezi `../hardware/` și Jurnalul din `README.md`)
+- [ ] Specificația formatului de carte v0.1

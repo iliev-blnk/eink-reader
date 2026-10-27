@@ -1,71 +1,76 @@
-# Diploma documentation material
+# Materiale pentru documentația diplomei
 
-Raw material for writing up the e-ink reader diploma.
+Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 
-- `MASTER-PLAN.md`: the master plan. Workstreams, tasks, timeline and milestones, the measurement plan, shopping list, risks, decisions and open questions. The single source of truth.
-- `project-brief.md`: what the project is, the parts list, open purchases, display/power notes, firmware scope and the book-format plan.
-- `../hardware/`: the KiCad schematic (`eink-reader.kicad_sch`), its PDF/SVG exports and `gen.py`, which generates them.
-- `../firmware/`: the ESP-IDF firmware. Its README covers build, flash and wiring.
-- `../sim/`: the PC simulator. It builds the firmware's portable core (fonts, IBV reader, layout) and renders screens and book pages to PNG, with whole-book stats and golden-image tests. See its README.
-- `../tools/fonttool/`: TTF/OTF → IBF bitmap fonts, the font format's reference codec (`ibf.py`) and tests. See its README.
-- `../tools/converter/`: the book converter (EPUB / FB2 / TXT → `.ibv`), the format's reference reader, writer and validator (`ibv.py`), and their tests. See its README.
-- `../corpus/`: the test books (`fetch.sh` downloads them; not tracked) and their conversion results.
-- `../spec/`: the book format spec (`book-format.md`), the font format spec (`font-format.md`) and a worked example file (`examples/`).
+- `MASTER-PLAN.md`: planul general. Direcțiile de lucru, sarcinile, calendarul și etapele, planul de măsurători, lista de cumpărături, riscurile, deciziile și întrebările deschise. Singura sursă de adevăr.
+- `project-brief.md`: ce e proiectul, lista pieselor, cumpărăturile deschise, note despre ecran și alimentare, ce cuprinde firmware-ul și planul formatului de carte.
+- `../hardware/`: schema KiCad (`eink-reader.kicad_sch`), exporturile ei PDF/SVG și `gen.py`, care le generează.
+- `../firmware/`: firmware-ul ESP-IDF. README-ul lui descrie compilarea, scrierea în flash și conexiunile.
+- `../sim/`: simulatorul pe PC. Compilează nucleul portabil al firmware-ului (fonturi, cititorul IBV, paginare) și desenează ecrane și pagini de carte în PNG, cu statistici pe cărți întregi și teste cu imagini de referință. Vezi README-ul lui.
+- `../tools/fonttool/`: TTF/OTF → fonturi bitmap IBF, codecul de referință al formatului de font (`ibf.py`) și testele. Vezi README-ul lui.
+- `../tools/converter/`: convertorul de cărți (EPUB / FB2 / TXT → `.ibv`), cititorul, scriitorul și validatorul de referință al formatului (`ibv.py`) și testele lor. Vezi README-ul lui.
+- `../corpus/`: cărțile de test (le descarcă `fetch.sh`; neurmărite în git) și rezultatele conversiei lor.
+- `../spec/`: specificația formatului de carte (`book-format.md`), specificația formatului de font (`font-format.md`) și un fișier exemplu comentat (`examples/`).
 
-## Log
+## Jurnal
 
-### 2026-10-25: schematic v1.0
-- Built in KiCad 10, because sPlan and Proteus use closed formats that can't be generated.
-- Modules: ESP32-S3-DevKitC-1 16 MB (PSRAM unconfirmed; IO35–37 kept free in case it's N16R8), WeAct 3.7" EPD (UC8253, SPI), microSD module, TP4056 (DW01 protection), TPS63020 3.3 V buck-boost, 1S LiPo.
-- Power path: LiPo → TP4056 B+/B− → OUT+ → SW1 → VSYS → TPS63020 → +3V3 (DevKit 3V3 pin, EPD, SD). System GND = TP4056 OUT−.
-- The EPD and SD card share SPI2: SCK IO12, MOSI IO11, MISO IO13. EPD CS/DC/RST/BUSY = IO10/9/8/18, SD CS = IO14.
-- Buttons PREV/NEXT/MENU on IO4/5/6 (RTC-capable, so they can wake from deep sleep), wired to GND with internal pull-ups. Battery sense on IO1 through a 100k/100k divider plus 100 nF.
-- Avoided pins: IO35–37 (used by octal PSRAM on N16R8) and the strapping pins 0/3/45/46.
-- ERC shows 0 violations.
+### 2026-10-25: schema v1.0
+- Făcută în KiCad 10, pentru că sPlan și Proteus folosesc formate închise care nu pot fi generate.
+- Module: ESP32-S3-DevKitC-1 16 MB (PSRAM neconfirmat; IO35–37 lăsați liberi în caz că e N16R8), EPD WeAct 3,7" (UC8253, SPI), modul microSD, TP4056 (protecție DW01), buck-boost TPS63020 de 3,3 V, LiPo 1S.
+- Traseul alimentării: LiPo → TP4056 B+/B− → OUT+ → SW1 → VSYS → TPS63020 → +3V3 (pinul 3V3 al DevKit-ului, EPD, SD). GND-ul sistemului = TP4056 OUT−.
+- EPD-ul și cardul SD împart SPI2: SCK IO12, MOSI IO11, MISO IO13. EPD CS/DC/RST/BUSY = IO10/9/8/18, SD CS = IO14.
+- Butoanele PREV/NEXT/MENU pe IO4/5/6 (cu RTC, ca să poată trezi din somn adânc), legate la GND cu pull-up intern. Măsurarea bateriei pe IO1 printr-un divizor 100k/100k plus 100 nF.
+- Pini evitați: IO35–37 (folosiți de PSRAM-ul octal la N16R8) și pinii de strapping 0/3/45/46.
+- ERC: 0 încălcări.
 
-### 2026-10-25: project brief collected
-- Brought the earlier planning notes (parts, display, power, firmware, book format) into `project-brief.md`.
-- Checked the schematic against them and it matches: 3V3-pin feed (not 5V), shared SPI with separate CS pins, wake buttons on RTC GPIOs, 100k/100k + 100 nF gauge.
-- To do on the hardware: set the EPD's 4-wire SPI pad and check its SB3/SB4/SB5 power bridges before first power-up. Check the JST polarity on the LiPo.
+### 2026-10-25: descrierea proiectului adunată
+- Notele de planificare de mai devreme (piese, ecran, alimentare, firmware, formatul cărții) adunate în `project-brief.md`.
+- Schema verificată față de ele și se potrivește: alimentare pe pinul 3V3 (nu 5V), SPI comun cu pini CS separați, butoane de trezire pe GPIO-uri RTC, indicator 100k/100k + 100 nF.
+- De făcut pe hardware: setarea padului SPI pe 4 fire al EPD-ului și verificarea punților de alimentare SB3/SB4/SB5 înainte de prima alimentare. Verificarea polarității JST la LiPo.
 
-### 2026-10-25: master plan draft v0.9
-- Decisions from the brainstorm: measurements and the text layout engine are must-dos. Custom OS on the ESP32 (FreeRTOS + our own layers), not Linux, because the S3 has no MMU and a distro would mostly be configuration rather than original work. Custom PCB added, because it suits the EE half of the degree and fixes the DevKit's mA-level sleep current, which also gives a before/after measurement. Deadline ~9 months (end of July 2027).
-- Wrote `MASTER-PLAN.md`: 10 workstreams, milestones M0–M5, experiments E1–E9, open questions Q1–Q7.
-- Plan approved as v1.0. Thesis answers recorded (Romanian, ~40 pages, topic approved). Shopping list refined: µA-range multimeter required, jumpers and flux added, Sigmanortec links.
+### 2026-10-25: planul general, ciorna v0.9
+- Decizii din brainstorming: măsurătorile și motorul de paginare a textului sunt obligatorii. Sistem de operare propriu pe ESP32 (FreeRTOS + straturile noastre), nu Linux, pentru că S3 nu are MMU, iar o distribuție ar fi mai mult configurare decât muncă originală. S-a adăugat un PCB propriu, pentru că se potrivește jumătății de electronică a specializării și rezolvă curentul de somn de ordinul mA al DevKit-ului, ceea ce dă și o măsurătoare înainte/după. Termen ~9 luni (sfârșitul lui iulie 2027).
+- Scris `MASTER-PLAN.md`: 10 direcții de lucru, etapele M0–M5, experimentele E1–E9, întrebările deschise Q1–Q7.
+- Planul aprobat ca v1.0. Răspunsurile despre lucrare notate (în română, ~40 de pagini, tema aprobată). Lista de cumpărături rafinată: multimetru cu domeniu de µA obligatoriu, fire jumper și flux adăugate, linkuri Sigmanortec.
 
-### 2026-10-25: Phase 0 firmware, skeleton and bring-up app
-- ESP-IDF v6.1 project in `firmware/`. It builds for the ESP32-S3 with no warnings, and the app uses 343 KB of the 4 MB app partition. Board pin maps are their own component (`boards/`), so the custom PCB can be added later as a second board.
-- Our own UC8253 display driver, written from the command set: full refresh (normal and a ~1 s "fast" waveform), partial refresh of a window, deep sleep, BUSY on an interrupt instead of polling. Each refresh records the time spent in each phase (SPI write, power on, refresh, power off), which is the raw data for E1.
-- Drivers for the SD card (FAT32 over the shared SPI bus, never formats), the buttons (debounce, short and long press, event queue, wake from deep sleep) and the battery ADC (eFuse calibration).
-- Bring-up app: shows chip, memory, SD, battery and wake reason; PREV/NEXT test partial refresh, MENU tests full refresh, holding MENU tests deep sleep and button wake. Prints `PERF,...` lines for every refresh and appends a line per boot to `bringup.txt` on the card.
-- Portable core: 1-bit framebuffer, UTF-8 text, a 16 px Noto Sans bitmap font (Romanian with comma-below ș ț, Cyrillic). The simulator renders the same screens on the PC. The longest strings the firmware can produce were checked there to make sure they fit on the 240 px width.
-- Change from the plan: the smoke test uses this app instead of an Arduino + GxEPD2 sketch, so our driver is tested from the first power-up. GxEPD2 remains the fallback if the panel stays blank.
-- Not yet run on hardware: the parts aren't wired yet.
+### 2026-10-25: firmware Faza 0, scheletul și aplicația de punere în funcțiune
+- Proiect ESP-IDF v6.1 în `firmware/`. Se compilează pentru ESP32-S3 fără avertismente, iar aplicația ocupă 343 KB din partiția de 4 MB. Hărțile pinilor plăcilor sunt o componentă separată (`boards/`), ca PCB-ul propriu să se poată adăuga mai târziu ca a doua placă.
+- Driver propriu pentru ecranul UC8253, scris după setul de comenzi: reîmprospătare completă (normală și o formă de undă „rapidă” de ~1 s), reîmprospătare parțială a unei ferestre, somn adânc, BUSY pe întrerupere în loc de interogare. Fiecare reîmprospătare înregistrează timpul petrecut în fiecare fază (scriere SPI, pornire, reîmprospătare, oprire), adică datele brute pentru E1.
+- Drivere pentru cardul SD (FAT32 pe magistrala SPI comună, nu formatează niciodată), butoane (debounce, apăsare scurtă și lungă, coadă de evenimente, trezire din somn adânc) și ADC-ul bateriei (calibrare din eFuse).
+- Aplicația de punere în funcțiune: arată cipul, memoria, SD-ul, bateria și motivul trezirii; PREV/NEXT testează reîmprospătarea parțială, MENU pe cea completă, MENU ținut apăsat somnul adânc și trezirea din buton. Tipărește rânduri `PERF,...` la fiecare reîmprospătare și adaugă câte un rând la fiecare pornire în `bringup.txt` pe card.
+- Nucleul portabil: framebuffer pe 1 bit, text UTF-8, un font bitmap Noto Sans de 16 px (românesc cu ș ț cu virgulă dedesubt, chirilic). Simulatorul desenează aceleași ecrane pe PC. Acolo s-au verificat cele mai lungi șiruri pe care le poate produce firmware-ul, ca să încapă în lățimea de 240 px.
+- Schimbare față de plan: testul de fum folosește această aplicație în loc de o schiță Arduino + GxEPD2, așa că driverul nostru e testat de la prima alimentare. GxEPD2 rămâne rezerva dacă panoul rămâne gol.
+- Încă nerulat pe hardware: piesele nu sunt încă legate.
 
-### 2026-10-26: case mockup (3D, real size)
-- Interactive 3D mockup of three case options on an A3 cutting mat beside a 19 cm banana: A chin keys (58 × 132 × 12 mm), B side keys (82 × 110 × 12 mm, recommended), C edge keys (58 × 110 × 13 mm).
-- Display geometry is from the GDEY037T03 / WeAct drawings. Case sizes are estimates until the PCB is laid out.
-- The screens are drawn by the firmware's own gfx and font code (`docs/mockup/mock.c`). Reader pages use pyphen soft hyphens and a whole-paragraph line breaker, which is an early preview of the LAYOUT workstream. Sleep and Bring-up are exactly what today's firmware draws, with sample hardware values.
-- Rebuild: see the commands in the header of `docs/mockup/mock.c`, then `python3 docs/mockup/build.py docs/mockup/screens docs/mockup/template.html docs/mockup/eink-mockup.html`.
-- Next: pick a case, then ENC-1 (CAD) and the PCB outline.
+### 2026-10-26: macheta carcasei (3D, mărime reală)
+- Machetă 3D interactivă a trei variante de carcasă pe un covoraș de tăiere A3 lângă o banană de 19 cm: A butoane jos (58 × 132 × 12 mm), B butoane lateral (82 × 110 × 12 mm, recomandată), C butoane pe margine (58 × 110 × 13 mm).
+- Geometria ecranului e din desenele GDEY037T03 / WeAct. Mărimile carcaselor sunt estimări până se proiectează PCB-ul.
+- Ecranele sunt desenate cu codul gfx și de fonturi al firmware-ului (`docs/mockup/mock.c`). Paginile de lectură folosesc cratime moi din pyphen și o rupere în rânduri pe tot paragraful, o previzualizare timpurie a direcției LAYOUT. Ecranele Sleep și Bring-up sunt exact ce desenează firmware-ul de azi, cu valori hardware de exemplu.
+- Refacerea: comenzile din antetul `docs/mockup/mock.c`, apoi `python3 docs/mockup/build.py docs/mockup/screens docs/mockup/template.html docs/mockup/eink-mockup.html`.
+- Urmează: alegerea unei carcase, apoi ENC-1 (CAD) și conturul PCB-ului.
 
-### 2026-10-26: book format spec v0.1 (SPEC-1)
-- `spec/book-format.md`: byte-level layout of the header, section directory, META, TOC, block index, records and cover; device reading algorithm and RAM budget; sidecar files; validator rules; versioning; a table of design choices with the alternatives turned down; preliminary sizes. Named IBV (Q5), extension `.ibv`.
-- Reference codec `tools/converter/ibv.py` (write, parse, validate, dump, and `from-lines` for the mockup texts) with 15 tests. One test flips every bit of a sample file; it found that a damaged directory tag went unnoticed, so the header gained a directory CRC.
-- Worked example `spec/examples/example.ibv` (240 B, uncompressed), annotated byte by byte in the spec. Rebuild with `python3 spec/examples/make_example.py`.
-- Two changes to the plan: compression per ≤ 32 KB block instead of per chapter (Moara's longest chapter is 37 KB, a TXT book is one chapter), and sidecars keyed by a content hash in `/.ibv/` instead of `<book>.pos`.
-- Preliminary sizes on the four mockup books: 35–50 % of the plain text at 16 KB blocks, about 1.3× whole-file gzip. Soft hyphens add 18.5 % to the raw text of Moara. Not E5 yet (needs the 20-book corpus and on-device timings).
-- Q5 decided: the format is **IBV**, *Ink Book Volume* (also the author's initials), extension `.ibv`. Renamed the codec to `tools/converter/ibv.py`.
-- Next: SPEC-2 review.
+### 2026-10-26: specificația formatului de carte v0.1 (SPEC-1)
+- `spec/book-format.md`: structura la nivel de octet a antetului, directorului de secțiuni, META, TOC, indexului de blocuri, înregistrărilor și copertei; algoritmul de citire pe dispozitiv și bugetul de RAM; fișierele însoțitoare; regulile validatorului; versionarea; un tabel al alegerilor de proiectare cu alternativele respinse; mărimi preliminare. Numit IBV (Q5), extensia `.ibv`.
+- Codecul de referință `tools/converter/ibv.py` (scriere, citire, validare, afișare și `from-lines` pentru textele machetei) cu 15 teste. Un test inversează fiecare bit al unui fișier exemplu; a găsit că o etichetă de director stricată trecea neobservată, așa că antetul a primit un CRC al directorului.
+- Fișierul exemplu `spec/examples/example.ibv` (240 B, necomprimat), comentat octet cu octet în specificație. Se reface cu `python3 spec/examples/make_example.py`.
+- Două schimbări față de plan: compresie pe bloc de ≤ 32 KB în loc de pe capitol (cel mai lung capitol din Moara are 37 KB, iar o carte TXT e un singur capitol) și fișiere însoțitoare identificate după un hash al conținutului în `/.ibv/` în loc de `<book>.pos`.
+- Mărimi preliminare pe cele patru cărți ale machetei: 35–50 % din textul simplu la blocuri de 16 KB, cam 1,3× gzip pe tot fișierul. Cratimele moi adaugă 18,5 % la textul brut din Moara. Încă nu e E5 (îi trebuie corpusul de 20 de cărți și timpi pe dispozitiv).
+- Q5 decisă: formatul e **IBV**, *Ink Book Volume* (și inițialele autorului), extensia `.ibv`. Codecul redenumit `tools/converter/ibv.py`.
+- Urmează: revizuirea SPEC-2.
 
-### 2026-10-26: book converter (CONV-1…7, 9, 10)
-- `tools/converter/convert.py`: `convert` (EPUB 2/3, FB2, `.fb2.zip`, TXT; single book or batch), `validate`, `dump`, `preview-cover`. Every output is validated before it is written.
-- Readers `txt.py`, `epub.py`, `fb2.py` fill a shared `doc.Builder`. `doc.finish()` normalizes (`textnorm.py`), maps missing glyphs (`glyphs.py`), turns `<br>`-joined short lines into verse, tidies breaks, hyphenates prose (`hyphenate.py`, own Liang + TeX patterns), splits long paragraphs and resolves the TOC. Covers: `cover.py`, serpentine Floyd–Steinberg to 1 bpp.
-- TXT: encodings scored per word (both Dubrovsky files, KOI8-R and CP1251, give byte-identical books); Gutenberg and lib.ru headers become metadata; printed contents lists aren't turned into TOC entries.
-- Validator: text must also be NFC (added to spec rule 5).
-- Tests: `test_convert.py`, 51 tests on synthetic EPUB/FB2/TXT inputs plus `TestCorpus`; 66 with `test_ibv.py`, all passing.
-- Corpus (MEAS-1, partly): `corpus/fetch.sh` downloads 15 files / 13 books (EN 6, RO 5, RU 4, counting the TXT copies). All convert and validate in 0.4–3.2 s each; table in `corpus/README.md`. Moby-Dick: 7 Greek/Hebrew letters missing from the font.
-- Still open: a real FB2 book and a CP1250 Romanian TXT for the corpus; ~5 more books to reach 20; CONV-8 (fonttool) separately; opening the books on the device needs LAY/FW.
+### 2026-10-26: convertorul de cărți (CONV-1…7, 9, 10)
+- `tools/converter/convert.py`: `convert` (EPUB 2/3, FB2, `.fb2.zip`, TXT; o carte sau un lot), `validate`, `dump`, `preview-cover`. Fiecare rezultat e validat înainte de a fi scris.
+- Cititoarele `txt.py`, `epub.py`, `fb2.py` umplu un `doc.Builder` comun. `doc.finish()` normalizează (`textnorm.py`), înlocuiește glifele lipsă (`glyphs.py`), transformă rândurile scurte legate cu `<br>` în versuri, ordonează separatoarele, desparte în silabe proza (`hyphenate.py`, Liang propriu + modele TeX), împarte paragrafele lungi și rezolvă cuprinsul. Coperte: `cover.py`, Floyd–Steinberg în serpentină la 1 bpp.
+- TXT: codificările se punctează pe cuvânt (ambele fișiere Dubrovski, KOI8-R și CP1251, dau cărți identice la nivel de octet); antetele Gutenberg și lib.ru devin metadate; cuprinsurile tipărite nu devin intrări de cuprins.
+- Validatorul: textul trebuie să fie și NFC (adăugat la regula 5 din specificație).
+- Teste: `test_convert.py`, 51 de teste pe intrări sintetice EPUB/FB2/TXT plus `TestCorpus`; 66 cu `test_ibv.py`, toate trec.
+- Corpusul (MEAS-1, parțial): `corpus/fetch.sh` descarcă 15 fișiere / 13 cărți (EN 6, RO 5, RU 4, cu tot cu copiile TXT). Toate se convertesc și se validează în 0,4–3,2 s fiecare; tabelul e în `corpus/README.md`. Moby-Dick: 7 litere grecești/ebraice lipsă din font.
+- Încă deschis: o carte FB2 reală și un TXT românesc CP1250 pentru corpus; încă ~5 cărți până la 20; CONV-8 (fonttool) separat; deschiderea cărților pe dispozitiv are nevoie de LAY/FW.
+
+### 2026-10-27: documentația în română (pasul 1 din 3)
+- Proiectul e pentru facultate, deci tot depozitul trece în română: documentele și specificațiile, comentariile din cod, textele de pe dispozitiv și din unelte, mesajele de commit de acum înainte. Identificatorii (variabile, funcții, nume de fișiere, nume de câmpuri din formate) rămân în engleză. Decizia e trecută în planul general, secțiunea 11.
+- Pasul 1, făcut: planul general, descrierea proiectului, acest jurnal, cele două specificații (IBV și IBF) și fiecare README (firmware, simulator, convertor, modele de despărțire, fonttool, corpus). Octeții, câmpurile, etichetele și codurile magice din exemplele hex au rămas neschimbate; doar comentariile lor sunt traduse.
+- Rămân: pasul 2, comentariile din C și Python; pasul 3, textele afișate de dispozitiv, simulator și unelte (după care se verifică imaginile de referință).
 
 ### 2026-10-27: despărțirea în rânduri prin încadrare totală, Knuth–Plass (LAY-5)
 - Paragrafele și citatele aliniate stânga-dreapta se rup acum în rânduri tot odată (Knuth și Plass, 1981, în forma din TeX), nu rând cu rând (greedy). Dintre toate felurile de a rupe paragraful se alege cel cu penalizarea totală cea mai mică: un rând costă cu atât mai mult cu cât spațiile lui se lățesc sau se îngustează (100·r³), iar cratimele, două cratime la rând și o cratimă pe penultimul rând costă în plus.
@@ -75,36 +80,36 @@ Raw material for writing up the e-ink reader diploma.
 - Constantele s-au ales printr-o baleiere (`-DSTRETCH_NUM`, `-DHYPHEN` etc.): cu spațiul care se lățește doar cu ½ din el, ca în TeX, la 216 px doar ~10 % din paragrafe treceau de prima trecere, iar penalizările pentru cratime nu mai contau. Cu lățire 2× trec 75–80 %, iar cratima 100 / două cratime 100000 dau compromisul de mai sus. Badness-ul nu mai e plafonat la 10000, ca a doua trecere să deosebească un rând larg de unul și mai larg.
 - `sim --greedy` pentru comparații, `SIM_FIT=1` afișează câte paragrafe au trecut de fiecare trecere. `LAYOUT_VERSION` 3, iar hash-ul de layout include modul de rupere. Imaginile de referință ale configurației justificate s-au regenerat după o verificare vizuală (cea ragged nu s-a schimbat).
 
-### 2026-10-27: book fonts decided, picked by language (LAY-7)
-- Decision (yours, from the comparison sheets): Libron for Latin-script books, PT Serif for Cyrillic ones. The reader never picks a family: the device takes it from the book's META `language`.
-- `fontsel.c` (portable core): `fontsel_cyrillic(lang)` reads the BCP 47 tag (Cyrillic languages ru, uk, be, bg, sr, mk, kk and others; a `Cyrl` or `Latn` script subtag wins, so `sr-Latn` is Libron), `fontsel_pick(lang, step)` gives the family and size, `fontsel_path` the file name in `/fonts/`.
-- One size setting with five steps, each a pair of sizes matched on x-height and on page counts (Pride and Prejudice: Libron 15/16/17/18/20 = 1,541/1,845/2,081/2,370/2,844 pages, PT Serif 16/17/18/19/21 = 1,601/1,803/2,042/2,302/2,753). Default is step 3, Libron 17 / PT Serif 18, so a reader who switches between a Romanian and a Russian book sees the same text size.
-- The converter now checks each book against its own font's characters (`glyphs.charset_for`): a Latin-script book gets no Cyrillic and none of Ĳ ĳ ŉ ſ (ſ → s). Before this, a Cyrillic word in an English book would have passed the converter and shown as boxes on the device. A test checks that the converter's language list matches `fontsel.c`. 69 converter tests pass.
-- `sim --fonts DIR [--size N]` picks the font per book as the device does; `stats` has a new `miss` column (characters with no glyph in the book's font). `run.sh` paginates the corpus a second time in the device fonts and fails if any book has a missing glyph. All 15 pass with 0 (forcing Libron onto *Dubrovsky* gives 108,792, so the check works). Firmware builds.
+### 2026-10-27: fonturile cărților decise, alese după limbă (LAY-7)
+- Decizia (luată de autor după foile de comparație): Libron pentru cărțile în alfabet latin, PT Serif pentru cele în chirilică. Cititorul nu alege niciodată o familie: dispozitivul o ia din `language` din META cărții.
+- `fontsel.c` (nucleul portabil): `fontsel_cyrillic(lang)` citește eticheta BCP 47 (limbi chirilice ru, uk, be, bg, sr, mk, kk și altele; o subetichetă de scriere `Cyrl` sau `Latn` are prioritate, deci `sr-Latn` e Libron), `fontsel_pick(lang, step)` dă familia și mărimea, `fontsel_path` numele fișierului din `/fonts/`.
+- O singură setare de mărime cu cinci trepte, fiecare o pereche de mărimi potrivite după înălțimea x și după numărul de pagini (Pride and Prejudice: Libron 15/16/17/18/20 = 1.541/1.845/2.081/2.370/2.844 de pagini, PT Serif 16/17/18/19/21 = 1.601/1.803/2.042/2.302/2.753). Implicit e treapta 3, Libron 17 / PT Serif 18, așa că cine trece de la o carte românească la una rusească vede aceeași mărime a textului.
+- Convertorul verifică acum fiecare carte după caracterele fontului ei (`glyphs.charset_for`): o carte în alfabet latin nu primește chirilice și nici Ĳ ĳ ŉ ſ (ſ → s). Înainte, un cuvânt chirilic într-o carte englezească ar fi trecut de convertor și ar fi apărut ca pătrățele pe dispozitiv. Un test verifică că lista de limbi a convertorului se potrivește cu `fontsel.c`. Trec 69 de teste ale convertorului.
+- `sim --fonts DIR [--size N]` alege fontul pe carte ca dispozitivul; `stats` are o coloană nouă `miss` (caractere fără glifă în fontul cărții). `run.sh` paginează corpusul a doua oară în fonturile dispozitivului și eșuează dacă vreo carte are o glifă lipsă. Toate cele 15 trec cu 0 (cu Libron forțat pe *Dubrovski* ies 108.792, deci verificarea funcționează). Firmware-ul se compilează.
 
-### 2026-10-27: Libron as a fourth font candidate (LAY-7)
-- Libron (Nico Verbruggen, OFL, from Readerly / Newsreader) is made for e-readers. It covers Romanian fully, ș ț and the cedilla forms included, but has **no Cyrillic**, so a Russian book set in it would show U+FFFD boxes. Using it means a second font for Cyrillic books (picked from the book's language), or Libron only for Latin-script books.
-- The plain release has very tight line spacing (19 px lines at 18 px), so the accents on ș and ț nearly touch the line above. The "R" release has relaxed spacing and is the one we use: at 16 px it has a 23 px line and a 9 px x-height, about the same as Literata 16.
-- It's narrow. Pages for Pride and Prejudice / Slavici / Frankenstein: Literata 16 2,105 / 767 / 1,214; PT Serif 18 2,042 / 747 / 1,170; Libron 16 1,845 / 671 / 1,056; Libron 17 2,081 / 756 / 1,198; Libron 18 2,370 / 857 / 1,365. Libron 17 is about as dense as the current two favourites, and its narrower letters leave fewer wide gaps in justified lines.
-- `fetch-fonts.sh` downloads Libron_R v0.32, and `fonttool.py family libron` builds it (unhinted, so grey rendering at threshold 128), 31–36 KB per face. Sheets are in `tools/fonttool/out/sheets/libron-vs-{en,ro}.png`.
-- Like PT Serif, Libron has a Reserved Font Name. Our IBF bitmaps are a converted version, so before release the name shown on the device needs checking against the OFL (or permission from the author).
+### 2026-10-27: Libron ca al patrulea font candidat (LAY-7)
+- Libron (Nico Verbruggen, OFL, din Readerly / Newsreader) e făcut pentru cititoare electronice. Acoperă complet româna, cu tot cu ș ț și formele cu sedilă, dar **nu are chirilice**, deci o carte rusească culeasă cu el ar arăta pătrățele U+FFFD. Folosirea lui înseamnă un al doilea font pentru cărțile chirilice (ales după limba cărții) sau Libron doar pentru cărțile în alfabet latin.
+- Versiunea simplă are spațiere între rânduri foarte strânsă (rânduri de 19 px la 18 px), așa că accentele de pe ș și ț aproape ating rândul de deasupra. Versiunea „R” are spațiere relaxată și pe ea o folosim: la 16 px are rând de 23 px și înălțime x de 9 px, cam cât Literata 16.
+- E îngust. Pagini pentru Pride and Prejudice / Slavici / Frankenstein: Literata 16 2.105 / 767 / 1.214; PT Serif 18 2.042 / 747 / 1.170; Libron 16 1.845 / 671 / 1.056; Libron 17 2.081 / 756 / 1.198; Libron 18 2.370 / 857 / 1.365. Libron 17 e cam la fel de dens ca cei doi favoriți de până acum, iar literele lui mai înguste lasă mai puține goluri late în rândurile justificate.
+- `fetch-fonts.sh` descarcă Libron_R v0.32, iar `fonttool.py family libron` îl compilează (fără hinting, deci desenare gray cu pragul 128), 31–36 KB pe față. Foile sunt în `tools/fonttool/out/sheets/libron-vs-{en,ro}.png`.
+- Ca și PT Serif, Libron are un Reserved Font Name. Bitmapurile noastre IBF sunt o versiune convertită, deci înainte de lansare numele afișat pe dispozitiv trebuie verificat față de OFL (sau cerută permisiunea autorului).
 
-### 2026-10-27: widows/orphans, paging back, page index (LAY-3, most of LAY-4)
-- Widow and orphan control: when a page fills mid-paragraph, lines move so no paragraph leaves a single line at the bottom or top of a page (a 2-line paragraph moves whole). A heading left at the bottom of a page moves with what follows. Over the corpus it takes widows and orphans from up to 667 / 687 (pg1322, poetry) to 0 in every book, for 0.5–4.7 % more pages. Off with `--no-keep-lines`; it's part of `layout_hash`.
-- Going back a page: page breaks depend on the pages before, so the layout lays out forward from the nearest *sync point* until it reaches the current page. At first the only sync points were level-1 headings, but in an EPUB level 1 is usually just the book title, so going back cost the whole book.
-- Fix: new format flag `PAGE` (bit 6, spec 0.1 changelog): "this record starts a page when chapters start pages". The converter sets it with a heuristic: a heading level is a chapter level if its sections' median length is ≥ 3,000 B, and a heading on it gets `PAGE` if its own section is ≥ 750 B (so short poems that share a level with chapters don't) and it doesn't directly follow another heading. Spine files were rejected as chapter marks: Gutenberg splits them by size, mid-text. Test `test_chapters_start_pages`; 67 converter tests pass.
-- Going back now lays out 13–56 pages on average (max 191) in books with chapters. Books without (pg1322, pg14741, pg16527, pg35323) still cost about half the book, so they rely on the index.
-- Page index (`pageidx.c`): every page start, 8 B per page, built incrementally, found by binary search, saved as the `.pg` sidecar. FATFS can't rename over a file, so a save deletes the old one first (spec section 6 corrected). Whole corpus at the default UI font: 7–68 ms to index a book on the PC, 16–70 µs per page.
-- `sim stats` checks per book: pages chain, every `layout_prev` lands on the previous start, `layout_locate` and `pageidx_find` agree, prev of the first page is RANGE, the sidecar round-trips and rejects a different layout or a flipped byte. All 15 books pass. Goldens updated after review (orphans moved, a late heading moved, "n / 10" footers).
-- Firmware still builds. Still open: the background pagination task on the device (with FW-5), Knuth–Plass (LAY-5), LAY-7 font pick.
+### 2026-10-27: rânduri văduve/orfane, pagina înapoi, indexul paginilor (LAY-3, cea mai mare parte din LAY-4)
+- Controlul rândurilor văduve și orfane: când o pagină se umple în mijlocul unui paragraf, rândurile se mută ca niciun paragraf să nu lase un singur rând jos sau sus pe pagină (un paragraf de 2 rânduri se mută întreg). Un titlu rămas jos pe pagină se mută cu ce urmează. Pe corpus scade rândurile văduve și orfane de la până la 667 / 687 (pg1322, poezie) la 0 în fiecare carte, cu 0,5–4,7 % mai multe pagini. Se oprește cu `--no-keep-lines`; face parte din `layout_hash`.
+- Pagina înapoi: rupturile de pagină depind de paginile dinainte, așa că paginarea pornește înainte de la cel mai apropiat *punct de sincronizare* până ajunge la pagina curentă. La început singurele puncte de sincronizare erau titlurile de nivel 1, dar într-un EPUB nivelul 1 e de obicei doar titlul cărții, deci o pagină înapoi costa toată cartea.
+- Rezolvarea: un indicator nou în format, `PAGE` (bitul 6, jurnalul de schimbări al specificației 0.1): „înregistrarea asta începe o pagină când capitolele încep pagini”. Convertorul îl pune după o euristică: un nivel de titlu e nivel de capitol dacă mediana lungimii secțiunilor lui e ≥ 3.000 B, iar un titlu de pe el primește `PAGE` dacă propria secțiune are ≥ 750 B (ca poeziile scurte care împart nivelul cu capitolele să nu-l primească) și nu urmează direct după alt titlu. Fișierele din spine au fost respinse ca semne de capitol: Gutenberg le împarte după mărime, în mijlocul textului. Testul `test_chapters_start_pages`; trec 67 de teste ale convertorului.
+- O pagină înapoi paginează acum în medie 13–56 de pagini (maximum 191) în cărțile cu capitole. Cele fără (pg1322, pg14741, pg16527, pg35323) încă costă cam jumătate de carte, deci se bazează pe index.
+- Indexul paginilor (`pageidx.c`): începutul fiecărei pagini, 8 B pe pagină, construit treptat, căutat binar, salvat ca fișierul însoțitor `.pg`. FATFS nu poate redenumi peste un fișier, deci o salvare îl șterge întâi pe cel vechi (secțiunea 6 a specificației corectată). Tot corpusul la fontul implicit de interfață: 7–68 ms pentru indexarea unei cărți pe PC, 16–70 µs pe pagină.
+- `sim stats` verifică pe fiecare carte: paginile se înlănțuie, fiecare `layout_prev` ajunge la începutul precedent, `layout_locate` și `pageidx_find` sunt de acord, pagina dinaintea primei e RANGE, fișierul însoțitor se salvează și se recitește corect și respinge o altă paginare sau un octet inversat. Trec toate cele 15 cărți. Imaginile de referință actualizate după verificare (rânduri orfane mutate, un titlu de la final mutat, subsoluri „n / 10”).
+- Firmware-ul încă se compilează. Încă deschis: taskul de paginare în fundal pe dispozitiv (cu FW-5), Knuth–Plass (LAY-5), alegerea fontului LAY-7.
 
-### 2026-10-26: fonts, layout engine and book simulator (SPEC-3, CONV-8, LAY-1, 2, 6, part of 3)
-- Font format IBF v0.1, `spec/font-format.md`: 96-byte header, Unicode ranges, glyph table, bitmaps, kerning in 1/64 px. Accented letters borrow their base letter's kerning (`kern_as`) and only the pairs where that's wrong are stored, which took Literata from 7,596 pairs (45 KB) to 3,844. Missing glyphs get stand-ins (U+2011 → '-', an accented letter → its base).
-- `tools/fonttool`: `build`, `family`, `c` (C tables for the built-in UI fonts), `validate`, `dump`, `sheet`; reference codec `ibf.py`; 23 tests. Literata, PT Serif and Noto Serif build in 4 styles at 16/18/20 px, 19–41 KB per face.
-- A bug the first rendered pages showed: Literata swaps glyphs by optical size (OpenType feature variations). Advances were measured through HarfBuzz but bitmaps rendered by FreeType alone, so they came from different glyphs and every italic "w" had a gap after it. Bitmaps now go through HarfBuzz too; a test covers it.
-- Firmware core (portable C, also built by the simulator): `font.c` (loads an IBF in place and checks every spec rule), `gfx_glyph` (byte-shift blit), `crc32.c`, `ibv.c` (IBV reader: header, sections, two-block cache, CRC per block, style runs), `inflate_rom.c` (ESP32-S3 ROM miniz; the simulator uses zlib), `layout.c` (greedy line breaking with soft hyphens and justification in 1/64 px, pagination). The firmware still builds: 346 KB app.
-- Layout rules: PARA justified with an indent; QUOTE with both margins; VERSE left with a hanging indent; HEADING centred, kept with two lines after it, level 1 on a new page; BREAK as a blank line or "* * *", dropped at the top of a page; CONT continues without indent or gap. Breaks at spaces, soft hyphens, U+200B and dashes inside words; U+00A0 stretches but doesn't break.
-- `sim`: `pages` (book → PNGs, with cover and footer: chapter + percent), `stats` (paginates whole books, checks that pages chain and advance and how far ink leaves the text area, times it, hashes every page), `compare` (one page side by side in several fonts). Golden test `sim/test/run.sh` on `sim/test/layout.ibv`, a fixture with every record kind and special character.
-- All 15 corpus books paginate in every font: 20–50 µs per page on the PC, ink at most 1–4 px outside the text area (italic overhang). Pride and Prejudice: 2,057 pages in Literata 16, 1,994 in PT Serif 18.
-- Ready for LAY-7: comparison sheets of the three fonts (EN and RU) and of Literata at 16/18/20.
-- Still open: LAY-3 widows/orphans and paging backwards (LAY-4), Knuth–Plass (LAY-5, greedy leaves wide gaps on 216 px lines), running the layout on the device (needs the prototype).
+### 2026-10-26: fonturi, motorul de paginare și simulatorul de cărți (SPEC-3, CONV-8, LAY-1, 2, 6, o parte din 3)
+- Formatul de font IBF v0.1, `spec/font-format.md`: antet de 96 de octeți, intervale Unicode, tabelul glifelor, bitmapuri, kerning în 1/64 px. Literele cu diacritice împrumută kerningul literei de bază (`kern_as`) și se păstrează doar perechile unde asta e greșit, ceea ce a dus Literata de la 7.596 de perechi (45 KB) la 3.844. Glifele lipsă primesc înlocuitori (U+2011 → '-', o literă cu diacritic → litera de bază).
+- `tools/fonttool`: `build`, `family`, `c` (tabele C pentru fonturile de interfață incluse), `validate`, `dump`, `sheet`; codecul de referință `ibf.py`; 23 de teste. Literata, PT Serif și Noto Serif se compilează în 4 stiluri la 16/18/20 px, 19–41 KB pe față.
+- O eroare arătată de primele pagini desenate: Literata schimbă glifele după mărimea optică (OpenType feature variations). Avansurile se măsurau prin HarfBuzz, dar bitmapurile se desenau doar cu FreeType, deci veneau de la glife diferite și fiecare „w” cursiv avea un gol după el. Acum și bitmapurile trec prin HarfBuzz; un test acoperă cazul.
+- Nucleul firmware-ului (C portabil, compilat și de simulator): `font.c` (încarcă un IBF pe loc și verifică fiecare regulă din specificație), `gfx_glyph` (blit cu deplasare pe octet), `crc32.c`, `ibv.c` (cititorul IBV: antet, secțiuni, cache de două blocuri, CRC pe bloc, intervale de stil), `inflate_rom.c` (miniz din ROM-ul ESP32-S3; simulatorul folosește zlib), `layout.c` (rupere greedy în rânduri cu cratime moi și justificare în 1/64 px, paginare). Firmware-ul încă se compilează: aplicație de 346 KB.
+- Regulile de paginare: PARA justificat cu alineat; QUOTE cu ambele margini; VERSE la stânga cu alineat agățat; HEADING centrat, ținut cu două rânduri după el, nivelul 1 pe pagină nouă; BREAK ca rând gol sau „* * *”, scos sus pe pagină; CONT continuă fără alineat sau spațiu. Rupturi la spații, cratime moi, U+200B și linii din interiorul cuvintelor; U+00A0 se lățește, dar nu rupe.
+- `sim`: `pages` (carte → PNG-uri, cu copertă și subsol: capitol + procent), `stats` (paginează cărți întregi, verifică că paginile se înlănțuie și avansează și cât iese cerneala din zona de text, cronometrează, face hash pe fiecare pagină), `compare` (o pagină alăturat în mai multe fonturi). Testul cu imagini de referință `sim/test/run.sh` pe `sim/test/layout.ibv`, o carte de test cu fiecare tip de înregistrare și caracter special.
+- Toate cele 15 cărți din corpus se paginează în fiecare font: 20–50 µs pe pagină pe PC, cerneala iese cel mult 1–4 px din zona de text (cursivele). Pride and Prejudice: 2.057 de pagini în Literata 16, 1.994 în PT Serif 18.
+- Gata pentru LAY-7: foi de comparație ale celor trei fonturi (EN și RU) și ale Literatei la 16/18/20.
+- Încă deschis: LAY-3 rânduri văduve/orfane și paginarea înapoi (LAY-4), Knuth–Plass (LAY-5, greedy lasă goluri late pe rânduri de 216 px), rularea paginării pe dispozitiv (are nevoie de prototip).

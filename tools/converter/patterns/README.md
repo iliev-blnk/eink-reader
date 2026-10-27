@@ -1,14 +1,14 @@
-# Hyphenation patterns
+# Modele de despărțire în silabe
 
-These are Liang patterns from the TeX hyph-utf8 project (https://github.com/hyphenation/tex-hyphen, `hyph-utf8/tex/generic/hyph-utf8/patterns/txt/`), downloaded 2026-10-26. `hyphenate.py` reads them. The `*.header.txt` files hold each pattern file's original header, which includes its copyright and licence, unchanged.
+Sunt modele Liang din proiectul TeX hyph-utf8 (https://github.com/hyphenation/tex-hyphen, `hyph-utf8/tex/generic/hyph-utf8/patterns/txt/`), descărcate pe 2026-10-26. Le citește `hyphenate.py`. Fișierele `*.header.txt` păstrează neschimbat antetul original al fiecărui fișier de modele, cu drepturile de autor și licența lui.
 
-| Language | Files | Copyright | Licence | Min. left/right |
+| Limba | Fișiere | Drepturi de autor | Licență | Min. stânga/dreapta |
 |---|---|---|---|---|
-| ro | `hyph-ro.pat.txt` | Adrian Rezus, 1995–1996 | None stated. Distributed with TeX Live and hyph-utf8 since 1996. | 2 / 2 |
-| ru | `hyph-ru.pat.txt`, `hyph-ru.hyp.txt` | Alexander I. Lebedev, 1999–2003 | LPPL 1.2 or later | 2 / 2 |
-| en-us | `hyph-en-us.pat.txt`, `hyph-en-us.hyp.txt` | Gerard D.C. Kuiken, 1990–2005 | Permissive. Copying and distribution are allowed if the notice is kept (see the header). | 2 / 3 |
+| ro | `hyph-ro.pat.txt` | Adrian Rezus, 1995–1996 | Nu e declarată. Distribuit cu TeX Live și hyph-utf8 din 1996. | 2 / 2 |
+| ru | `hyph-ru.pat.txt`, `hyph-ru.hyp.txt` | Alexander I. Lebedev, 1999–2003 | LPPL 1.2 sau ulterioară | 2 / 2 |
+| en-us | `hyph-en-us.pat.txt`, `hyph-en-us.hyp.txt` | Gerard D.C. Kuiken, 1990–2005 | Permisivă. Copierea și distribuirea sunt permise dacă se păstrează nota (vezi antetul). | 2 / 3 |
 | en-gb | `hyph-en-gb.pat.txt`, `hyph-en-gb.hyp.txt` | Dominik Wujastyk, Graham Toal, 1992–2016 | MIT | 2 / 3 |
 
-`*.pat.txt` holds one pattern per line. `*.hyp.txt` holds one exception word per line, with its break points written as `-`.
+`*.pat.txt` are câte un model pe rând. `*.hyp.txt` are câte un cuvânt de excepție pe rând, cu punctele de despărțire scrise ca `-`.
 
-The Romanian patterns have no stated licence. This only affects distributing the converter. The `.ibv` files it produces don't contain the patterns, only the soft hyphens placed by them. If that matters for publishing the code, the fallback is the LibreOffice `hyph_ro_RO` dictionary, which is GPL/LGPL/MPL.
+Modelele românești nu au licență declarată. Asta privește doar distribuirea convertorului. Fișierele `.ibv` pe care le produce nu conțin modelele, ci doar cratimele moi puse cu ajutorul lor. Dacă asta contează la publicarea codului, rezerva e dicționarul LibreOffice `hyph_ro_RO`, sub GPL/LGPL/MPL.

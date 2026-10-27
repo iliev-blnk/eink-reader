@@ -1,18 +1,18 @@
 # Firmware
 
-ESP-IDF v6.1 project for the ESP32-S3. Right now it builds the **Phase 0 bring-up app**, which checks each part of the prototype and shows the results on the display.
+Proiect ESP-IDF v6.1 pentru ESP32-S3. Deocamdată compilează **aplicația de punere în funcțiune din Faza 0**, care verifică fiecare parte a prototipului și arată rezultatele pe ecran.
 
 ```
 firmware/
-  boards/              pin maps, one header per board; pick the board in menuconfig
-  components/core/     portable C (fonts, 1-bit graphics); sim/ builds the same files
-  components/drivers/  epd_uc8253 (display), sdcard, buttons, battery
-  main/                the bring-up app and its screen
+  boards/              hărțile pinilor, câte un header pe placă; placa se alege în menuconfig
+  components/core/     C portabil (fonturi, grafică pe 1 bit); sim/ compilează aceleași fișiere
+  components/drivers/  epd_uc8253 (ecranul), sdcard, butoane, baterie
+  main/                aplicația de punere în funcțiune și ecranul ei
 ```
 
-## Build
+## Compilare
 
-ESP-IDF lives in `~/esp/esp-idf`. Load it once per terminal:
+ESP-IDF stă în `~/esp/esp-idf`. Se încarcă o dată pe terminal:
 
 ```sh
 . ~/esp/esp-idf/export.sh
@@ -20,47 +20,47 @@ cd ~/DEV/eink-reader/firmware
 idf.py build
 ```
 
-The ESP32-S3 target and the settings that matter (16 MB flash, octal PSRAM, the custom partition table) come from `sdkconfig.defaults`. `sdkconfig` is generated and not tracked. To start clean: `rm sdkconfig && idf.py set-target esp32s3`.
+Ținta ESP32-S3 și setările care contează (flash de 16 MB, PSRAM octal, tabela de partiții proprie) vin din `sdkconfig.defaults`. `sdkconfig` e generat și nu e urmărit în git. Pentru o pornire curată: `rm sdkconfig && idf.py set-target esp32s3`.
 
-## Flash
+## Scrierea în flash
 
-The DevKitC-1 has two USB-C ports. Use the one labelled **UART**: it stays connected while the chip is in deep sleep, so you can see it wake up. The **USB** port (native USB) also flashes, but it drops off the bus during sleep.
+DevKitC-1 are două porturi USB-C. Se folosește cel marcat **UART**: rămâne conectat cât cipul e în somn adânc, deci se vede trezirea. Portul **USB** (USB nativ) poate și el scrie flash-ul, dar dispare de pe magistrală în timpul somnului.
 
-1. One time only on Arch: `sudo usermod -aG uucp $USER`, then log out and back in. Without this the port says "permission denied".
-2. Find the port. Run `ls /dev/ttyUSB* /dev/ttyACM*` before and after plugging the board in. The new entry is the port.
-3. Flash and watch the log:
+1. O singură dată, pe Arch: `sudo usermod -aG uucp $USER`, apoi ieșire din sesiune și intrare din nou. Fără asta portul răspunde „permission denied”.
+2. Găsirea portului: `ls /dev/ttyUSB* /dev/ttyACM*` înainte și după conectarea plăcii. Intrarea nouă e portul.
+3. Scrierea și urmărirea jurnalului:
 
    ```sh
    idf.py -p /dev/ttyUSB0 flash monitor
    ```
 
-   To leave the monitor, press `Ctrl+]`. If flashing can't connect, hold **BOOT**, tap **RST**, then release **BOOT**.
+   Ieșirea din monitor: `Ctrl+]`. Dacă scrierea nu se poate conecta: se ține **BOOT**, se apasă scurt **RST**, apoi se eliberează **BOOT**.
 
-## Wiring (prototype, `boards/include/board_devkit.h`)
+## Conexiuni (prototip, `boards/include/board_devkit.h`)
 
-| Signal | GPIO | Notes |
+| Semnal | GPIO | Note |
 |---|---|---|
-| SPI SCK / MOSI / MISO | 12 / 11 / 13 | shared by the display and the SD card |
-| Display CS / DC / RST / BUSY | 10 / 9 / 8 / 18 | the display module must be set to 4-wire SPI |
-| SD card CS | 14 | |
-| Buttons PREV / NEXT / MENU | 4 / 5 / 6 | each button connects the pin to GND; the pull-ups are internal |
-| Battery sense | 1 | 100k/100k divider from the battery, 100 nF to GND |
+| SPI SCK / MOSI / MISO | 12 / 11 / 13 | comune pentru ecran și cardul SD |
+| Ecran CS / DC / RST / BUSY | 10 / 9 / 8 / 18 | modulul ecranului trebuie setat pe SPI cu 4 fire |
+| Card SD CS | 14 | |
+| Butoane PREV / NEXT / MENU | 4 / 5 / 6 | fiecare buton leagă pinul la GND; rezistențele pull-up sunt interne |
+| Măsurarea bateriei | 1 | divizor 100k/100k de la baterie, 100 nF la GND |
 
-Everything runs on **3V3**, never 5V.
+Totul merge pe **3V3**, niciodată pe 5V.
 
-## What the bring-up app does
+## Ce face aplicația de punere în funcțiune
 
-At boot it reads the chip, flash and PSRAM, the battery voltage and the SD card, then does a full refresh of this screen. The PC simulator draws the same screen: see `sim/`.
+La pornire citește cipul, flash-ul și PSRAM-ul, tensiunea bateriei și cardul SD, apoi desenează acest ecran cu o reîmprospătare completă. Simulatorul de pe PC desenează același ecran: vezi `sim/`.
 
-- **PREV / NEXT**: count down / up and redraw only the counter box with a partial refresh. A long press steps by 10. The box shows how long the previous refresh took.
-- **MENU**: re-read the battery, retry the SD card if it failed, and redraw everything with a full refresh.
-- **Hold MENU**: show "Sleeping", put the display and the chip into deep sleep. Any button wakes it. "Wake" on the screen then shows the button that woke it, plus a boot counter that survives sleep.
+- **PREV / NEXT**: numără în jos / în sus și redesenează doar caseta contorului cu o reîmprospătare parțială. O apăsare lungă sare cu 10. Caseta arată cât a durat reîmprospătarea anterioară.
+- **MENU**: recitește bateria, reîncearcă cardul SD dacă a eșuat și redesenează tot cu o reîmprospătare completă.
+- **MENU ținut apăsat**: arată „Sleeping”, pune ecranul și cipul în somn adânc. Orice buton îl trezește. „Wake” de pe ecran arată apoi butonul care l-a trezit, plus un contor de porniri care supraviețuiește somnului.
 
-Each boot appends a line to `bringup.txt` on the SD card. **The app never formats the card.** The card must be FAT32, because exFAT is not supported. Cards over 32 GB usually come as exFAT, so reformat those as FAT32 first.
+Fiecare pornire adaugă un rând în `bringup.txt` pe cardul SD. **Aplicația nu formatează niciodată cardul.** Cardul trebuie să fie FAT32, pentru că exFAT nu e suportat. Cardurile de peste 32 GB vin de obicei în exFAT, deci acestea se reformatează mai întâi în FAT32.
 
-## Timing lines (experiment E1)
+## Rânduri de cronometrare (experimentul E1)
 
-Every refresh prints a machine-readable line to the serial log:
+Fiecare reîmprospătare tipărește în jurnalul serial un rând ușor de prelucrat automat:
 
 ```
 PERF,epd_partial,x=8,y=282,w=224,h=56,write_us=…,on_us=…,refresh_us=…,off_us=…,total_us=…
@@ -69,12 +69,12 @@ PERF,sd_mount,ok=1,us=…
 PERF,battery,mv=…
 ```
 
-To save the log to a file, press `Ctrl+T` then `Ctrl+L` inside the monitor. It writes `log.eink-reader.<time>.txt` in the current folder. Press the same keys again to stop. Then filter it with `grep ^PERF log.eink-reader.*.txt`.
+Salvarea jurnalului într-un fișier: în monitor, `Ctrl+T` apoi `Ctrl+L`. Se scrie `log.eink-reader.<timp>.txt` în dosarul curent. Aceleași taste din nou opresc salvarea. Apoi se filtrează cu `grep ^PERF log.eink-reader.*.txt`.
 
-## If something's wrong
+## Dacă ceva nu merge
 
-- **"e-paper not answering" in the log**: the display never pulled BUSY low. Check BUSY, RST, CS, DC, SCK and MOSI against the table, check 3V3 and GND, and check that the module's interface pad is set to 4-wire SPI.
-- **"BUSY still low"**: the display started a refresh and didn't finish it. Usually this means a weak 3V3 supply or a loose GND.
-- **SD "no card (timeout)"**: check the card is seated and the SD module gets 3V3. Some modules have a regulator and only work from 5V. Then check CS=14 and MISO=13.
-- **SD "not FAT32 formatted"**: the card answered but has no FAT volume. Reformat it as FAT32 on a PC.
-- **Battery "none (…)"**: nothing is on the divider. That's expected while running from USB.
+- **„e-paper not answering” în jurnal**: ecranul nu a coborât niciodată BUSY. Se verifică BUSY, RST, CS, DC, SCK și MOSI după tabel, 3V3 și GND, și că padul de interfață al modulului e setat pe SPI cu 4 fire.
+- **„BUSY still low”**: ecranul a început o reîmprospătare și nu a terminat-o. De obicei înseamnă o alimentare 3V3 slabă sau un GND slăbit.
+- **SD „no card (timeout)”**: se verifică dacă cardul e bine introdus și dacă modulul SD primește 3V3. Unele module au regulator și merg doar de la 5V. Apoi CS=14 și MISO=13.
+- **SD „not FAT32 formatted”**: cardul a răspuns, dar nu are volum FAT. Se reformatează în FAT32 pe un PC.
+- **Bateria „none (…)”**: nu e nimic pe divizor. E de așteptat cât timp merge de la USB.

@@ -175,7 +175,7 @@ A reader that meets an unknown kind with text lays it out as PARA, and skips an 
 | 2 | `0x04` | `NO_INDENT`: no first-line indent (e.g. the first paragraph after a heading). On BREAK the same bit means `ORNAMENT`: draw `* * *` instead of a blank line. |
 | 3 | `0x08` | `CONT`: continues the previous record. The converter split an over-long paragraph, so there's no indent and no paragraph spacing; the layout treats the two as one paragraph. |
 | 4–5 | `0x30` | HEADING only: level − 1, for levels 1–4 |
-| 6 | `0x40` | reserved, 0 |
+| 6 | `0x40` | `PAGE`: the record starts a new page when the reader's "chapters on a new page" setting is on. The converter sets it on chapter headings (CONV-7). Invalid on BREAK and on CONT records. A page that starts at a `PAGE` record never depends on the pages before it, so going back a page only needs to lay out from the nearest one (section 5). |
 | 7 | `0x80` | reserved, must be 0; the validator rejects it |
 
 **Style runs** mark byte ranges `[start, start + length)` of the text, in the record's own UTF-8 bytes. Runs are sorted, never overlap, and never split a UTF-8 sequence. Text no run covers is regular, and a run with style 0 is invalid. Style bits: `0x01` bold, `0x02` italic. Other bits are reserved and ignored by readers.
@@ -318,6 +318,8 @@ That's under 80 KB of the S3's 512 KB SRAM in all, and **independent of the book
 
 After pagination it's "page x of y".
 
+**Going back a page.** Where a page starts depends on the pages before it, so the layout can't run backwards. It lays out forward from a *sync point*, a place that always starts a page: the start of the book, or a `PAGE` record when chapters start new pages. With the page index (the `.pg` sidecar) it's a binary search instead. Measured over the corpus: 13–56 pages of layout on average for a book with chapters, close to the whole book for one without, which then waits for the index.
+
 **Corruption.** A failed header, directory or section CRC means the device shows "damaged file" in the library and doesn't open the book. A failed block CRC means it shows an error page in place of that block's text and lets the reader skip past it. One bad sector shouldn't make the whole book unreadable.
 
 ## 6. Sidecar files
@@ -328,7 +330,7 @@ Sidecars live in `/.ibv/` on the card and are named after the `book_id` in hex, 
 
 Every sidecar starts with a 4-byte magic and the 8-byte `book_id` and ends with a CRC32 of everything before it. If the CRC or `book_id` doesn't match, the device ignores the file: no progress is better than a wrong position.
 
-**Writes are atomic:** the device writes `<name>.tmp`, then renames it over the old file. A power cut mid-write leaves the old file intact.
+**Writes never leave a wrong file:** the device writes `<name>.tmp`, deletes the old file and renames the new one into place. (FATFS can't rename over an existing file, so this takes two steps.) A power cut mid-write loses at most that sidecar, never corrupts it: a `.tmp` is ignored, and a missing `.pg` is rebuilt.
 
 | File | Layout | Written when |
 |---|---|---|
@@ -337,13 +339,13 @@ Every sidecar starts with a 4-byte magic and the 8-byte `book_id` and ends with 
 | `<id>-<layout>.pg` | `"IPGC"`, book_id, u32 layout_hash, u32 page_count, u8 complete, 3 B reserved, page_count × {u32 para, u32 byte}, crc32 | by the background paginator, as it goes |
 
 `layout_hash` covers everything that changes where pages break:
-- font file and size
-- margins
-- line spacing
-- hyphenation on or off
-- the layout engine's own version number
+- the fonts (every body style and the heading font) and their sizes
+- the text area (screen minus margins)
+- indent, line and paragraph spacing
+- justification, hyphenation, chapters on a new page, widow and orphan control
+- the layout engine's own version number (`LAYOUT_VERSION`)
 
-Changing any setting means a different `.pg` file. The device keeps the most recent few and deletes the rest. `complete = 0` means pagination is still running: page numbers show as "≈" until it finishes.
+Changing any setting means a different `.pg` file. The device keeps the most recent few and deletes the rest. `complete = 0` means pagination is still running: the footer shows a percentage until it finishes. An incomplete index resumes by laying out its last page again. The loader rejects page starts that don't strictly increase or don't begin at {0, 0}.
 
 ## 7. Validator rules
 
@@ -356,6 +358,7 @@ Changing any setting means a different `.pg` file. The device keeps the most rec
 5. Every record:
    - known flag bits only
    - BREAK has no text
+   - `PAGE` not on BREAK or CONT
    - other kinds have non-empty text
    - valid UTF-8, NFC-normalized
    - no control characters
@@ -415,3 +418,4 @@ Sizes are in bytes. Plain text means the source with soft hyphens removed.
 
 - **0.1** (2026-10-26) First draft, together with the reference codec and 15 tests. Changes from the master plan: blocks instead of per-chapter compression, and sidecars keyed by `book_id` in `/.ibv/`. Added `directory_crc` after the bit-flip test found a gap.
 - **0.1** (2026-10-26, same day) Named IBV (Q5): magic `\x89IBV`, extension `.ibv`, sidecars in `/.ibv/` with magics `IPOS`, `IBMK`, `IPGC`. `book_id` is unchanged, since it doesn't cover the header.
+- **0.1** (2026-10-27) Flag bit 6 is now `PAGE` (chapter starts a page), set by the converter from a chapter-level heuristic; it makes going back a page cheap. Section 6: sidecar writes are delete + rename on FATFS. `layout_hash` list brought in line with the code.

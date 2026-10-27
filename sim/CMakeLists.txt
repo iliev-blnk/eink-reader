@@ -15,6 +15,7 @@ add_executable(sim
     ${CORE}/gfx.c
     ${CORE}/ibv.c
     ${CORE}/layout.c
+    ${CORE}/pageidx.c
     ${CORE}/fonts/font_ui16.c
     ${CORE}/fonts/font_ui12.c
     ${FW}/main/screen_bringup.c)

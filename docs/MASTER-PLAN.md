@@ -215,13 +215,17 @@ My calls for design (to be justified in the spec):
 
 - [x] LAY-1 Font renderer: glyph lookup, blit to the 1 bpp framebuffer, bold and italic (separate font files). Done 2026-10-26 (`font.c`, `gfx_glyph`): byte-shift blit, 1/64 px pen with kerning.
 - [x] LAY-2 Line breaking v1: greedy, with soft hyphens as break points and justification by distributing spaces. Done 2026-10-26 (`layout.c`): also U+200B, in-word dashes, U+00A0 ties, U+2028, emergency cuts; ~20–30 µs per page on the PC.
-- [ ] LAY-3 Paginator:
+- [x] LAY-3 Paginator:
   - lines → pages
   - margins, line spacing, paragraph indent, headings
   - widow/orphan control (should-have)
 
   Partly done 2026-10-26 (`layout_page`): forward pagination, margins, line and paragraph gaps, indent, headings centred with keep-with-next and chapters on a new page, breaks and ornaments, verse hanging indent, quote margins, footer with chapter and percent. Still open: widows/orphans, going back a page (needs LAY-4's page index).
+
+  Done 2026-10-27: widow and orphan control (`keep_lines`), a heading left at the bottom of a page moves to the next, BREAKs at a page end are skipped so page starts are canonical. Going back a page (`layout_prev`) and finding the page that holds a position (`layout_locate`) lay out forward from the nearest sync point: the book start or a record flagged `PAGE` (new in the format, set on chapter headings by the converter).
 - [ ] LAY-4 Pagination cache plus background pagination task, for page numbers and "x of y". Jumping to a chapter goes through the chapter offsets.
+
+  Partly done 2026-10-27 (`pageidx.c`): the page index (8 B per page, built a few pages at a time, binary search) and its `.pg` sidecar (save, load, resume, CRC and layout-hash checks); the simulator footer shows "n / total" once it's complete. Still open: the background task that drives it on the device (with FW-5).
 - [ ] LAY-5 Line breaking v2: Knuth–Plass (total-fit) per paragraph, with a memory cap and fallback to greedy for huge paragraphs.
 - [x] LAY-6 Simulator: render any book or page to PNG at any setting, a batch mode for experiments, and golden-image tests. Done 2026-10-26 (`sim/`): `pages`, `stats` (whole books: chaining, overhang, timings, page hashes), `compare` (font sheets), `test/run.sh` golden test on a fixture book with every record kind.
 - [ ] LAY-7 Visual review: I render comparison sheets and you judge them on the real screen.

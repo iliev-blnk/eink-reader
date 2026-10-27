@@ -42,6 +42,7 @@ CONT = 0x08                    # continues the previous record (split by the con
 LEVEL_SHIFT = 4                # HEADING: bits 4-5 = level - 1
 LEVEL_MASK = 0x30
 BREAK_ORNAMENT = 0x04          # BREAK reuses bit 2: draw "* * *" instead of a blank line
+PAGE = 0x40                    # starts a new page (a chapter); never on BREAK
 FLAGS_RESERVED = 0x80
 
 # Style bits in a run
@@ -190,6 +191,8 @@ def validate_record(r: Record, where: str) -> None:
         raise FormatError(f"{where}: reserved flag bit 7 set")
     if r.kind == BREAK and (r.text or r.runs):
         raise FormatError(f"{where}: BREAK carries text")
+    if r.flags & PAGE and (r.kind == BREAK or r.flags & CONT):
+        raise FormatError(f"{where}: PAGE on a BREAK or CONT record")
     if r.kind != BREAK and not r.text:
         raise FormatError(f"{where}: empty text")
     check_text(r.text, where)

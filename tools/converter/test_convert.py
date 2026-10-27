@@ -516,6 +516,39 @@ class TestFinish(unittest.TestCase):
         last = book.records[-1]
         self.assertEqual(last.runs[-1][2], ibv.BOLD)
 
+    def test_chapters_start_pages(self):
+        # A title, two parts, chapters long enough to be chapters, a subtitle
+        # right under one of them, and a few short poems on the chapters' level.
+        b = doc.Builder()
+
+        def head(level, title):
+            b.text(title)
+            b.end(ibv.HEADING, doc.heading_flags(level))
+
+        head(1, "Book")
+        for part in ("One", "Two"):
+            head(2, f"Part {part}")
+            for ch in range(3):
+                head(3, f"Chapter {ch + 1}")
+                if ch == 1:
+                    head(4, "In which a subtitle follows")
+                for _ in range(10):
+                    b.text("o propoziție destul de lungă pentru un paragraf obișnuit " * 6)
+                    b.end()
+        head(2, "Poems")
+        for n in range(4):
+            head(3, f"Poem {n + 1}")
+            b.text("un vers scurt")
+            b.end(ibv.VERSE)
+        book, p = build(b)
+        page = [r.text for r in book.records if r.flags & ibv.PAGE]
+        # A run of headings starts one page: Book + Part One + Chapter 1 open
+        # the book, Part Two takes its Chapter 1 along.
+        self.assertEqual(page, ["Book", "Chapter 2", "Chapter 3", "Part Two", "Chapter 2", "Chapter 3"])
+        self.assertFalse(any(t.startswith("Poem ") for t in page))
+        self.assertNotIn("In which a subtitle follows", page)
+        self.assertTrue(all(r.kind == ibv.HEADING for r in book.records if r.flags & ibv.PAGE))
+
     def test_breaks_are_tidied(self):
         b = doc.Builder()
         b.brk()

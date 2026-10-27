@@ -87,6 +87,8 @@ class Rejects(unittest.TestCase):
             Record(ibv.PARA, "ăbc", 0, [(1, 1, ibv.BOLD)]),     # splits "ă"
             Record(ibv.PARA, "abcdef", 0, [(2, 2, ibv.BOLD), (3, 2, ibv.ITALIC)]),
             Record(ibv.PARA, "abc", 0, [(0, 3, 0)]),
+            Record(ibv.BREAK, "", ibv.PAGE),
+            Record(ibv.PARA, "abc", ibv.PAGE | ibv.CONT),
         ]
         for r in cases:
             b = sample()

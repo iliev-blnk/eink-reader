@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Writes layout.ibv: a small book with every record kind, flag and special
-character the layout handles (LAY-1/2/3), for the golden-image test (run.sh).
+character the layout handles (LAY-1/2/3/4), for the golden-image test (run.sh).
 
 The file is tracked, so the test doesn't depend on the converter; rerun this
 only to change the fixture, then `run.sh --update` and look at the new pages."""
@@ -32,8 +32,8 @@ def para(*parts, kind=ibv.PARA, flags=0):
     return ibv.Record(kind, text, flags, runs)
 
 
-def heading(title, level=1):
-    return ibv.Record(ibv.HEADING, title, (level - 1) << ibv.LEVEL_SHIFT)
+def heading(title, level=1, page=False):
+    return ibv.Record(ibv.HEADING, title, (level - 1) << ibv.LEVEL_SHIFT | (ibv.PAGE if page else 0))
 
 
 LAMP = "The lamp was lit at dusk and the street went quiet, and for a while nobody said anything at all."
@@ -43,7 +43,7 @@ def filler(n):
     return " ".join([LAMP] * n)
 
 records = [
-    heading("Chapter One"),
+    heading("Chapter One", page=True),
     para("A justified paragraph with ", ("bold", 1), ", ", ("italic", 2), " and ",
          ("bold italic", 3), " runs, kerning pairs like AV, Ta and “quoted” words, "
          f"and long words with soft hyphens: in{SHY}com{SHY}pre{SHY}hen{SHY}si{SHY}bil{SHY}i{SHY}ty, "
@@ -72,7 +72,7 @@ records = [
     para(filler(4)),
     para(f"Ро{SHY}ман{SHY}ский и рус{SHY}ский текст: «Кирила Петрович» — "
          f"și țara, în{SHY}tâm{SHY}plă{SHY}tor, ș/ț."),
-    heading("Chapter Two"),
+    heading("Chapter Two", page=True),   # as the converter marks chapters
     para(filler(6)),
     heading("Late Heading", level=2),
     para(filler(3)),

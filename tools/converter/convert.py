@@ -72,7 +72,8 @@ def convert(src: pathlib.Path, *, lang=None, title=None, author=None, hyphenate=
                  + f"  [{meta['language']}]  book_id {p.book_id.hex()}")
     lines.append(f"  {rep.paragraphs} paragraphs, {len(p.blocks)} blocks, {len(book.toc)} TOC entries, "
                  f"{rep.hyphenated_words:,} words hyphenated ({rep.hyphenation}), "
-                 f"cover {f'{cov.width}x{cov.height}' if cov else 'none'}")
+                 f"cover {f'{cov.width}x{cov.height}' if cov else 'none'}, "
+                 f"{rep.chapter_pages} chapter pages (heading levels {rep.chapter_levels or 'none'})")
     extra = {k: v for k, v in info.items() if v not in (None, "")}
     if extra:
         lines.append("  " + ", ".join(f"{k} {v}" for k, v in extra.items()))

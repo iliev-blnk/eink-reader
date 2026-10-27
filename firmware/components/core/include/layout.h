@@ -1,4 +1,4 @@
-// Text layout: IBV records -> lines -> pages (LAY-1, LAY-2, LAY-3).
+// Text layout: IBV records -> lines -> pages (LAY-1, LAY-2, LAY-3, LAY-4).
 //
 // A page is computed from a position (paragraph, byte) and fills the text area
 // with lines until the next one doesn't fit. Lines are byte ranges of their
@@ -15,6 +15,12 @@
 // starts a new line with no indent or gap, and the line before it is
 // justified, so the join doesn't show unless that line is short. Lines never
 // span two records. The split is rare (30 in 70,000 records in the corpus).
+//
+// Pages are always the ones you get by paginating from the start of the book:
+// a page's layout depends only on where it starts, and with chapter_page a
+// chapter (a record flagged IBV_PAGE) always starts a page, so paginating from
+// there gives the same pages. That is how layout_locate and layout_prev find a page
+// without laying out the whole book before it.
 #pragma once
 
 #include <stdbool.h>
@@ -24,7 +30,7 @@
 #include "gfx.h"
 #include "ibv.h"
 
-#define LAYOUT_VERSION 1         // part of the layout hash: bump when line breaks can change
+#define LAYOUT_VERSION 2         // part of the layout hash: bump when line breaks can change
 #define LAYOUT_MAX_LINES 64
 
 typedef struct {
@@ -38,7 +44,8 @@ typedef struct {
     int para_gap;                // px between paragraphs
     bool justify;
     bool hyphenate;              // break at soft hyphens
-    bool chapter_page;           // level-1 headings start a new page
+    bool chapter_page;           // records flagged IBV_PAGE (chapters) start a new page
+    bool keep_lines;             // no widows or orphans (a paragraph's last or first line alone)
 } layout_cfg_t;
 
 typedef struct {
@@ -70,6 +77,24 @@ typedef struct {
 
 // Lays out the page that starts at `pos`.
 ibv_err_t layout_page(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, layout_page_t *page);
+
+// Start of the page that holds `pos` (start <= pos < end), for opening a book
+// at a saved position after the layout changed. `scratch` is overwritten.
+ibv_err_t layout_locate(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, layout_page_t *scratch,
+                        layout_pos_t *out);
+
+// Start of the page before the one that starts at `pos` (or holds the text just
+// before `pos`). Returns IBV_ERR_RANGE at the start of the book. Without a page
+// index this lays out pages from the chapter's start (or the book's, with no
+// chapters); `*pages`, if not NULL, gets how many.
+ibv_err_t layout_prev(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, layout_page_t *scratch,
+                      layout_pos_t *out, int *pages);
+
+static inline int layout_pos_cmp(layout_pos_t a, layout_pos_t b)
+{
+    if (a.para != b.para) return a.para < b.para ? -1 : 1;
+    return a.byte < b.byte ? -1 : a.byte > b.byte;
+}
 
 // Draws a laid-out page with the text area's top-left at (x0, y0).
 ibv_err_t layout_draw(const layout_cfg_t *cfg, ibv_t *book, const layout_page_t *page, gfx_t *g,

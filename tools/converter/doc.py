@@ -27,6 +27,7 @@ from textnorm import SHY, Styled
 
 CONVERTER = "ibv-convert 0.1"
 SPLIT_BYTES = 8192          # longer paragraphs become several CONT records
+CHAPTER_BYTES = 3000        # a heading level whose sections are this long (median) starts pages
 VERSE_MAX_LINE = 80         # a <br>-joined paragraph whose lines all fit is a stanza
 VERSE_MEAN_LINE = 55
 LSEP = textnorm.LSEP
@@ -95,6 +96,8 @@ class Report:
     hyphenation: str = ""
     missing: dict[str, int] = field(default_factory=dict)
     replaced: dict[str, int] = field(default_factory=dict)
+    chapter_levels: list[int] = field(default_factory=list)
+    chapter_pages: int = 0
     warnings: list[str] = field(default_factory=list)
 
 
@@ -161,11 +164,12 @@ def finish(b: Builder, meta: dict[str, str], *, hyphenate: bool = True,
             records.append(ibv.Record(ibv.BREAK, "", it.flags))
             continue
         for k, part in enumerate(_split(it.st, SPLIT_BYTES)):
-            flags = it.flags if k == 0 else (it.flags & ~ibv.NO_INDENT) | ibv.CONT
+            flags = it.flags if k == 0 else (it.flags & ~(ibv.NO_INDENT | ibv.PAGE)) | ibv.CONT
             records.append(ibv.Record(it.kind, part.text, flags, _runs(part)))
     rep.paragraphs = len(records)
     if not records:
         raise ibv.FormatError("no text found in the input")
+    rep.chapter_levels, rep.chapter_pages = _chapter_pages(records)
 
     toc = _resolve_toc(b, new_index, first_record, keep, lang, ro_legacy, rep)
     meta = {k: v for k, v in meta.items() if v}
@@ -175,6 +179,42 @@ def finish(b: Builder, meta: dict[str, str], *, hyphenate: bool = True,
     meta.setdefault("converter", CONVERTER)
     meta.setdefault("converted", datetime.date.today().isoformat())
     return ibv.Book(meta, records, toc, cover), rep
+
+
+def _chapter_pages(records: list[ibv.Record]) -> tuple[list[int], int]:
+    """Sets PAGE on the headings that should start a new page. A heading's
+    section runs to the next heading of the same or a higher level. A level
+    is a chapter level if its sections are at least CHAPTER_BYTES long
+    (median): titles, parts and chapters are, the short poems of a collection
+    aren't. On a chapter level, a heading whose own section is under a
+    quarter of that (a short poem among stories) runs on too, and so does a
+    heading right after another (a subtitle). The book's first record is
+    marked too when it qualifies: it starts a page anyway, and the layout
+    sets a chapter's title lower on the page. Returns the chapter levels and
+    how many records were marked."""
+    size: dict[int, int] = {}           # heading record -> bytes in its section
+    open_: dict[int, int] = {}          # level -> its open heading
+    for i, r in enumerate(records):
+        if r.kind == ibv.HEADING:
+            for lv in [lv for lv in open_ if lv >= r.level]:
+                del open_[lv]
+            open_[r.level] = i
+            size[i] = 0
+        n = len(r.text.encode("utf-8"))
+        for h in open_.values():
+            size[h] += n
+    by_level: dict[int, list[int]] = {}
+    for i, n in size.items():
+        by_level.setdefault(records[i].level, []).append(n)
+    levels = sorted(lv for lv, v in by_level.items() if sorted(v)[len(v) // 2] >= CHAPTER_BYTES)
+    marked = 0
+    for i, n in size.items():
+        r = records[i]
+        if (r.level in levels and n >= CHAPTER_BYTES // 4 and not r.flags & ibv.CONT
+                and (i == 0 or records[i - 1].kind != ibv.HEADING)):
+            r.flags |= ibv.PAGE
+            marked += 1
+    return levels, marked
 
 
 def _place(it: Item, keep: list[Item], new_index: list[int]) -> None:

@@ -23,6 +23,7 @@ enum { IBV_PARA = 0, IBV_HEADING = 1, IBV_VERSE = 2, IBV_BREAK = 3, IBV_QUOTE = 
 #define IBV_ORNAMENT 0x04      // BREAK: draw "* * *"
 #define IBV_CONT 0x08          // continues the previous record
 #define IBV_LEVEL_SHIFT 4      // HEADING: bits 4-5 = level - 1
+#define IBV_PAGE 0x40          // starts a new page (a chapter; set by the converter)
 #define IBV_STYLE_BOLD 1
 #define IBV_STYLE_ITALIC 2
 

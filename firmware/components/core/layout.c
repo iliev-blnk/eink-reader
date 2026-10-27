@@ -165,6 +165,31 @@ static int32_t line_avail(const para_t *p, bool first)
     return p->cfg->width * FONT_UNIT - line_left(p, first) - p->right;
 }
 
+// The page is full before the line at `*byte` of record `para`. Moves lines to
+// the next page so that it doesn't start with a paragraph's last line alone
+// (a widow) or end with its first line alone (an orphan). The page never
+// empties: a paragraph that starts at the top of the page stays as it is.
+static void keep_lines(const para_t *p, layout_page_t *page, uint32_t para, uint32_t *byte)
+{
+    int first = page->line_count;
+    while (first > 0 && page->lines[first - 1].para == para) first--;
+    const int here = page->line_count - first;                  // lines of `para` on this page
+    const bool started = here > 0 && page->lines[first].start == 0;
+    if (here == 0) return;
+    if (here == 1 && started) {                                  // orphan: move it over
+        if (first > 0) page->line_count = first, *byte = 0;
+        return;
+    }
+    brk_t k;
+    break_line(p, *byte, line_avail(p, false), &k);
+    if (k.next < p->rec->text_len) return;                       // two or more lines left: fine
+    if (here == 2 && started) {                                  // moving one would orphan the other
+        if (first > 0) page->line_count = first, *byte = 0;
+        return;
+    }
+    if (here >= 2) *byte = page->lines[--page->line_count].start;   // widow: take one line with it
+}
+
 ibv_err_t layout_page(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, layout_page_t *page)
 {
     memset(page, 0, sizeof(*page) - sizeof(page->lines));
@@ -199,10 +224,10 @@ ibv_err_t layout_page(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, la
         para_t p;
         setup(&p, cfg, &rec);
         int below = 0;
+        const bool chapter = cfg->chapter_page && (rec.flags & IBV_PAGE) && fresh;
+        if (chapter && !top) goto full;
         if (p.kind == IBV_HEADING && fresh) {
-            int level = ((rec.flags >> IBV_LEVEL_SHIFT) & 3) + 1;
-            if (cfg->chapter_page && level == 1 && !top) goto full;
-            int above = top ? (cfg->chapter_page && level == 1 ? 2 * body_lh : 0) : body_lh;
+            int above = top ? (chapter ? 2 * body_lh : 0) : body_lh;
             below = body_lh / 2;
             // The heading moves to the next page unless it fits with two lines after it.
             int n = 0;
@@ -220,8 +245,10 @@ ibv_err_t layout_page(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, la
         bool first = fresh && !(rec.flags & IBV_CONT);
         bool wrapped = !fresh;
         for (;;) {
-            if ((y + p.line_height > cfg->height && page->line_count > 0) || page->line_count == LAYOUT_MAX_LINES)
+            if ((y + p.line_height > cfg->height && page->line_count > 0) || page->line_count == LAYOUT_MAX_LINES) {
+                if (cfg->keep_lines) keep_lines(&p, page, para, &byte);
                 goto full;
+            }
             int32_t left = line_left(&p, first && !wrapped), avail = line_avail(&p, first && !wrapped);
             if (p.kind == IBV_VERSE && !wrapped) left = p.left, avail = cfg->width * FONT_UNIT - p.left - p.right;
             brk_t k;
@@ -263,8 +290,85 @@ ibv_err_t layout_page(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, la
     page->end = (layout_pos_t){book->paragraph_count, 0};
     return IBV_OK;
 full:
-    page->end = (layout_pos_t){para, byte};
+    // A heading at the bottom goes with what follows it, unless it's all the page has.
+    while (byte == 0 && page->line_count > 0 && (page->lines[page->line_count - 1].flags & LINE_HEADING)) {
+        uint32_t h = page->lines[page->line_count - 1].para;
+        int n = page->line_count;
+        while (n > 0 && page->lines[n - 1].para == h) n--;
+        if (n == 0) break;
+        page->line_count = n;
+        para = h;
+    }
+    // Breaks at the top of a page are dropped, so the next page starts after
+    // them: page starts are then the same however the book was reached.
+    while (byte == 0 && para < book->paragraph_count) {
+        ibv_record_t rec;
+        if ((err = ibv_record(book, para, &rec)) != IBV_OK) return err;
+        if (!(rec.kind == IBV_BREAK || (rec.kind > IBV_QUOTE && rec.text_len == 0))) break;
+        para++;
+    }
+    page->at_end = para >= book->paragraph_count;
+    page->end = (layout_pos_t){para, page->at_end ? 0 : byte};
     return IBV_OK;
+}
+
+// The latest position at or before `pos` (strictly before, if `strict`) where a
+// page is sure to start: the book's start, or a chapter when chapter_page.
+// Chapters are found through the TOC, which is in RAM; a chapter missing from
+// the TOC only makes the search start earlier.
+static ibv_err_t sync_point(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, bool strict, layout_pos_t *out)
+{
+    *out = (layout_pos_t){0, 0};
+    if (!cfg->chapter_page) return IBV_OK;
+    for (int32_t i = ibv_toc_find(book, pos.para); i >= 0; i--) {
+        ibv_toc_t t;
+        if (!ibv_toc(book, (uint32_t)i, &t)) break;
+        layout_pos_t at = {t.para, 0};
+        int c = layout_pos_cmp(at, pos);
+        if (c > 0 || (strict && c == 0)) continue;
+        ibv_record_t rec;
+        ibv_err_t err = ibv_record(book, t.para, &rec);
+        if (err) return err;
+        // The TOC may point at any record; only a flagged one counts.
+        if (rec.flags & IBV_PAGE) {
+            *out = at;
+            return IBV_OK;
+        }
+    }
+    return IBV_OK;
+}
+
+ibv_err_t layout_locate(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, layout_page_t *scratch,
+                        layout_pos_t *out)
+{
+    layout_pos_t at;
+    ibv_err_t err = sync_point(cfg, book, pos, false, &at);
+    for (; !err; at = scratch->end) {
+        if ((err = layout_page(cfg, book, at, scratch)) != IBV_OK) break;
+        if (scratch->at_end || layout_pos_cmp(pos, scratch->end) < 0) {
+            *out = at;
+            break;
+        }
+    }
+    return err;
+}
+
+ibv_err_t layout_prev(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, layout_page_t *scratch,
+                      layout_pos_t *out, int *pages)
+{
+    if (pages) *pages = 0;
+    if (pos.para == 0 && pos.byte == 0) return IBV_ERR_RANGE;
+    layout_pos_t at;
+    ibv_err_t err = sync_point(cfg, book, pos, true, &at);
+    for (; !err; at = scratch->end) {
+        if ((err = layout_page(cfg, book, at, scratch)) != IBV_OK) break;
+        if (pages) ++*pages;
+        if (scratch->at_end || layout_pos_cmp(pos, scratch->end) <= 0) {
+            *out = at;
+            break;
+        }
+    }
+    return err;
 }
 
 static void draw_line(gfx_t *g, const para_t *p, const layout_line_t *ln, int x0, int y0)
@@ -337,8 +441,8 @@ static uint32_t hash_font(uint32_t h, const font_t *f)
 
 uint32_t layout_hash(const layout_cfg_t *cfg)
 {
-    int32_t v[9] = {LAYOUT_VERSION, cfg->width, cfg->height, cfg->indent, cfg->line_gap, cfg->para_gap,
-                    cfg->justify, cfg->hyphenate, cfg->chapter_page};
+    int32_t v[10] = {LAYOUT_VERSION, cfg->width, cfg->height, cfg->indent, cfg->line_gap, cfg->para_gap,
+                     cfg->justify, cfg->hyphenate, cfg->chapter_page, cfg->keep_lines};
     uint32_t h = crc32_update(0, v, sizeof v);
     for (int i = 0; i < 4; i++) h = hash_font(h, cfg->body[i]);
     return hash_font(h, cfg->heading);

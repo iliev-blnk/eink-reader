@@ -7,12 +7,21 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 - `../hardware/`: schema KiCad (`eink-reader.kicad_sch`), exporturile ei PDF/SVG și `gen.py`, care le generează.
 - `../firmware/`: firmware-ul ESP-IDF. README-ul lui descrie compilarea, scrierea în flash și conexiunile.
 - `../sim/`: simulatorul pe PC. Compilează nucleul portabil al firmware-ului (fonturi, cititorul IBV, paginare) și desenează ecrane și pagini de carte în PNG, cu statistici pe cărți întregi și teste cu imagini de referință. Vezi README-ul lui.
+- `../emu/`: emulatorul. Firmware-ul adevărat rulat fără hardware, pe un ESP32-S3 emulat (QEMU) cu panoul, cardul și butoanele modelate, comparat cadru cu cadru cu simulatorul. Vezi README-ul lui.
 - `../tools/fonttool/`: TTF/OTF → fonturi bitmap IBF, codecul de referință al formatului de font (`ibf.py`) și testele. Vezi README-ul lui.
 - `../tools/converter/`: convertorul de cărți (EPUB / FB2 / TXT → `.ibv`), cititorul, scriitorul și validatorul de referință al formatului (`ibv.py`) și testele lor. Vezi README-ul lui.
 - `../corpus/`: cărțile de test (le descarcă `fetch.sh`; neurmărite în git) și rezultatele conversiei lor.
 - `../spec/`: specificația formatului de carte (`book-format.md`), specificația formatului de font (`font-format.md`) și un fișier exemplu comentat (`examples/`).
 
 ## Jurnal
+
+### 2026-11-16: emulatorul: firmware-ul adevărat rulat fără hardware (`emu/`)
+- De ce: prototipul încă nu e legat, iar simulatorul rulează doar nucleul portabil. Driverul panoului, SPI, FatFs peste card, butoanele, NVS, somnul adânc și trezirea nu fuseseră rulate niciodată. Acum binarul din `firmware/build` rulează neschimbat pe o placă emulată.
+- Ce e: mașina `ibv-reader` peste QEMU-ul Espressif (ESP32-S3), cu modele scrise pentru proiect (`emu/qemu/hw-ibv`, ~2400 de rânduri de C): panoul UC8253 (cele două RAM-uri, fereastra parțială, BUSY, somnul; reîmprospătarea parțială e diferențială, ca pe panou), SPI2 ca master cu DMA, pinii cu niveluri electrice (un pull-up uitat se vede), ADC-ul pentru baterie, somnul adânc cu trezire prin EXT1. Cardul SD e modelul din QEMU, cu două greșeli reparate în modul SPI (CMD9/CMD10 în starea de transfer, formatul răspunsului la CMD13), fără de care ESP-IDF nu-l putea monta. Scenariul de apăsări are sintaxa din `sim ui`.
+- Rezultatul (`emu/test.sh`, ~35 s): cadrele emulatorului sunt identice pixel cu pixel cu ale simulatorului pe scenariul `ui` (22 din 22), pe `auto` (29 din 29) și pe un card cu tot corpusul și fonturile dispozitivului, cu *Moby Dick* deschis, indexat și citit (41 din 41). Jurnalul `perf` scris de firmware pe cardul emulat e citit de `perf.py` cu cifrele așteptate. Aplicația de punere în funcțiune merge cu somn și trezire din buton.
+- Prinde greșeli? Șase greșeli puse dinadins în drivere: cinci prinse (două prin cadre diferite, două doar prin avertismentele modelului, cu cadre corecte, una prin pinii lăsați în aer), una neprinsă, pentru că ramura ei (`s.asleep` în `epd_full_refresh`) nu e atinsă de cititorul de azi. Tabelul e în `emu/README.md`.
+- O îmbunătățire găsită așa: `W gpio: conflict found for GPIO[14]` la fiecare pornire. CS-ul cardului era pus ca ieșire cu `gpio_config`, care trece pinul ca ocupat înainte ca driverul SD să-l ia în primire. Acum e `gpio_set_direction` (`main.c`, `bringup.c`). Avertismentul rămas la adormire vine din ESP-IDF.
+- Limite, scrise și în README: timpii nu sunt măsurători (panoul durează cât i s-a spus, procesorul e numărat în instrucțiuni), deci E1, E2, E6 rămân pentru prototip. Timpii nu se repetă la milisecundă între rulări (cele două nuclee emulate pe rând); evenimentele și cadrele da. Electric nu se verifică nimic.
 
 ### 2026-10-28: jurnalul de măsurători și întoarcerea automată (FW-13)
 - De ce: E1, E2, E4 și E6 au nevoie de timpi de pe dispozitiv, nu doar de rândurile `PERF` de pe serial. E4 ține zile întregi, fără laptop. Și analiza trebuie scrisă și încercată înainte să vină plăcile, nu după.

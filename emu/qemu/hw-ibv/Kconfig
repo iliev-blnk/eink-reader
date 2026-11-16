@@ -1,0 +1,5 @@
+config IBV_READER
+    bool
+    default y
+    depends on XTENSA_ESP32S3
+    select SSI_SD

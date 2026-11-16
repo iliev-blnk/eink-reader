@@ -248,7 +248,9 @@ void bringup_run(void)
     // CS-ul cardului SD trebuie să fie în 1 înaintea oricărui trafic pentru
     // panou, altfel cardul ar putea lua o parte din el drept comenzi.
     gpio_set_level(BOARD_SD_CS, 1);
-    gpio_config(&(gpio_config_t){.pin_bit_mask = BIT64(BOARD_SD_CS), .mode = GPIO_MODE_OUTPUT});
+    // Cu gpio_set_direction, nu cu gpio_config: gpio_config ar trece pinul ca ocupat,
+    // iar driverul SD, care îl ia apoi în primire, ar da „conflict found for GPIO”.
+    gpio_set_direction(BOARD_SD_CS, GPIO_MODE_OUTPUT);
 
     const spi_bus_config_t bus = {
         .sclk_io_num = BOARD_SPI_SCK,

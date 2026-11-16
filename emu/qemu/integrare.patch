@@ -1,0 +1,77 @@
+diff --git a/hw/Kconfig b/hw/Kconfig
+index 1b4e9bb..45851df 100644
+--- a/hw/Kconfig
++++ b/hw/Kconfig
+@@ -13,6 +13,7 @@ source fsi/Kconfig
+ source gpio/Kconfig
+ source hyperv/Kconfig
+ source i2c/Kconfig
++source ibv/Kconfig
+ source ide/Kconfig
+ source input/Kconfig
+ source intc/Kconfig
+diff --git a/hw/meson.build b/hw/meson.build
+index b827c82..3bcce5b 100644
+--- a/hw/meson.build
++++ b/hw/meson.build
+@@ -12,6 +12,7 @@ subdir('dma')
+ subdir('gpio')
+ subdir('hyperv')
+ subdir('i2c')
++subdir('ibv')
+ subdir('ide')
+ subdir('input')
+ subdir('intc')
+diff --git a/hw/sd/sd.c b/hw/sd/sd.c
+index f9bd03f..2fc4716 100644
+--- a/hw/sd/sd.c
++++ b/hw/sd/sd.c
+@@ -1577,7 +1577,8 @@ static sd_rsp_type_t emmc_cmd_SEND_EXT_CSD(SDState *sd, SDRequest req)
+ /* CMD9 */
+ static sd_rsp_type_t spi_cmd_SEND_CSD(SDState *sd, SDRequest req)
+ {
+-    if (sd->state != sd_standby_state) {
++    /* In SPI mode the card never passes through stand-by: it answers in transfer state. */
++    if (sd->state != sd_transfer_state) {
+         return sd_invalid_state_for_cmd(sd, req);
+     }
+     return sd_cmd_to_sendingdata(sd, req, sd_req_get_address(sd, req),
+@@ -1596,7 +1597,8 @@ static sd_rsp_type_t sd_cmd_SEND_CSD(SDState *sd, SDRequest req)
+ /* CMD10 */
+ static sd_rsp_type_t spi_cmd_SEND_CID(SDState *sd, SDRequest req)
+ {
+-    if (sd->state != sd_standby_state) {
++    /* In SPI mode the card never passes through stand-by: it answers in transfer state. */
++    if (sd->state != sd_transfer_state) {
+         return sd_invalid_state_for_cmd(sd, req);
+     }
+     return sd_cmd_to_sendingdata(sd, req, sd_req_get_address(sd, req),
+@@ -1649,7 +1651,8 @@ static sd_rsp_type_t sd_cmd_SEND_STATUS(SDState *sd, SDRequest req)
+     }
+ 
+     if (sd_is_spi(sd)) {
+-        return sd_r2_s;
++        /* ssi-sd builds the two-byte SPI R2 from the card status; the CSD is not a status. */
++        return sd_r1;
+     }
+ 
+     return sd_req_rca_same(sd, req) ? sd_r1 : sd_r0;
+diff --git a/meson.build b/meson.build
+index 6cc151f..c8227d5 100644
+--- a/meson.build
++++ b/meson.build
+@@ -1227,9 +1227,11 @@ if not get_option('slirp').auto() or have_system
+     slirp_cflags += ['-DLIBSLIRP_STATIC'] 
+   endif
+ 
+-  slirp = declare_dependency(dependencies: [slirp_dep],
+-                          compile_args: slirp_cflags,
+-                          version: slirp_dep.version())
++  if slirp_dep.found()
++    slirp = declare_dependency(dependencies: [slirp_dep],
++                            compile_args: slirp_cflags,
++                            version: slirp_dep.version())
++  endif
+ 
+   # slirp < 4.7 is incompatible with CFI support in QEMU.  This is because
+   # it passes function pointers within libslirp as callbacks for timers.

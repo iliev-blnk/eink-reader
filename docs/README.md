@@ -21,6 +21,12 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 
 ## Jurnal
 
+### 2026-11-17: bus-uri SPI separate și rezistențe serie pe USB (PCB-4, punctele 1 și 2)
+- Ce e: cardul și panoul nu mai împart SCK și MOSI. Cardul a rămas pe pinii de pe DevKit (IO11/12/13, CS pe IO14), panoul a primit SCK pe IO47 și MOSI pe IO48. Așa, înainte de a opri șina unuia, firmware-ul îi pune liniile pe 0 fără să-l încurce pe celălalt, și niciunul nu mai e alimentat prin linii. Pe D+/D− au intrat R25/R26 de 22 Ω, lângă modul.
+- `verifica.py` dă acum eroare dacă J3 și J4 împart o linie sau dacă lipsește rezistența serie pe USB.
+- Rezultatul: placa retrasată, 52 din 52 de rețele (1.469 mm, 206 via). ERC 0, DRC 0 erori, 0 diferențe față de schemă; `verifica.py` 0 erori, 3 avertismente. Masa baretei J3 e legată plin la planul de pe F.Cu (o singură punte termică încăpea printre traseele panoului). VSYS a ieșit la 0,25 mm (65,9 mm, ≤ ~0,45 A), trecut în tabelul pistelor de putere. Carcasa nu se schimbă.
+- Ce nu e: traseele USB n-au fost scurtate (67 și 69 mm; ar trebui mutată mufa, deci și carcasa). Firmware-ul plăcii (PCB-8) trebuie să pună panoul pe a doua gazdă SPI. Codul LCSC al rezistenței de 22 Ω e de verificat la comandă (PCB-5). Nimic nu e măsurat pe placă.
+
 ### 2026-11-17: revizia plăcii v1, prima trecere (PCB-4, `hardware/pcb/REVIEW.md`)
 - Ce e: fiecare bloc al plăcii comparat cu foaia de catalog a piesei: USB-C, încărcătorul, indicatorul, 3,3 V, comutatoarele de alimentare, ESP32-S3, cardul, afișajul. Au intrat și amprentele, antena și punctele de test. Concluziile, cu trimiterile la tabele, sunt în `REVIEW.md`.
 - `verifica.py` scrie în cod regulile pe care ERC/DRC nu le au: fiecare pin liber al unui circuit e motivat; USB pe GPIO19/20; nimic pe pinii PSRAM-ului; tensiunile pe ADC1; butoanele pe pini RTC; pinii de configurare la pornire; polaritatea LED-urilor și a protecției USB; decuplarea; niciun cupru sub antenă; aceiași pini ca firmware-ul de pe DevKit. Rulează în `make.sh`: 0 erori, 3 avertismente (traseele USB lungi, fără punct de test pe 3V3_SD și 3V3_EPD).

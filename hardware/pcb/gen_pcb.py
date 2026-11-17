@@ -31,6 +31,7 @@ PLACE = {
     'H1': (6.395, 2.9, 0), 'H2': (98.2, 2.9, 0), 'H3': (6.395, 50.9, 0), 'H4': (98.2, 50.9, 0),
     # modulul: antena spre dreapta, peste marginea plăcii (zona fără cupru e la x > 99,79)
     'U7': (93.04, 26.9, 270),
+    'R25': (82.0, 14.5, 90), 'R26': (83.7, 14.5, 90),
     'C14': (96.2, 14.5, 90), 'C15': (97.9, 14.5, 90), 'R19': (92.8, 14.5, 90), 'C16': (91.1, 14.5, 90),
     'R12': (86.0, 14.5, 90), 'R13': (87.7, 14.5, 90), 'R14': (89.4, 14.5, 90),
     'SW6': (90.0, 8.0, 0),
@@ -159,6 +160,10 @@ def build():
                     q.GetNumber() == pad.GetNumber() and q.GetAttribute() == pcbnew.PAD_ATTRIB_SMD for q in fp.Pads()):
                 # viaurile din pastila centrală: legate plin, altfel DRC le vede
                 # fără punți termice (sunt sub cuprul pastilei)
+                pad.SetLocalZoneConnection(pcbnew.ZONE_CONNECTION_FULL)
+            if (p['ref'], pad.GetNumber()) == ('J3', '7'):
+                # masa baretei afișajului: pe F.Cu o încadrează traseele panoului și
+                # rămâne o singură punte termică; e legată și prin planurile interioare
                 pad.SetLocalZoneConnection(pcbnew.ZONE_CONNECTION_FULL)
             if p['ref'] == 'J1' and pad.GetNumber() == 'SH':
                 # urechile carcasei USB-C, lângă margine: nu încap două punți termice

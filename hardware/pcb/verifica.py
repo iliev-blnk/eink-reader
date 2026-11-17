@@ -71,8 +71,6 @@ LIBERI = {
     ('U7', '15'): 'IO3, pin de configurare la pornire: liber = sursa JTAG implicită',
     ('U7', '16'): 'IO46, pin de configurare la pornire: liber = coborât intern, pornire din flash',
     ('U7', '26'): 'IO45, pin de configurare la pornire: liber = coborât intern, VDD_SPI 3,3 V',
-    ('U7', '24'): 'IO47, liber',
-    ('U7', '25'): 'IO48, liber',
     ('U7', '28'): 'IO35, ocupat de PSRAM-ul octal (N16R8)',
     ('U7', '29'): 'IO36, ocupat de PSRAM-ul octal (N16R8)',
     ('U7', '30'): 'IO37, ocupat de PSRAM-ul octal (N16R8)',
@@ -111,8 +109,18 @@ def esp_map():
 def check_esp():
     m = esp_map()
     # USB-ul intern e doar pe GPIO19 (D−) și GPIO20 (D+)
-    if m.get('USB_DN') != 19 or m.get('USB_DP') != 20:
-        eroare(f'USB: D− pe GPIO{m.get("USB_DN")}, D+ pe GPIO{m.get("USB_DP")}; trebuie 19 și 20')
+    if m.get('ESP_DN') != 19 or m.get('ESP_DP') != 20:
+        eroare(f'USB: D− pe GPIO{m.get("ESP_DN")}, D+ pe GPIO{m.get("ESP_DP")}; trebuie 19 și 20')
+    # între modul și mufă câte o rezistență serie de 22–33 Ω (ghidul Espressif, USB)
+    for esp, usb in (('ESP_DP', 'USB_DP'), ('ESP_DN', 'USB_DN')):
+        rs = [r for r, _ in pins_on(esp) if r.startswith('R')]
+        if len(rs) != 1 or set(PARTS[rs[0]]['pins'].values()) != {esp, usb} \
+                or PARTS[rs[0]]['value'] not in ('22', '27', '33'):
+            eroare(f'{esp}: lipsește rezistența serie de 22–33 Ω spre {usb}')
+    # cardul și panoul pe bus-uri separate: altfel unul îl alimentează pe celălalt prin linii
+    comune = {n for n in PARTS['J3']['pins'].values()} & {n for n in PARTS['J4']['pins'].values()} - {'GND'}
+    if comune:
+        eroare(f'cardul și panoul împart {sorted(comune)}: alimentare inversă când una din șine e oprită')
     # PSRAM-ul octal ocupă GPIO35–37
     for net, g in m.items():
         if g in (35, 36, 37):
@@ -139,7 +147,8 @@ def check_esp():
 def check_firmware():
     """Pinii comuni cu prototipul de pe DevKit trebuie să rămână aceiași, ca
     firmware-ul să meargă pe placă doar cu un antet nou (PCB-8)."""
-    nume = {'BAT_ADC_GPIO': 'VBAT_SENSE'}
+    # pe DevKit bus-ul e comun; pe placă pinii lui au rămas cardului
+    nume = {'BAT_ADC_GPIO': 'VBAT_SENSE', 'SPI_SCK': 'SD_SCK', 'SPI_MOSI': 'SD_MOSI', 'SPI_MISO': 'SD_MISO'}
     m = esp_map()
     src = open(DEVKIT, encoding='utf-8').read()
     for k, g in re.findall(r'#define BOARD_(\w+)\s+GPIO_NUM_(\d+)', src):
@@ -230,8 +239,8 @@ def check_placa():
                 break
     # perechea USB: lungimile și diferența (USB 2.0 full speed iartă mult)
     lung = {}
-    for net in ('USB_DP', 'USB_DN'):
-        tr = [t for t in b.GetTracks() if t.GetNetname() == net]
+    for net in ('USB_DP', 'USB_DN'):         # cu bucata dintre rezistența serie și modul
+        tr = [t for t in b.GetTracks() if t.GetNetname() in (net, 'ESP' + net[3:])]
         lung[net] = (sum(ToMM(t.GetLength()) for t in tr if t.Type() != pcbnew.PCB_VIA_T),
                      sum(1 for t in tr if t.Type() == pcbnew.PCB_VIA_T))
     dp, dn = lung['USB_DP'], lung['USB_DN']

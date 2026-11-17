@@ -17,7 +17,7 @@ C0603 = 'Capacitor_SMD:C_0603_1608Metric'
 LED0603 = 'LED_SMD:LED_0603_1608Metric'
 # coduri LCSC pentru piesele de bază 0603; toate se verifică în catalog la comandă (PCB-5)
 LCSC_R = {'1k': 'C21190', '1.8k': 'C4177', '3.3k': 'C22978', '4.7k': 'C23162', '5.1k': 'C23186',
-          '10k': 'C25804', '47k': 'C25819', '100k': 'C25803', '1M': 'C22935', '16.2k': '', '36.5k': ''}
+          '10k': 'C25804', '22': 'C23345', '47k': 'C25819', '100k': 'C25803', '1M': 'C22935', '16.2k': '', '36.5k': ''}
 LCSC_C = {'100nF': 'C14663', '1uF': 'C15849', '4.7uF': 'C19666', '10uF': 'C19702', '22uF': '', '1nF': 'C1588'}
 
 def R(ref, val, a, b, group, mpn=''):
@@ -117,11 +117,17 @@ ESP = {'1': 'GND', '40': 'GND', '41': 'GND', '2': '+3V3', '3': 'ESP_EN', '27': '
        '4': 'BTN_PREV', '5': 'BTN_NEXT', '6': 'BTN_MENU', '7': 'FG_ALRT',
        '39': 'VBAT_SENSE', '38': 'VBUS_SENSE', '9': 'I2C_SDA', '10': 'I2C_SCL',
        '8': 'SD_PWR_EN', '23': 'EPD_PWR_EN',
-       '20': 'SPI_SCK', '19': 'SPI_MOSI', '21': 'SPI_MISO',
-       '18': 'EPD_CS', '17': 'EPD_DC', '12': 'EPD_RST', '11': 'EPD_BUSY', '22': 'SD_CS',
-       '13': 'USB_DN', '14': 'USB_DP', '37': 'UART_TX', '36': 'UART_RX'}
+       # două bus-uri SPI: cardul pe pinii de pe DevKit (SPI2), panoul pe IO47/IO48 (SPI3),
+       # ca fiecare să poată fi pus pe 0 când îi e oprită alimentarea (REVIEW.md, punctul 1)
+       '20': 'SD_SCK', '19': 'SD_MOSI', '21': 'SD_MISO', '22': 'SD_CS',
+       '24': 'EPD_SCK', '25': 'EPD_MOSI',
+       '18': 'EPD_CS', '17': 'EPD_DC', '12': 'EPD_RST', '11': 'EPD_BUSY',
+       '13': 'ESP_DN', '14': 'ESP_DP', '37': 'UART_TX', '36': 'UART_RX'}
 part('U7', 'RF_Module:ESP32-S3-WROOM-1', 'ESP32-S3-WROOM-1-N16R8', 'RF_Module:ESP32-S3-WROOM-1', ESP,
      'C2913202', 'Espressif ESP32-S3-WROOM-1-N16R8', G)
+# rezistențele serie pe D+/D−, lângă modul (ghidul Espressif, USB)
+R('R25', '22', 'ESP_DP', 'USB_DP', G)
+R('R26', '22', 'ESP_DN', 'USB_DN', G)
 C('C14', '22uF', '+3V3', 'GND', G)
 C('C15', '100nF', '+3V3', 'GND', G)
 R('R19', '10k', '+3V3', 'ESP_EN', G)
@@ -143,16 +149,16 @@ for ref, net, fn in (('SW2', 'BTN_PREV', 'ÎNAPOI'), ('SW3', 'BTN_NEXT', 'ÎNAIN
 # ======================================================================= AFIȘAJUL
 G = 'epd'
 part('J3', 'Connector_Generic:Conn_01x08', 'WeAct EPD', 'Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical',
-     {'1': 'EPD_BUSY', '2': 'EPD_RST', '3': 'EPD_DC', '4': 'EPD_CS', '5': 'SPI_SCK', '6': 'SPI_MOSI',
+     {'1': 'EPD_BUSY', '2': 'EPD_RST', '3': 'EPD_DC', '4': 'EPD_CS', '5': 'EPD_SCK', '6': 'EPD_MOSI',
       '7': 'GND', '8': '3V3_EPD'}, group=G)
 
 # ======================================================================= CARDUL
 G = 'sd'
 part('J4', 'Connector:Micro_SD_Card', 'microSD', 'Connector_Card:microSD_HC_Molex_104031-0811',
-     {'1': 'SD_DAT2', '2': 'SD_CS', '3': 'SPI_MOSI', '4': '3V3_SD', '5': 'SPI_SCK', '6': 'GND',
-      '7': 'SPI_MISO', '8': 'SD_DAT1', 'SH': 'GND'}, '', 'Molex 104031-0811', G)
+     {'1': 'SD_DAT2', '2': 'SD_CS', '3': 'SD_MOSI', '4': '3V3_SD', '5': 'SD_SCK', '6': 'GND',
+      '7': 'SD_MISO', '8': 'SD_DAT1', 'SH': 'GND'}, '', 'Molex 104031-0811', G)
 R('R21', '47k', '3V3_SD', 'SD_CS', G)
-R('R22', '47k', '3V3_SD', 'SPI_MISO', G)
+R('R22', '47k', '3V3_SD', 'SD_MISO', G)
 R('R23', '47k', '3V3_SD', 'SD_DAT1', G)
 R('R24', '47k', '3V3_SD', 'SD_DAT2', G)
 

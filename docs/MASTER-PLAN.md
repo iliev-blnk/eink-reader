@@ -257,7 +257,7 @@ Direcția de proiectare (decizia mea; alegerea pieselor se verifică final după
 - [ ] PCB-2 Schema v2 + ERC. Calculul bugetului de consum (alimentează predicțiile E3/E4).
 - [ ] PCB-3 Conturul plăcii din dimensiunile ecranului + carcasă, plasarea, rutarea, DRC cu regulile JLCPCB.
 - [ ] PCB-4 Revizuirea proiectului după o listă de verificare: amprente, polaritate, pinii de boot/strapping, pinii USB, distanța față de antenă, puncte de test. O citești cu mine. O arăți coordonatorului, dacă vrea.
-  *Prima trecere e în `hardware/pcb/REVIEW.md`: fiecare bloc față de foaia de catalog, plus regulile din `verifica.py`, care rulează în `make.sh`. Nicio greșeală de legătură; L1 schimbată pe bobina din lista TI. Rămâne citirea împreună și cele șase puncte de hotărât (primul: bus-uri SPI separate pentru card și panou).*
+  *Prima trecere e în `hardware/pcb/REVIEW.md`: fiecare bloc față de foaia de catalog, plus regulile din `verifica.py`, care rulează în `make.sh`. Nicio greșeală de legătură; L1 schimbată pe bobina din lista TI. Punctele 1 și 2 sunt făcute: bus-uri SPI separate pentru card și panou (panoul pe GPIO47/48) și rezistențe de 22 Ω pe D+/D−; traseele USB au rămas lungi. Rămâne citirea împreună și punctele 3–6.*
 - [ ] PCB-5 Comanda: 5 plăci, cu asamblarea JLCPCB a pieselor cu pas fin. Fișierele comenzii ies din `make.sh`.
 - [ ] PCB-6 Lipirea manuală a pieselor mari (conectori, butoane, mufa bateriei, bareta ecranului).
 - [ ] PCB-7 Punerea în funcțiune, pas cu pas:

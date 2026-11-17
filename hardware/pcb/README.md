@@ -74,20 +74,23 @@ unde lipsesc, piesa se alege atunci sau se lipește de mână.
 
 | bloc | piese | de ce |
 |---|---|---|
-| USB-C | J1 GCT USB4105, R1/R2 5,1 kΩ pe CC, U1 USBLC6-2SC6 (LCSC C7519), R17/R18 divizor VBUS → IO2 | 5 V de la orice încărcător C; ESD pe D+/D−; firmware-ul vede când e cablul pus |
+| USB-C | J1 GCT USB4105, R1/R2 5,1 kΩ pe CC, U1 USBLC6-2SC6 (LCSC C7519), R17/R18 divizor VBUS → IO2, R25/R26 22 Ω serie pe D+/D− lângă modul | 5 V de la orice încărcător C; ESD pe D+/D−; firmware-ul vede când e cablul pus |
 | încărcătorul | U2 BQ24074 (VQFN-16), R3 3,3 kΩ (ILIM ≈ 0,47 A), R4 1,8 kΩ (ICHG ≈ 0,5 A), R5 10 kΩ pe TS, D1/D2 PGOOD/CHG | power-path: dispozitivul merge din USB cu bateria goală; EN1/EN2 legați pentru USB500 |
 | bateria | J2 JST-PH 2 pini, JP1 punte de lipit (I_BAT), U6 MAX17048 (indicator ModelGauge, I2C), R15/R16 1 MΩ divizor VBAT → IO1 | JP1 tăiată = un ampermetru în serie cu bateria, pentru E3/E4 |
 | 3,3 V | SW1 PCM12 (comutator pornit/oprit pe EN), U3 TPS63900 buck-boost, L1 2,2 µH, R8/R9 configurarea | 75 nA în gol și buck-boost: 3,3 V stabil de la 4,2 V până la 2,5 V din baterie |
 | comutatoare de sarcină | U4/U5 TPS22917 pentru card (3V3_SD) și afișaj (3V3_EPD), C7/C8 1 nF urcare lentă, R10/R11 1 MΩ pe EN | cardul și panoul nu consumă nimic în somn |
 | MCU | U7 ESP32-S3-WROOM-1-N16R8 (C2913202), RC pe EN, SW5 BOOT, SW6 RESET, J5 UART0 | același modul ca pe DevKit, deci aceeași hartă de pini |
 | butoane | SW2–SW4 Alps SKRTLAE010 (C110293), pe margini (două pe stânga, MENIU sus), apăsate din lateral | ÎNAPOI, ÎNAINTE, MENIU |
-| afișaj | J3 baretă 1×8 de 2,54 mm spre modulul WeAct | BUSY, RST, DC, CS, SCK, MOSI, GND, 3V3_EPD |
+| afișaj | J3 baretă 1×8 de 2,54 mm spre modulul WeAct | BUSY, RST, DC, CS, SCK, MOSI, GND, 3V3_EPD; SCK și MOSI sunt ale lui, nu le împarte cu cardul |
 | card | J4 Molex 104031 microSD, R21–R24 47 kΩ | modul SPI; pull-up pe CS, MISO și DAT1/DAT2 |
 | test | TP1–TP6: VBUS, VSYS, BAT_J, VBAT, +3V3, GND | pentru punerea în funcțiune și măsurători |
 
 GPIO-urile păstrează harta de pe DevKit (`firmware/boards/include/board_devkit.h`); în plus:
 I2C pe IO16 (SDA) și IO17 (SCL), FG_ALRT pe IO7, SD_PWR_EN pe IO15,
-EPD_PWR_EN pe IO21, VBUS_SENSE pe IO2.
+EPD_PWR_EN pe IO21, VBUS_SENSE pe IO2. Singura diferență: pe DevKit cardul și
+panoul împart bus-ul SPI (IO11/12/13); aici bus-ul acela rămâne cardului, iar
+panoul are SCK pe IO47 și MOSI pe IO48. Pe N16R8 IO47/IO48 sunt pini obișnuiți
+de 3,3 V (doar modulele R16V îi au de 1,8 V).
 
 ## Consumul în somn (estimat)
 
@@ -125,8 +128,8 @@ import/export. `route.py` e un trasor propriu, pe grilă, cu căutarea în C
   un cost istoric care crește, ca rețelele să nu se smulgă una pe alta la
   nesfârșit.
 
-Rezultatul, pe placa de acum: **48 din 48 de rețele trasate**, 0 ieșiri spre
-plan eșuate, după 15 smulgeri. 1.046 de segmente, 1.414,9 mm de pistă, 201 via.
+Rezultatul, pe placa de acum: **52 din 52 de rețele trasate**, 0 ieșiri spre
+plan eșuate, după 14 smulgeri. 1.022 de segmente, 1.469,3 mm de pistă, 206 via.
 
 ## Verificările
 
@@ -146,11 +149,11 @@ Pistele de putere de 0,25 mm (unde 0,4 nu încape):
 | rețea | lățime | lungime | curent |
 |---|---|---:|---|
 | LX2 | 0,25 mm | 4,6 mm | nodul de comutație al TPS63900, sub 0,5 A |
-| VBUS | 0,25 mm | 71,7 mm | 32,9 mm în blocul de alimentare (≤ 0,47 A, ~30 mV cădere), 38,8 mm spre divizorul R17 (µA) |
+| VSYS | 0,25 mm | 65,9 mm | de la U2 la U3, SW1 și LED-uri: doar consumul sistemului (curentul de încărcare rămâne în U2), ≤ ~0,45 A la vârfurile de WiFi, ~0,13 Ω, deci ~60 mV cădere la intrarea unui buck-boost |
 
 O pistă de 0,25 mm în cupru de 1 oz duce ~1 A la o încălzire de 10 °C, deci
-are rezervă de două ori. Celelalte rețele de putere sunt de 0,4 mm: 3V3_EPD
-5,9 mm, 3V3_SD 29,8 mm, BAT_J 13,8 mm, LX1 1,7 mm, VBAT 51,9 mm, VSYS 57,9 mm.
+are rezervă de două ori. Celelalte rețele de putere sunt de 0,4 mm: VBUS
+75,3 mm, 3V3_EPD 14,2 mm, 3V3_SD 28,6 mm, BAT_J 13,7 mm, LX1 1,7 mm, VBAT 55,5 mm.
 
 ## De știut înainte de comandă
 
@@ -162,8 +165,8 @@ are rezervă de două ori. Celelalte rețele de putere sunt de 0,4 mm: 3V3_EPD
 - **Alimentarea inversă**: înainte de a opri 3V3_SD sau 3V3_EPD, firmware-ul
   trebuie să pună liniile SPI și CS-urile pe 0, altfel cardul sau panoul se
   alimentează prin diodele de protecție ale pinilor. Se scrie în
-  `board_pcb_v1.h` (PCB-8). Pe bus-ul SPI comun asta nu ajunge; vezi
-  `REVIEW.md`, „De hotărât la citire”, punctul 1.
+  `board_pcb_v1.h` (PCB-8). Cum fiecare are bus-ul lui, liniile unuia se pun
+  pe 0 fără să-l încurce pe celălalt (`REVIEW.md`, punctul 1).
 - **TPS63900 la vârfurile de WiFi**: dă până la ~400 mA; ESP32-S3 cere vârfuri
   de ~350 mA la transmisie. Merge cu C5 + C14 (2 × 22 µF), dar fără rezervă.
   Cititorul nu folosește WiFi în mod normal; dacă va folosi, e de măsurat.

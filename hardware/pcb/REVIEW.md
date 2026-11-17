@@ -42,7 +42,8 @@ Erorile opresc `make.sh`.
 
 - Fiecare pin neconectat al unui circuit e într-o listă, cu motivul lui. Un pin uitat iese ca eroare.
 - ESP32-S3:
-  - USB pe GPIO19/20;
+  - USB pe GPIO19/20, cu câte o rezistență serie de 22–33 Ω spre mufă;
+  - cardul și panoul fără nicio linie comună (în afară de masă);
   - nimic pe GPIO35–37, ocupați de PSRAM-ul octal;
   - tensiunile citite pe ADC1;
   - butoanele și alerta pe pini RTC;
@@ -73,8 +74,8 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
 | ✔ | 5,1 kΩ spre masă pe CC1 și pe CC2: sursa vede un consumator și dă 5 V | specificația USB Type-C |
 | ✔ | U1: I/O1 pe 1/6 = D+, I/O2 pe 3/4 = D−, VBUS pe 5, masa pe 2 | simbolul KiCad; ? foaia ST |
 | ✔ | D− pe GPIO19, D+ pe GPIO20, singurii pini ai USB-ului intern | WROOM-1, tabelul 3-1 |
-| ⚠ | Fără rezistențele serie de 22–33 Ω și fără locurile pentru condensatori, pe care ghidul Espressif zice să le „rezervi” lângă cip | lista de verificare, USB |
-| ⚠ | Trasee lungi: D+ 67 mm cu 10 via, D− 62 mm cu 6 via. La full speed (12 Mbit/s) nu contează electric, dar arată rău și e de scurtat | `verifica.py` |
+| ✎ | R25/R26, 22 Ω (0603, ca restul plăcii), la ~4 mm de pinii 13/14 ai modulului; între ele și mufă rețelele se numesc USB_DP/USB_DN, între ele și modul ESP_DP/ESP_DN. Locurile pentru condensatori, pe care ghidul zice să le „rezervi”, nu sunt puse: la full speed nu se populează de obicei | lista de verificare, USB |
+| ⚠ | Trasee lungi: D+ 67 mm cu 9 via, D− 69 mm cu 8 via. **Nu s-au scurtat**: pinii USB sunt pe latura de sus a modulului, mufa e pe marginea de jos, la 40 mm de el; scurtarea înseamnă mutarea mufei și a blocului de încărcare, deci și a carcasei. La full speed (12 Mbit/s, fronturi de ~4 ns) 70 mm nu contează electric. De făcut la v2 | `verifica.py` |
 | ⚠ | Divizorul VBUS (100k/100k) pune 2,5 V pe IO2 și când ESP-ul e oprit (SW1 pe OPRIT, cablul pus). Curge ~40 µA prin dioda de protecție a pinului în șina de 3,3 V | calcul |
 
 ### Încărcătorul (U2 BQ24074, D1/D2)
@@ -123,7 +124,7 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
 | ✔ | QOD legat la VOUT: descărcarea internă a ieșirii | descrierea QOD |
 | ✔ | Cu ieșirea peste intrare, curentul invers e blocat (maxim −1 µA): +3V3 nu e alimentat înapoi | RCB |
 | ✔ | R10/R11 de 1 MΩ pe ON țin comutatorul oprit cât ESP-ul pornește. Pinul ON are oricum rezistență internă spre masă, deci sunt redundante, dar nu strică | descrierea ON |
-| ⚠ | **Alimentarea inversă prin SPI**. Cardul și panoul împart SCK și MOSI. Cât una din șine e oprită și cealaltă vorbește, liniile împing 3,3 V în piesa oprită prin diodele ei de protecție. README-ul cere ca firmware-ul să pună liniile pe 0 înainte de oprire, dar pe un bus comun asta nu se poate cât e folosit de cealaltă piesă | foaia TPS22917, „reverse current” |
+| ✎ | **Alimentarea inversă prin SPI**. În prima trecere cardul și panoul împărțeau SCK și MOSI: cât una din șine era oprită și cealaltă vorbea, liniile împingeau 3,3 V în piesa oprită prin diodele ei de protecție. Acum fiecare are bus-ul lui (punctul 1), deci firmware-ul pune pe 0 liniile piesei pe care o oprește, fără s-o încurce pe cealaltă. `verifica.py` dă eroare dacă J3 și J4 ajung iar să împartă o linie | foaia TPS22917, „reverse current” |
 
 ### ESP32-S3 (U7)
 
@@ -139,7 +140,8 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
 | ✔ | VBAT_SENSE pe GPIO1 și VBUS_SENSE pe GPIO2, ambele pe ADC1 (ADC2 nu merge cât e pornit WiFi-ul) | 3-1 |
 | ✔ | Butoanele pe GPIO4–6 și alerta indicatorului pe GPIO7, toți pini RTC: trezesc din somnul adânc (ext1). Rezistențele interne spre 3,3 V le pornește firmware-ul în somn (`buttons.c`) | 3-1 |
 | ✔ | I2C pe GPIO16/17 (pinii cristalului de 32 kHz, nefolosit) | 3-1 |
-| ✔ | Pinii comuni cu prototipul sunt aceiași ca pe DevKit (SPI 11/12/13, afișaj 8/9/10/18, card 14, butoane 4/5/6, bateria 1), deci firmware-ul are nevoie doar de un antet nou (PCB-8) | `verifica.py` |
+| ✔ | Pinii comuni cu prototipul sunt aceiași ca pe DevKit (cardul pe SPI 11/12/13 cu CS pe 14, afișajul pe 8/9/10/18, butoanele 4/5/6, bateria 1). În plus, panoul are SCK pe GPIO47 și MOSI pe GPIO48, deci firmware-ul are nevoie de un antet nou și de a doua gazdă SPI (PCB-8) | `verifica.py` |
+| ✔ | GPIO47/48 merg la 3,3 V: nota c din foaia modulului (1,8 V) e doar pentru ESP32-S3R16V; N16R8 are VDD_SPI de 3,3 V | WROOM-1, tabelul 3-1, nota c |
 | ✔ | Decuplarea: C14 22 µF și C15 100 nF la 3 mm de pinul 2 | `verifica.py` |
 | ⚠ | J5 (UART): pinul 2 e TX al ESP-ului și merge la RX-ul adaptorului. Pe față nu e serigrafie, deci se ține minte: pinul 1 (pătrat) e masa | — |
 
@@ -186,8 +188,8 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
 
 ## De hotărât la citire
 
-1. **Bus-uri SPI separate pentru card și panou.** ESP32-S3 are două gazde SPI libere, iar GPIO38–42 sunt liberi. Mutarea cardului pe SPI3, cu SCK, MOSI și MISO proprii, rezolvă alimentarea inversă: fiecare bus se pune pe 0 când îi e oprită șina, fără să încurce celălalt. Costă 3 pini și o retrasare. Firmware-ul are nevoie de a doua gazdă SPI doar pe antetul plăcii, iar prototipul de pe DevKit rămâne cum e. *Recomandare: da, înainte de comandă.*
-2. **Rezistențe serie pe D+/D−** (22 Ω, 0402, lângă modul). Ghidul Espressif le recomandă. *Recomandare: da, odată cu scurtarea traseelor USB.*
+1. ✎ **Bus-uri SPI separate pentru card și panou. Făcut.** Cardul a rămas pe pinii de pe DevKit (SCK 12, MOSI 11, MISO 13, CS 14), iar panoul a primit SCK pe GPIO47 și MOSI pe GPIO48, pinii de lângă CS-ul și DC-ul lui pe latura modulului (în loc de GPIO38–42, cum scria prima trecere: așa traseele sunt mai scurte, iar firmware-ul cardului nu se schimbă). Placa s-a retrasat: 52 din 52 de rețele, DRC 0.
+2. ✎ **Rezistențe serie pe D+/D−. Făcut**, pe jumătate: R25/R26 de 22 Ω (0603, ca restul plăcii) stau lângă modul. Traseele USB **n-au fost scurtate** (67 și 69 mm); asta cere mutarea mufei USB-C și a încărcătorului, deci și a carcasei. La full speed nu contează; rămâne pentru v2.
 3. **Decupare sub antenă**, ~6 × 30 mm, între H2 și H4. Schimbă și conturul carcasei (`placa.py` îl preia singur). *Recomandare: de hotărât după o măsurătoare de semnal pe DevKit în carcasa printată (ENC-3), dacă WiFi-ul contează.*
 4. **WiFi-ul și cei 400 mA.** Varianta ieftină e în firmware: puterea de emisie limitată la ~13 dBm (`esp_wifi_set_max_tx_power`), iar WiFi-ul doar cu panoul și cardul inactive. Varianta scumpă e alt regulator, dar ar pierde cei 75 nA în gol, pentru care a fost ales TPS63900. *Recomandare: firmware-ul, și măsurat.*
 5. **Divizorul VBUS mai mare** (de exemplu 470k/470k), ca să scadă curentul din IO2 cât ESP-ul e oprit. Atunci îi trebuie un condensator de 100 nF, ca la VBAT_SENSE. *Mărunt; opțional.*
@@ -196,13 +198,14 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
 ## Pentru firmware (PCB-8, `board_pcb_v1.h`)
 
 - Pini noi față de DevKit:
+  - panoul pe a doua gazdă SPI (SPI3): SCK GPIO47, MOSI GPIO48; cardul rămâne pe SPI2 cu 12/11/13 și CS 14;
   - SD_PWR_EN GPIO15;
   - EPD_PWR_EN GPIO21;
   - I2C SDA GPIO16 / SCL GPIO17;
   - FG_ALRT GPIO7;
   - VBUS_SENSE GPIO2, cu divizor 2.
 - Pe MAX17048 nu se setează MODE.EnSleep.
-- Înainte de a opri o șină comutată: liniile piesei de pe ea pe 0. Dacă rămâne bus-ul comun (punctul 1), cardul rămâne alimentat cât panoul lucrează, și invers.
+- Înainte de a opri o șină comutată: liniile piesei de pe ea (SCK, MOSI, CS și restul) pe 0. Cu bus-urile separate, asta nu-l încurcă pe celălalt.
 - WiFi-ul: puterea de emisie limitată, vezi punctul 4.
 
 ## Ce nu acoperă revizia

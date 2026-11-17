@@ -91,11 +91,15 @@ void gfx_glyph(gfx_t *g, const font_t *font, uint32_t index, int x, int y, gfx_c
         // Glifa e toată pe ecran: fiecare octet sursă se deplasează în doi octeți
         // ai framebufferului. Cerneala șterge biți pentru negru și îi pune pentru alb.
         int shift = gx & 7;
+        // Biții de completare de după `width` din ultimul octet al rândului se ignoră:
+        // un font care îi are puși ar desena în afara cutiei glifei, iar pe ultimul
+        // rând al ecranului ar scrie după framebuffer.
+        uint8_t last = w & 7 ? (uint8_t)(0xFF << (8 - (w & 7))) : 0xFF;
         for (int r = 0; r < h; r++) {
             uint8_t *dst = &g->buf[(gy + r) * g->stride + gx / 8];
             const uint8_t *src = bm + r * gstride;
             for (int b = 0; b < gstride; b++) {
-                uint8_t s = src[b];
+                uint8_t s = b == gstride - 1 ? src[b] & last : src[b];
                 if (!s) continue;
                 uint8_t hi = (uint8_t)(s >> shift), lo = (uint8_t)(s << (8 - shift));
                 if (c == GFX_BLACK) {

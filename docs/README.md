@@ -11,10 +11,19 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 - `../tools/fonttool/`: TTF/OTF → fonturi bitmap IBF, codecul de referință al formatului de font (`ibf.py`) și testele. Vezi README-ul lui.
 - `../tools/converter/`: convertorul de cărți (EPUB / FB2 / TXT → `.ibv`), cititorul, scriitorul și validatorul de referință al formatului (`ibv.py`) și testele lor. Vezi README-ul lui.
 - `../tools/texref/`: TeX ca arbitru al ruperii în rânduri. Compară rândurile dispozitivului cu LuaTeX pe tot corpusul și explică diferențele printr-un model al algoritmului. Vezi README-ul lui.
+- `../tools/fuzz/`: fuzzere (libFuzzer, ASan, UBSan, pe 32 de biți) pentru fișierele citite de pe card (`.ibv`, `.ibf`, indexul de pagini, poziția, semnele, setările), pe codul din firmware, plus verificarea exhaustivă a decodorului UTF-8. Vezi README-ul lui.
 - `../corpus/`: cărțile de test (le descarcă `fetch.sh`; neurmărite în git) și rezultatele conversiei lor.
 - `../spec/`: specificația formatului de carte (`book-format.md`), specificația formatului de font (`font-format.md`) și un fișier exemplu comentat (`examples/`).
 
 ## Jurnal
+
+### 2026-11-17: fuzzing pentru fișierele de pe card (`tools/fuzz`), patru greșeli reparate
+- De ce: tot ce citește dispozitivul vine de pe card, inclusiv fișierele pe care și le scrie singur, iar un card poate avea fișiere stricate sau făcute anume. Analizoarele fuseseră testate doar cu fișiere bune, făcute de convertor și de simulator.
+- Ce e: trei fuzzere libFuzzer (`fuzz_ibv`, `fuzz_font`, `fuzz_state`) pe codul din `firmware/components`, neschimbat: `fopen` e înlocuit printr-un `-include` cu o citire din memorie. Se compilează pe 32 de biți, ca pe ESP32-S3, cu ASan și UBSan; CRC-urile sunt oprite doar în modul de fuzzing (`crc32_ok()`). Fiecare fișier acceptat e și folosit: paginat, desenat, căutat. Plus `utf8_toate`, care verifică decodorul UTF-8 pe toate cele 4.311.810.304 secvențe de 1–4 octeți.
+- Ce a găsit: două depășiri de buffer în heap pe cip, declanșate de un fișier de pe card: numărul de pagini din `.pg` necomparat cu mărimea fișierului (`n * 8` dă peste cap pe 32 de biți) și numărul de înregistrări dintr-un bloc `.ibv` nelimitat (`2 * nrec` la fel). Amândouă reproduse pe codul vechi cu fișiere făcute de mână, cu CRC-uri corecte. Plus o depășire de `int64_t` în `badness` și biții de completare ai glifelor desenați în afara cutiei, amândouă doar cu un font absurd.
+- Ce s-a schimbat: cele patru verificări în `pageidx.c`, `ibv.c`, `layout.c`, `gfx.c`; `crc32_ok()` în locul comparațiilor directe. Intrările care le-au găsit sunt în `tools/fuzz/regresii/` și rulează înaintea fiecărei campanii.
+- Rezultatul: după reparații, 10 minute pe fuzzer fără nicio problemă (540 de mii de cărți, 1,7 milioane de fonturi, 63 de milioane de fișiere de stare). UTF-8: 0 greșeli. Verificarea modelelor mărginită (CBMC) nu s-a făcut.
+- Verificat după schimbare: `sim/test/run.sh` trece cu aceleași imagini, `tools/texref` dă exact `rezultate/v4.json`, firmware-ul se compilează, `emu/test.sh` trece cadru cu cadru.
 
 ### 2026-11-17: TeX ca arbitru al ruperii în rânduri (`tools/texref`), motorul Knuth–Plass îndreptat (LAYOUT_VERSION 4)
 - De ce: Jurnalul din 2026-10-27 spunea că ruperea e Knuth–Plass „în forma din TeX”, dar nimic nu o verifica. Pentru E6 și pentru capitolul despre paginare trebuia o măsurătoare, nu o afirmație: pe aceleași paragrafe, cu aceleași lățimi și aceiași parametri, rupe dispozitivul ca TeX?

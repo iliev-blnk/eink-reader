@@ -59,7 +59,7 @@ int sidecar_read(const char *path, void *data, size_t cap)
     fclose(f);
     if (!whole || n < 4) return -1;
     n -= 4;
-    return crc32_update(0, d, n) == get32(d + n) ? (int)n : -1;
+    return crc32_ok(crc32_update(0, d, n), get32(d + n)) ? (int)n : -1;
 }
 
 bool pos_load(const char *root, const uint8_t id[8], layout_pos_t *pos)

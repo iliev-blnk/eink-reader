@@ -62,7 +62,7 @@ bool settings_unpack(settings_t *s, const uint8_t in[SETTINGS_BLOB])
     settings_default(s);
     uint32_t c = 0;
     for (int i = 0; i < 4; i++) c |= (uint32_t)in[SETTINGS_BLOB - 4 + i] << (8 * i);
-    if (in[0] != VERSION || crc32_update(0, in, SETTINGS_BLOB - 4) != c) return false;
+    if (in[0] != VERSION || !crc32_ok(crc32_update(0, in, SETTINGS_BLOB - 4), c)) return false;
     for (int k = 0; k < SET_COUNT; k++)
         if (in[1 + k] < defs[k].count) s->v[k] = in[1 + k];
     return true;

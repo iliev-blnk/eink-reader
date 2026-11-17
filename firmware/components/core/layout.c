@@ -317,6 +317,11 @@ static int32_t badness(int32_t over, int32_t room)
 {
     if (over <= 0) return 0;
     if (room <= 0) return BAD_MAX;           // rând scurt fără spații: doar în a doua trecere
+    if (over / 47 >= room) return BAD_MAX;   // 100 · 47³ > BAD_MAX
+    // Pe un rând de cel mult 240 px nu se ajunge aici; doar un font absurd (kerning
+    // negativ uriaș, avansuri de sute de px) face numerele atât de mari încât cubul
+    // n-ar mai încăpea în 64 de biți. Se micșorează amândouă, raportul rămâne.
+    while (over >= 1 << 18 || room >= 1 << 20) over >>= 1, room >>= 1;
     int64_t b = 100 * (int64_t)over * over * over / ((int64_t)room * room * room);
     return b > BAD_MAX ? BAD_MAX : (int32_t)b;
 }

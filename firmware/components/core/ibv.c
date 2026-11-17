@@ -48,7 +48,7 @@ static ibv_err_t load_section(ibv_t *b, int i, uint8_t **out)
     uint8_t *p = malloc(len + 1);
     if (!p) return IBV_ERR_NOMEM;
     if (!read_at(b, b->sections[i].offset, p, len)) { free(p); return IBV_ERR_IO; }
-    if (crc32_update(0, p, len) != b->sections[i].crc) { free(p); return IBV_ERR_CRC; }
+    if (!crc32_ok(crc32_update(0, p, len), b->sections[i].crc)) { free(p); return IBV_ERR_CRC; }
     p[len] = 0;
     *out = p;
     return IBV_OK;
@@ -140,7 +140,7 @@ static ibv_err_t open_book(ibv_t *b, const char *path, bool full)
     err = IBV_ERR_MAGIC;
     if (memcmp(h, magic, 8) != 0) goto fail;
     err = IBV_ERR_CRC;
-    if (crc32_update(0, h, 40) != rd32(h + 40)) goto fail;
+    if (!crc32_ok(crc32_update(0, h, 40), rd32(h + 40))) goto fail;
     err = IBV_ERR_VERSION;
     uint16_t hsize = rd16(h + 10);
     if (h[8] != 0 || hsize < HEADER_SIZE) goto fail;
@@ -156,7 +156,7 @@ static ibv_err_t open_book(ibv_t *b, const char *path, bool full)
     err = IBV_ERR_IO;
     if (!read_at(b, hsize, dir, nsec * DIR_ENTRY)) goto fail;
     err = IBV_ERR_CRC;
-    if (crc32_update(0, dir, nsec * DIR_ENTRY) != rd32(h + 36)) goto fail;
+    if (!crc32_ok(crc32_update(0, dir, nsec * DIR_ENTRY), rd32(h + 36))) goto fail;
     err = IBV_ERR_FORMAT;
     for (int i = 0; i < nsec; i++) {
         const uint8_t *e = dir + i * DIR_ENTRY;
@@ -266,6 +266,10 @@ static ibv_err_t load_block(ibv_t *b, uint32_t bi, ibv_slot_t **out)
     const ibv_block_t *k = &b->blocks[bi];
     uint32_t nrec = (bi + 1 < b->block_count ? b->blocks[bi + 1].first_para : b->paragraph_count) - k->first_para;
     slot->block = -1;
+    // O înregistrare are cel puțin 4 octeți (tip, indicatori, două uleb), deci un
+    // bloc nu poate avea mai multe de raw_len / 4. Fără limita asta, un first_para
+    // greșit cere aici megaocteți, iar pe 32 de biți 2 * nrec poate da peste cap.
+    if (nrec > k->raw_len / 4u) return IBV_ERR_FORMAT;
     if (!slot->raw && !(slot->raw = malloc(IBV_MAX_BLOCK_RAW))) return IBV_ERR_NOMEM;
     uint16_t *ro = realloc(slot->rec_off, sizeof(uint16_t) * nrec);
     if (!ro) return IBV_ERR_NOMEM;
@@ -282,7 +286,7 @@ static ibv_err_t load_block(ibv_t *b, uint32_t bi, ibv_slot_t **out)
         free(stored);
         if (!ok) return IBV_ERR_FORMAT;
     }
-    if (crc32_update(0, slot->raw, k->raw_len) != k->crc) return IBV_ERR_CRC;
+    if (!crc32_ok(crc32_update(0, slot->raw, k->raw_len), k->crc)) return IBV_ERR_CRC;
 
     const uint8_t *p = slot->raw, *end = slot->raw + k->raw_len;
     for (uint32_t i = 0; i < nrec; i++) {

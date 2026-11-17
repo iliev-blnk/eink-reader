@@ -108,9 +108,14 @@ bool pageidx_load(pageidx_t *x, const uint8_t book_id[8], uint32_t layout_hash, 
     x->layout_hash = layout_hash;
     FILE *f = fopen(path, "rb");
     if (!f) return false;
+    // Numărul de începuturi din antet trebuie să se potrivească cu mărimea
+    // fișierului înainte de malloc: altfel un fișier stricat cere gigaocteți, iar
+    // pe 32 de biți n * 8 dă peste cap și bufferul iese mai mic decât bucla.
+    long size = fseek(f, 0, SEEK_END) == 0 ? ftell(f) : -1;
     uint8_t h[HEADER];
-    bool ok = fread(h, 1, sizeof h, f) == sizeof h && !memcmp(h, "IPGC", 4) && !memcmp(h + 4, book_id, 8)
-              && get32(h + 12) == layout_hash && h[20] <= 1;
+    bool ok = size >= HEADER + 4 && fseek(f, 0, SEEK_SET) == 0 && fread(h, 1, sizeof h, f) == sizeof h
+              && !memcmp(h, "IPGC", 4) && !memcmp(h + 4, book_id, 8) && get32(h + 12) == layout_hash && h[20] <= 1
+              && (uint64_t)get32(h + 16) * 8 == (uint64_t)size - HEADER - 4;
     uint32_t n = ok ? get32(h + 16) : 0;
     uint32_t crc = crc32_update(0, h, sizeof h);
     if (ok && n > 0) {
@@ -128,7 +133,7 @@ bool pageidx_load(pageidx_t *x, const uint8_t book_id[8], uint32_t layout_hash, 
         if (ok && i > 0) ok = layout_pos_cmp(x->starts[i - 1], x->starts[i]) < 0;
     }
     uint8_t c[4];
-    ok = ok && fread(c, 1, 4, f) == 4 && get32(c) == crc && fgetc(f) == EOF;
+    ok = ok && fread(c, 1, 4, f) == 4 && crc32_ok(crc, get32(c)) && fgetc(f) == EOF;
     fclose(f);
     if (!ok || n == 0) {
         pageidx_free(x);

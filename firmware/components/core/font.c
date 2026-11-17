@@ -29,9 +29,9 @@ font_err_t font_open(font_t *font, const uint8_t *d, size_t len)
     static const uint8_t magic[8] = {0x89, 'I', 'B', 'F', '\r', '\n', 0x1A, '\n'};
     if (len < HEADER_SIZE) return FONT_ERR_SHORT;
     if (memcmp(d, magic, 8) != 0) return FONT_ERR_MAGIC;
-    if (crc32_update(0, d, 92) != rd32(d + 92)) return FONT_ERR_CRC;
+    if (!crc32_ok(crc32_update(0, d, 92), rd32(d + 92))) return FONT_ERR_CRC;
     if (d[8] != 0 || rd16(d + 10) != HEADER_SIZE || d[12] != 1) return FONT_ERR_VERSION;
-    if (crc32_update(0, d + HEADER_SIZE, len - HEADER_SIZE) != rd32(d + 88)) return FONT_ERR_CRC;
+    if (!crc32_ok(crc32_update(0, d + HEADER_SIZE, len - HEADER_SIZE), rd32(d + 88))) return FONT_ERR_CRC;
     if ((uintptr_t)d & 3) return FONT_ERR_ALIGN;
 
     uint32_t nranges = rd16(d + 26), nglyphs = rd32(d + 28), nkerns = rd32(d + 32);

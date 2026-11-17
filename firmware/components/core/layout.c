@@ -327,60 +327,94 @@ static bool hyphenish(int kind)
 }
 
 // Cele mai bune rupturi cu badness-ul fiecărui rând până la `tol`; false dacă nu există.
+//
+// E algoritmul din TeX (tex.web, §813–§890), verificat paragraf cu paragraf
+// față de LuaTeX cu tools/texref. Penalizarea unui rând depinde și de clasa de
+// potrivire a rândului dinainte (ADJ_FITNESS), deci la fiecare punct de rupere
+// se ține cea mai bună împărțire pentru fiecare clasă a rândului care se
+// termină acolo, nu una singură. O clasă cu mai mult de ADJ_FITNESS peste cea
+// mai bună nu poate câștiga și nu se ține. Două lucruri rămân altfel decât în
+// TeX: badness-ul e calculat exact și fără plafon (vezi BAD_MAX), iar
+// îngustarea unui rând e o treime din suma spațiilor lui, rotunjită o dată.
 static bool fit_solve(layout_fit_t *ft, int tol)
 {
+    _Static_assert(LAYOUT_FIT_MAX <= 1 << 12, "prev ține punctul de rupere pe 12 biți");
     const layout_fit_bp_t *bp = ft->bp;
     const int n = ft->count;
+    // Începutul paragrafului ține loc de rând potrivit (clasa 2).
     ft->total[0] = 0;
-    ft->fitness[0] = 2;
+    for (int c = 0; c < 4; c++) ft->over[0][c] = c == 2 ? 0 : LAYOUT_FIT_NONE;
     for (int j = 1; j < n; j++) {
         const layout_fit_bp_t *b = &bp[j];
         const bool fill = b->kind == BP_HARD;
-        uint64_t best = UINT64_MAX;
+        uint64_t best[4] = {UINT64_MAX, UINT64_MAX, UINT64_MAX, UINT64_MAX};
+        uint16_t from[4] = {0, 0, 0, 0};
         for (int i = j - 1; i >= 0; i--) {
             const layout_fit_bp_t *a = &bp[i];
             int32_t width = b->w - (a->w + a->dw), space = b->sp - (a->sp + a->dsp);
             int32_t avail = ft->avail[i > 0];
             int32_t shrink = space * SHRINK_NUM / SHRINK_DEN;
             if (width - shrink > avail) break;                    // și mai lung de mai departe în urmă
-            if (b->end > a->next && ft->total[i] != UINT64_MAX) {
+            // Un rând gol e admis doar între două ruperi forțate (două U+2028 la rând).
+            if ((b->end > a->next || (fill && b->end == a->next)) && ft->total[i] != UINT64_MAX) {
                 int32_t bad;
                 int fit;
-                if (fill) {
-                    bad = width <= avail ? 0 : BAD_MAX + 1;
-                    fit = 2;
-                } else if (width <= avail) {
-                    bad = badness(avail - width, space * STRETCH_NUM / STRETCH_DEN);
-                    fit = bad > 99 ? 0 : bad > 12 ? 1 : 2;
-                } else {
+                if (width > avail) {
                     bad = badness(width - avail, shrink);
                     fit = bad > 12 ? 3 : 2;
+                } else if (fill) {                                // ultimul rând se umple cu spațiu gol
+                    bad = 0;
+                    fit = 2;
+                } else {
+                    bad = badness(avail - width, space * STRETCH_NUM / STRETCH_DEN);
+                    fit = bad > 99 ? 0 : bad > 12 ? 1 : 2;
                 }
                 if (bad <= tol) {
-                    uint64_t d = (uint64_t)(LINE + bad) * (uint64_t)(LINE + bad);
+                    uint64_t d = ft->total[i] + (uint64_t)(LINE + bad) * (uint64_t)(LINE + bad);
                     if (hyphenish(b->kind)) d += HYPHEN * HYPHEN;
                     if (i > 0 && hyphenish(a->kind)) {
                         if (hyphenish(b->kind)) d += DOUBLE_HYPHEN;
                         if (j == n - 1) d += FINAL_HYPHEN;
                     }
-                    if (i > 0 && (fit > ft->fitness[i] + 1 || ft->fitness[i] > fit + 1)) d += ADJ_FITNESS;
-                    d += ft->total[i];
-                    if (d < best) {
-                        best = d;
-                        ft->prev[j] = (uint16_t)i;
-                        ft->fitness[j] = (uint8_t)fit;
+                    // La egalitate rămâne ruptura cea mai târzie și, la aceeași ruptură, clasa cea mai mare.
+                    for (int c = 3; c >= 0; c--) {
+                        if (ft->over[i][c] == LAYOUT_FIT_NONE) continue;
+                        uint64_t t = d + ft->over[i][c] + (fit > c + 1 || c > fit + 1 ? ADJ_FITNESS : 0);
+                        if (t < best[fit]) {
+                            best[fit] = t;
+                            from[fit] = (uint16_t)(i | c << 12);
+                        }
                     }
                 }
             }
             if (a->kind == BP_HARD) break;                        // niciun rând nu trece peste U+2028
         }
-        ft->total[j] = best;
-        if (fill && best == UINT64_MAX) return false;              // nimic nu trece de o rupere forțată
+        uint64_t least = best[0];
+        for (int c = 1; c < 4; c++)
+            if (best[c] < least) least = best[c];
+        ft->total[j] = least;
+        for (int c = 0; c < 4; c++) {
+            bool keep = best[c] != UINT64_MAX && best[c] - least <= ADJ_FITNESS;
+            ft->over[j][c] = keep ? (uint16_t)(best[c] - least) : LAYOUT_FIT_NONE;
+            ft->prev[j][c] = from[c];
+        }
+        if (fill && least == UINT64_MAX) return false;             // nimic nu trece de o rupere forțată
     }
+    // Împărțirea cu penalizarea cea mai mică; la egalitate, clasa cea mai mică a ultimului rând.
+    int last = 0;
+    while (ft->over[n - 1][last] != 0) last++;
     int lines = 0;
-    for (int j = n - 1; j > 0; j = ft->prev[j]) lines++;
+    for (int j = n - 1, c = last; j > 0;) {
+        uint16_t f = ft->prev[j][c];
+        j = f & 0xFFF, c = f >> 12;
+        lines++;
+    }
     ft->lines = (uint16_t)lines;
-    for (int j = n - 1; j > 0; j = ft->prev[j]) ft->line_end[--lines] = (uint16_t)j;
+    for (int j = n - 1, c = last; j > 0;) {
+        ft->line_end[--lines] = (uint16_t)j;
+        uint16_t f = ft->prev[j][c];
+        j = f & 0xFFF, c = f >> 12;
+    }
     return true;
 }
 
@@ -532,9 +566,10 @@ ibv_err_t layout_page(const layout_cfg_t *cfg, ibv_t *book, layout_pos_t pos, la
                                   .flags = (uint8_t)((k.hyphen ? LINE_HYPHEN : 0) | (p.kind == IBV_HEADING ? LINE_HEADING : 0))};
             int32_t slack = avail - k.width;
             bool justify = p.align == ALIGN_JUSTIFY && k.gaps > 0 && slack != 0;
-            if (justify && k.hard) {
-                // Ultimul rând al unui paragraf nu e justificat, decât dacă
-                // convertorul a împărțit paragraful și el continuă într-o înregistrare CONT.
+            if (justify && k.hard && slack > 0) {
+                // Ultimul rând al unui paragraf nu e lățit până la margine, decât dacă
+                // convertorul a împărțit paragraful și el continuă într-o înregistrare
+                // CONT. De îngustat se îngustează ca oricare altul (slack < 0).
                 justify = false;
                 if (done && k.end == rec.text_len && para + 1 < book->paragraph_count) {
                     ibv_record_t nxt;

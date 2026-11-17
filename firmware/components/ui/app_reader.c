@@ -45,7 +45,7 @@ typedef struct {
 } reader_t;
 
 static reader_t R;
-static layout_fit_t s_fit;      // ~66 KB; în .bss, nu pe heap, ca să nu se fragmenteze
+static layout_fit_t s_fit;      // ~92 KB; în .bss, nu pe heap, ca să nu se fragmenteze
 
 bool reader_is_open(void) { return R.open; }
 const ibv_t *reader_book(void) { return R.open ? &R.book : NULL; }

@@ -1,0 +1,69 @@
+# TeX ca arbitru: 15 cărți, LAYOUT_VERSION 4, This is LuaTeX, Version 1.24.0 (TeX Live 2026/Arch Linux)
+# fonturi și lățimea textului: libron-17, 216 px (11 cărți); ptserif-18, 216 px (4 cărți)
+# abaterile dispozitivului de la TeX, cunoscute modelului:
+#   exact_bad     badness exact, 100·r³ rotunjit în jos și fără plafon, nu aproximarea din TeX
+#   shrink_total  îngustarea rândului e o treime din suma spațiilor, rotunjită o dată pe rând
+
+Înregistrări PARA și QUOTE justificate: 15583
+  cu spații sau ruperi forțate lipite între ele (comparate doar cu modelul): 5
+  comparate cu LuaTeX: 15578
+Trecerile dispozitivului (din `sim breaks`): 12128 la toleranța 400, 3453 cu orice rând care încape, 2 greedy
+
+## 1. Aceeași problemă pe ambele părți
+Lățimile rândurilor justificate, măsurate aici din fișierele de font, față de ale dispozitivului:
+  201015 din 201015 (100.00 %) identice
+
+## 2. Modelul din texref.py
+Cu abaterile dispozitivului, față de rândurile lui: 15581 din 15581 (100.00 %) identice
+  trecerile după model: 12128, 3453, 2 greedy (ca ale dispozitivului)
+Fără abateri, față de LuaTeX la toleranța 400 (rupturi și penalizarea totală): 15578 din 15578 (100.00 %) identice
+Fără abateri, față de LuaTeX la toleranța 10000 (rupturi și penalizarea totală): 15578 din 15578 (100.00 %) identice
+
+## 3. Dispozitivul față de LuaTeX
+Paragrafele rupte de dispozitiv din prima trecere, față de LuaTeX la toleranța 400:
+  paragrafe cu aceleași rupturi: 12050 din 12128 (99.36 %)
+  rânduri identice: 130860 din 131315 (99.65 %)
+  dintre cele diferite, cu același număr de rânduri: 71 din 78 (91.03 %)
+  paragrafe în care TeX a acceptat un rând peste toleranță (overfull/underfull): 0 din 12128 (0.00 %)
+Paragrafele din a doua trecere, față de LuaTeX la toleranța 400:
+  paragrafe cu aceleași rupturi: 2 din 3448 (0.06 %)
+  rânduri identice: 41036 din 84894 (48.34 %)
+  dintre cele diferite, cu același număr de rânduri: 1996 din 3446 (57.92 %)
+  paragrafe în care TeX a acceptat un rând peste toleranță (overfull/underfull): 3446 din 3448 (99.94 %)
+Paragrafele din a doua trecere, față de LuaTeX la toleranța 10000:
+  paragrafe cu aceleași rupturi: 3312 din 3448 (96.06 %)
+  rânduri identice: 84024 din 84894 (98.98 %)
+  dintre cele diferite, cu același număr de rânduri: 123 din 136 (90.44 %)
+  paragrafe în care TeX a acceptat un rând peste toleranță (overfull/underfull): 0 din 3448 (0.00 %)
+Toate la un loc (prima trecere față de toleranța 400, a doua față de 10000):
+  paragrafe cu aceleași rupturi: 15362 din 15576 (98.63 %)
+  rânduri identice: 214884 din 216209 (99.39 %)
+
+## 4. Paragrafele diferite din prima trecere, judecate cu penalizarea din TeX
+  78 paragrafe; rupturile dispozitivului au aceeași penalizare totală ca ale lui TeX: 10
+  au un rând pe care TeX nu-l admite la toleranța 400: 3
+  TeX însuși a luat un rând peste toleranță: 0
+  restul de 65: penalizarea dispozitivului e mai mare decât optimul lui TeX cu 0.5 % la mediană, 7.1 % la percentila 90, 106.2 % cel mult
+
+## 5. De unde vin diferențele (prima trecere, 12128 paragrafe)
+Fiecare abatere pornită singură peste modelul TeX: câte paragrafe schimbă.
+  exact_bad        74  badness exact, 100·r³ rotunjit în jos și fără plafon, nu aproximarea din TeX
+  shrink_total      3  îngustarea rândului e o treime din suma spațiilor, rotunjită o dată pe rând
+  toate            78  toate (dispozitivul)
+Dispozitivul cu câte o abatere scoasă: câte paragrafe mai diferă de TeX.
+  fără exact_bad         3
+  fără shrink_total     74
+Paragrafe din a doua trecere pe care TeX le așază la toleranța 400 fără niciun rând peste ea: 2 din 3448 (0.06 %)
+  dintre ele, așezate de dispozitiv din prima trecere fără exact_bad         2
+  dintre ele, așezate de dispozitiv din prima trecere fără shrink_total      0
+
+## Exemple (dispozitivul, apoi LuaTeX)
+libru-dubrovsky-cp1251.ibv:269  (penalizarea în măsura lui TeX: 1519337 față de 1519238)
+  D: Прошло несколько дней, / и не случилось ниче- / го достопримечательно- / го. Жизнь обитателей По- / кровского была однооб- / разна. Кирила Петрович / ежедневно выезжал на / охоту; чтение, прогулки / и музыкальные уроки за- / нимали Марью Кирилов- / ну — особенно музыкаль- / ные уроки. Она начина- / ла понимать собственное / сердце и признавалась, с / невольной досадою, что / оно не было равнодушно / к достоинствам молодо- / го француза. Он с сво- / ей стороны не выходил / из пределов почтения и / строгой пристойности, и / тем успокоивал ее гор- / дость и боязливые со- / мнения. Она с большей и / большей доверчивостью / предавалась увлекатель- / ной привычке. Она ску- / чала без Дефоржа, в его / присутствии поминутно / занималась им, обо всем / хотела знать его мнение / и всегда с ним соглаша- / лась. Может быть, она не / была еще влюблена, но / при первом случайном / препятствии или незап- / ном гонении судьбы пла- / мя страсти должно было / вспыхнуть в ее сердце.
+  T: Прошло несколько дней, / и не случилось ниче- / го достопримечательно- / го. Жизнь обитателей По- / кровского была однооб- / разна. Кирила Петрович / ежедневно выезжал на / охоту; чтение, прогулки / и музыкальные уроки за- / нимали Марью Кирилов- / ну — особенно музыкаль- / ные уроки. Она начина- / ла понимать собственное / сердце и признавалась, с / невольной досадою, что / оно не было равнодушно / к достоинствам молодо- / го француза. Он с сво- / ей стороны не выходил / из пределов почтения и / строгой пристойности, и / тем успокоивал ее гор- / дость и боязливые сомне- / ния. Она с большей и / большей доверчивостью / предавалась увлекатель- / ной привычке. Она ску- / чала без Дефоржа, в его / присутствии поминутно / занималась им, обо всем / хотела знать его мнение / и всегда с ним соглаша- / лась. Может быть, она не / была еще влюблена, но / при первом случайном / препятствии или незап- / ном гонении судьбы пла- / мя страсти должно было / вспыхнуть в ее сердце.
+libru-dubrovsky.ibv:269  (penalizarea în măsura lui TeX: 1519337 față de 1519238)
+  D: Прошло несколько дней, / и не случилось ниче- / го достопримечательно- / го. Жизнь обитателей По- / кровского была однооб- / разна. Кирила Петрович / ежедневно выезжал на / охоту; чтение, прогулки / и музыкальные уроки за- / нимали Марью Кирилов- / ну — особенно музыкаль- / ные уроки. Она начина- / ла понимать собственное / сердце и признавалась, с / невольной досадою, что / оно не было равнодушно / к достоинствам молодо- / го француза. Он с сво- / ей стороны не выходил / из пределов почтения и / строгой пристойности, и / тем успокоивал ее гор- / дость и боязливые со- / мнения. Она с большей и / большей доверчивостью / предавалась увлекатель- / ной привычке. Она ску- / чала без Дефоржа, в его / присутствии поминутно / занималась им, обо всем / хотела знать его мнение / и всегда с ним соглаша- / лась. Может быть, она не / была еще влюблена, но / при первом случайном / препятствии или незап- / ном гонении судьбы пла- / мя страсти должно было / вспыхнуть в ее сердце.
+  T: Прошло несколько дней, / и не случилось ниче- / го достопримечательно- / го. Жизнь обитателей По- / кровского была однооб- / разна. Кирила Петрович / ежедневно выезжал на / охоту; чтение, прогулки / и музыкальные уроки за- / нимали Марью Кирилов- / ну — особенно музыкаль- / ные уроки. Она начина- / ла понимать собственное / сердце и признавалась, с / невольной досадою, что / оно не было равнодушно / к достоинствам молодо- / го француза. Он с сво- / ей стороны не выходил / из пределов почтения и / строгой пристойности, и / тем успокоивал ее гор- / дость и боязливые сомне- / ния. Она с большей и / большей доверчивостью / предавалась увлекатель- / ной привычке. Она ску- / чала без Дефоржа, в его / присутствии поминутно / занималась им, обо всем / хотела знать его мнение / и всегда с ним соглаша- / лась. Может быть, она не / была еще влюблена, но / при первом случайном / препятствии или незап- / ном гонении судьбы пла- / мя страсти должно было / вспыхнуть в ее сердце.
+pg11.ibv:462  (penalizarea în măsura lui TeX: 130615 față de 121907)
+  D: “You might just as well / say,” added the March / Hare, “that ‘I like what / I get’ is the same thing as / ‘I get what I like’!”
+  T: “You might just as well / say,” added the March / Hare, “that ‘I like what I / get’ is the same thing as ‘I / get what I like’!”

@@ -47,13 +47,13 @@ secunde; cu `--realtime` merge după ceasul calculatorului.
 
 ## Ce verifică `emu/test.sh`
 
-Rezultatele de la 2026-11-16, firmware-ul de la acea dată:
+Rezultatele de la 2026-11-17, firmware-ul de la acea dată (paginarea LAYOUT_VERSION 4):
 
 | verificare | ce face | rezultat |
 |---|---|---|
 | `ui` | scenariul de interfață din `sim/test/run.sh`, cu două adormiri și treziri | 22 de cadre, 22 identice |
 | `auto` | întoarcerea automată a paginii un minut, bateria care scade, oprirea | 29 de cadre, 29 identice |
-| `carte` | cardul cu cele 15 cărți ale corpusului și fonturile dispozitivului: biblioteca, *Moby Dick* (indexul de 3699 de pagini se construiește pe cipul emulat), somn și trezire în carte, meniul cărții | 41 de cadre, 41 identice |
+| `carte` | cardul cu cele 15 cărți ale corpusului și fonturile dispozitivului: biblioteca, *Moby Dick* (indexul de 3694 de pagini se construiește pe cipul emulat), somn și trezire în carte, meniul cărții | 41 de cadre, 41 identice |
 | `perf` | jurnalul de măsurători scris de firmware pe cardul emulat, citit de `tools/perf/perf.py` | 13 întoarceri (12 automate), oprirea de baterie |
 | `bringup` | aplicația de punere în funcțiune: numărătoare, redesenare, somn, trezire din buton | 9 cadre, fără avertismente |
 | `repetare` | același scenariu a doua oară | aceleași evenimente, aceleași cadre |

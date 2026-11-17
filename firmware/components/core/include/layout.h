@@ -15,7 +15,9 @@
 // „încadrarea totală” Knuth–Plass): dintre toate felurile de a rupe
 // înregistrarea, cel cu penalizarea cea mai mică, unde penalizarea unui rând
 // crește cu cubul lățirii sau îngustării spațiilor lui, iar cratimele costă în
-// plus. Îi trebuie o zonă de lucru (layout_fit_t, cfg.fit). Restul, și orice
+// plus. E algoritmul din TeX, cu aceiași parametri; tools/texref îl verifică
+// paragraf cu paragraf față de LuaTeX (README-ul de acolo spune unde și de ce
+// diferă). Îi trebuie o zonă de lucru (layout_fit_t, cfg.fit). Restul, și orice
 // înregistrare când cfg.fit e NULL, se rupe greedy (first fit): cel mai lung
 // rând care încape, apoi următorul. Greedy e și rezerva pentru o înregistrare
 // cu peste LAYOUT_FIT_MAX puncte de rupere sau cu un cuvânt mai lat decât
@@ -41,11 +43,12 @@
 #include "gfx.h"
 #include "ibv.h"
 
-#define LAYOUT_VERSION 3         // face parte din layout_hash: se crește când se pot schimba rupturile de rând
+#define LAYOUT_VERSION 4         // face parte din layout_hash: se crește când se pot schimba rupturile de rând
 #define LAYOUT_MAX_LINES 64
 #define LAYOUT_FIT_MAX 2048      // puncte de rupere pe înregistrare pentru încadrarea totală (maximul în corpus e ~2000)
+#define LAYOUT_FIT_NONE 0xFFFF
 
-// Zona de lucru pentru încadrarea totală, ~66 KB. Păstrează și rupturile
+// Zona de lucru pentru încadrarea totală, ~92 KB. Păstrează și rupturile
 // ultimei înregistrări rupte, ca paginile unui paragraf lung să nu le refacă.
 // Fiecare task care paginează are nevoie de a lui. Se pune pe zero (sau
 // layout_fit_reset) înainte de prima folosire și după ce alte fonturi se
@@ -68,10 +71,14 @@ typedef struct {
     bool hyphenate;
     uint16_t count, lines;       // puncte de rupere, rânduri
     layout_fit_bp_t bp[LAYOUT_FIT_MAX];
-    uint64_t total[LAYOUT_FIT_MAX];
-    uint16_t prev[LAYOUT_FIT_MAX];
+    uint64_t total[LAYOUT_FIT_MAX];      // cea mai mică penalizare a unei împărțiri care rupe aici
+    // Pe clasele de potrivire ale rândului care se termină aici (0 foarte larg,
+    // 1 larg, 2 potrivit, 3 strâns): cu cât e cea mai bună împărțire a clasei peste
+    // `total` (LAYOUT_FIT_NONE: nu e ținută) și de unde vine, ruptura dinainte în
+    // biții 0–11 și clasa ei în biții 12–13.
+    uint16_t over[LAYOUT_FIT_MAX][4];
+    uint16_t prev[LAYOUT_FIT_MAX][4];
     uint16_t line_end[LAYOUT_FIT_MAX];
-    uint8_t fitness[LAYOUT_FIT_MAX];
     uint32_t broken[3];          // înregistrări rupte în prima trecere, a doua, greedy (pentru E6)
 } layout_fit_t;
 

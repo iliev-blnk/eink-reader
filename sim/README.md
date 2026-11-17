@@ -8,6 +8,7 @@ Compilează nucleul portabil al firmware-ului (`firmware/components/core`: fontu
     sim/build/sim stats corpus/out/*.ibv -f tools/fonttool/out/fam/ptserif-18   # paginează cărți întregi
     sim/build/sim stats corpus/out/*.ibv --fonts tools/fonttool/out/fam          # fiecare carte în fontul ei de pe dispozitiv (fontsel.c); --size 0-4 = treptele 1-5
     sim/build/sim compare corpus/out/pg1342.ibv --page 30 -o cmp.png tools/fonttool/out/fam/literata-16 tools/fonttool/out/fam/ptserif-18
+    sim/build/sim breaks corpus/out/*.ibv --fonts tools/fonttool/out/fam > rupturi.txt   # rândurile fiecărui paragraf, pentru tools/texref
     sim/make_card.sh                                                       # sim/out/card: corpusul și fonturile, ca pe cardul SD
     sim/build/sim ui sim/out/card -o sim/out/ui --idle --keys "m m n n N M n"   # toată interfața, pe un scenariu de apăsări
     sim/test/run.sh                                                        # testul cu imagini de referință

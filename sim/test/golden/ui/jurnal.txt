@@ -1,6 +1,6 @@
 001  start  completă
 002  start  parțială  0,0 240x413
-003  m      parțială  8,8 224x220
+003  m      parțială  8,8 224x270
 004  m      completă
 005  m      parțială  192,400 40x9
 006  n      parțială  8,18 224x391

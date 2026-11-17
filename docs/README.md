@@ -20,6 +20,12 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 
 ## Jurnal
 
+### 2026-11-17: copierea cărților prin USB (FW-12, v0)
+- De ce: până acum cărțile ajungeau pe card doar scoțându-l din cititor. Pe placa proprie cardul e un slot microSD lipit, deci e nevoie de altă cale.
+- Ce e: „Conectare la PC” în meniul principal. Cititorul închide cartea, salvează setările și lista recentă, demontează FatFs și dă cardul calculatorului ca disc USB (TinyUSB MSC pe USB-ul nativ, `firmware/components/drivers/usbdisk.c`). Cardul se deschide direct prin sdspi, iar FatFs-ul lui e folosit doar ca să știe esp_tinyusb unde să-l remonteze, cu formatarea oprită. Când calculatorul scoate discul în siguranță, cardul revine la cititor, biblioteca se recitește și ecranul se închide singur. MENIU iese oricând, cu o confirmare cât discul e încă montat. Somnul de la sine și MENIU lung sunt oprite pe acest ecran, iar jurnalul `perf` rămâne în memorie până revine cardul.
+- În interfață: un nou cârlig în `ui_platform_t` (`usb_start`, `usb_state`, `usb_stop`). Fără el opțiunea nu apare în meniu. Simulatorul are un disc fals, condus din scenariu (`u:w`, `u:h`, `u:p`, `u:r`, `u:x`), și un scenariu nou în `sim/test` (`usb`, 13 reîmprospătări). Imaginile de referință `ui` și `auto` s-au schimbat doar la cadrul meniului principal, care are acum un rând în plus.
+- Verificat: firmware-ul se compilează fără avertismente, `sim/test/run.sh` trece. Nimic nu a rulat pe hardware: QEMU nu emulează USB OTG. Ce rămâne de verificat pe prototip e în `firmware/README.md`.
+
 ### 2026-11-17: fișele de metodă E1–E9; E6 în simulator și E5 pe PC (`measurements/`)
 - MEAS-3: câte o fișă `METODA.md` pentru fiecare experiment, scrisă înainte de orice dată: întrebarea, predicțiile cu praguri, montajul, procedura, metricile, criteriul și ce poate strica măsurătoarea.
 - E6, toată partea din simulator: greedy și Knuth–Plass, cu și fără despărțire, la cele 5 trepte de mărime, pe cele 12 cărți. `sim breaks` scrie acum și lățimea spațiului, ca r să se poată calcula din ieșire. Pe proză, la treapta implicită, cu despărțire: r mediu 1,53 → 1,12 (−27 %), r p95 4,23 → 2,80 (−34 %), cratime consecutive 47,6 → 22,1 la 1000 de rânduri, cu 1,8 % mai puține pagini. Despărțirea contează mai mult decât algoritmul. 4 din 5 predicții trec; a cincea nu: pe PC, Knuth–Plass e de 2,32 ori mai lent decât greedy (pragul era 2), costul venind din rupturile aduse de despărțire. Timpul pe dispozitiv rămâne pentru E2.

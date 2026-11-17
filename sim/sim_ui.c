@@ -22,6 +22,11 @@
 //   i            lucrul de fundal până la capăt (indexul paginilor)
 //   t:SEC        trec SEC secunde fără apăsări (somnul după inactivitate)
 //   b:MV         bateria are acum MV milivolți
+//   u:STARE      discul USB (FW-12), din partea calculatorului: w niciun
+//                calculator, h discul montat, p magistrala în repaus, r discul
+//                scos în siguranță; x face ca următorul usb_start să eșueze
+//                (cardul nu răspunde). Interfața vede schimbarea la următoarea
+//                verificare, ca pe dispozitiv.
 // Fiecare apăsare înseamnă o secundă pe ceasul simulat și, cu --idle, lucrul de
 // fundal până la capăt după ea, cum ar fi între pagini pe dispozitiv. După
 // somn, apăsarea următoare trezește dispozitivul (o pornire nouă, UI_BOOT_WAKE)
@@ -45,6 +50,8 @@ typedef struct {
     uint32_t now;
     int battery;
     bool slept, perf;
+    bool usb_on, usb_fail;
+    ui_usb_t usb;       // starea discului, cum ar vedea-o firmware-ul
     int shown;
     char key[16];       // ce a produs reîmprospătările care urmează
 } sim_ui_t;
@@ -142,6 +149,23 @@ static void perf(void *ctx, const char *event, uint32_t a, uint32_t b)
     if (s->perf) fprintf(stderr, "perf %8u %-14s %u %u\n", (unsigned)s->now, event, (unsigned)a, (unsigned)b);
 }
 
+// Discul USB fals: nu se atinge nimic pe card; doar starea, din scenariu.
+static bool usb_start(void *ctx)
+{
+    sim_ui_t *s = ctx;
+    if (s->usb_fail) {
+        s->usb_fail = false;
+        return false;
+    }
+    s->usb_on = true;
+    s->usb = UI_USB_WAITING;
+    return true;
+}
+
+static ui_usb_t usb_state(void *ctx) { return ((sim_ui_t *)ctx)->usb; }
+
+static void usb_stop(void *ctx) { ((sim_ui_t *)ctx)->usb_on = false; }
+
 static void idle_all(ui_t *ui)
 {
     while (ui_idle(ui)) {}
@@ -176,7 +200,7 @@ int cmd_ui(int argc, char **argv)
     ui_platform_t p = {
         .root = s.root, .ctx = &s, .now_ms = now_ms, .show = show, .battery_mv = battery_mv,
         .load_settings = load_settings, .save_settings = save_settings, .sleep = do_sleep, .diag = diag,
-        .perf = perf,
+        .perf = perf, .usb_start = usb_start, .usb_state = usb_state, .usb_stop = usb_stop,
     };
     strcpy(s.key, "start");
     perflog_open(s.root, perf_us());
@@ -195,6 +219,20 @@ int cmd_ui(int argc, char **argv)
                 set_now(&s, step && s.now + step < end ? s.now + step : end);
                 idle_all(ui);
                 perflog_flush(perf_us);
+            }
+            continue;
+        }
+        if (!strncmp(tok, "u:", 2)) {
+            static const char st[] = "whpr";
+            const char *c = tok[2] && !tok[3] ? strchr(st, tok[2]) : NULL;
+            if (tok[2] == 'x' && !tok[3]) s.usb_fail = true;
+            else if (!c) {
+                fprintf(stderr, "ui: stare USB necunoscută „%s”\n", tok);
+                return 2;
+            } else {
+                s.usb = (ui_usb_t)(c - st);
+                set_now(&s, s.now + 1000);      // următoarea verificare a interfeței
+                idle_all(ui);
             }
             continue;
         }

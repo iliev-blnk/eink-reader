@@ -231,6 +231,8 @@ static void draw_low_battery(gfx_t *g, int mv)
 
 static void sleep_now(ui_t *ui, void (*screen)(ui_t *, gfx_t *))
 {
+    // Întâi cardul înapoi de la calculator, ca setările și poziția să ajungă pe el.
+    if (ui_top(ui) == &app_usb) ui_pop(ui);
     ui_perf(ui, "sleep", 0, 0);
     save_settings(ui);
     ui->recent.reading = reader_is_open();
@@ -284,7 +286,7 @@ void ui_key(ui_t *ui, ui_key_t key, ui_press_t press)
 {
     ui->last_key_ms = ui_now(ui);
     ui_perf(ui, "key", key, press);
-    if (key == UI_KEY_MENU && press == UI_LONG) {
+    if (key == UI_KEY_MENU && press == UI_LONG && !usb_active()) {
         ui_sleep(ui);
         return;
     }
@@ -312,8 +314,9 @@ bool ui_idle(ui_t *ui)
             return false;
         }
     }
-    // Cu întoarcerea automată pornită dispozitivul nu adoarme de la sine.
-    if (!ui->auto_ms && now - ui->last_key_ms >= (uint32_t)settings_value(&ui->set, SET_SLEEP) * 60000u) {
+    // Cu întoarcerea automată pornită, sau cu cardul la calculator, dispozitivul
+    // nu adoarme de la sine.
+    if (!ui->auto_ms && !usb_active() && now - ui->last_key_ms >= (uint32_t)settings_value(&ui->set, SET_SLEEP) * 60000u) {
         ui_sleep(ui);
         return false;
     }
@@ -338,8 +341,10 @@ uint32_t ui_wait_ms(ui_t *ui)
     uint32_t a = sleep_at - now, b = battery_at - now;
     if ((int32_t)a < 0) a = 0;
     if ((int32_t)b < 0) b = 0;
-    if (ui->auto_ms) a = UINT32_MAX;      // fără somn de la sine
+    if (ui->auto_ms || usb_active()) a = UINT32_MAX;      // fără somn de la sine
     uint32_t w = a < b ? a : b;
+    uint32_t u = usb_wait_ms(ui);
+    if (u < w) w = u;
     if (ui->auto_ms && ui_top(ui) == &app_reader) {
         uint32_t c = (int32_t)(ui->auto_at - now) < 0 ? 0 : ui->auto_at - now;
         if (c < w) w = c;
@@ -404,8 +409,6 @@ void ui_text_center(gfx_t *g, const font_t *f, int y, const char *s)
     gfx_text(g, f, (g->width - gfx_text_width(f, s)) / 2, y, s, GFX_BLACK);
 }
 
-#define HEADER_H 28
-
 // Bara de sus: titlul ecranului și bateria.
 void ui_header(ui_t *ui, gfx_t *g, const char *title)
 {
@@ -429,7 +432,6 @@ static int row_height(const ui_list_t *l)
 }
 
 #define LIST_TOP (HEADER_H + 4)
-#define LIST_HINT_H 20
 
 static int rows_per_page(const ui_list_t *l) { return (UI_H - LIST_TOP - LIST_HINT_H) / row_height(l); }
 
@@ -506,8 +508,8 @@ bool ui_list_key(ui_list_t *l, ui_key_t k, ui_press_t p)
 
 // ---- lansatorul ----
 
-enum { H_CONTINUE, H_LIBRARY, H_SETTINGS, H_DIAG, H_SLEEP };
-static int s_home_items[5], s_home_count;
+enum { H_CONTINUE, H_LIBRARY, H_USB, H_SETTINGS, H_DIAG, H_SLEEP };
+static int s_home_items[6], s_home_count;
 static char s_home_title[64], s_home_author[48];
 
 static void home_item(ui_t *ui, int i, char *label, char *value, char *sub)
@@ -520,6 +522,7 @@ static void home_item(ui_t *ui, int i, char *label, char *value, char *sub)
         ui_copy(sub + strlen(sub), UI_ITEM - strlen(sub), s_home_author);
         break;
     case H_LIBRARY: strcpy(label, "Biblioteca"), strcpy(sub, "toate cărțile de pe card"); break;
+    case H_USB: strcpy(label, "Conectare la PC"), strcpy(sub, "copiază cărți pe card prin USB"); break;
     case H_SETTINGS: strcpy(label, "Setări"), strcpy(sub, "textul, ecranul, somnul"); break;
     case H_DIAG: strcpy(label, "Diagnostic"), strcpy(sub, "bateria, memoria, versiunile"); break;
     case H_SLEEP: strcpy(label, "Somn"), strcpy(sub, "sau MENIU lung, oriunde"); break;
@@ -542,6 +545,7 @@ static void home_build(ui_t *ui)
         ibv_close(&meta);
     }
     s_home_items[s_home_count++] = H_LIBRARY;
+    if (ui->p.usb_start) s_home_items[s_home_count++] = H_USB;
     s_home_items[s_home_count++] = H_SETTINGS;
     s_home_items[s_home_count++] = H_DIAG;
     s_home_items[s_home_count++] = H_SLEEP;
@@ -574,6 +578,7 @@ static void home_key(ui_t *ui, ui_key_t k, ui_press_t p)
         else ui_redraw(ui, false);
         break;
     case H_LIBRARY: ui_push(ui, &app_library); break;
+    case H_USB: ui_push(ui, &app_usb); break;
     case H_SETTINGS: ui_push(ui, &app_settings); break;
     case H_DIAG: ui_push(ui, &app_diag); break;
     case H_SLEEP: ui_sleep(ui); break;

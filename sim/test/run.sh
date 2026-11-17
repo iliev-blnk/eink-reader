@@ -72,6 +72,11 @@ update=0
 # aceeași pagină, lista semnelor și saltul la semn, somnul din nou.
 ui_case ui "m m n n m n n m M n m n n n m m p M n"
 
+# Conectarea la PC (FW-12), cu discul fals al simulatorului: fără somn cât
+# cardul e la calculator, confirmarea la ieșire, scoaterea în siguranță care
+# închide ecranul singură, apoi un card care nu pornește.
+ui_case usb "n m u:h t:900 M n M u:p u:h u:r u:x m m"
+
 # Întoarcerea automată la 5 s (FW-13): un minut de pagini, de la capăt din nou
 # după ultima, o apăsare care o oprește, o pagină obișnuită, apoi bateria
 # descărcată. Jurnalul de măsurători al acestei rulări trebuie să-l citească

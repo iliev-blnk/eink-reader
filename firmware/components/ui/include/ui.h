@@ -34,6 +34,10 @@ typedef enum { UI_BOOT_COLD, UI_BOOT_WAKE } ui_boot_t;
 
 #define UI_DIAG_LINE 48
 
+// Discul USB (FW-12), cum îl vede interfața: niciun calculator încă, discul
+// montat pe calculator, magistrala în repaus, discul scos în siguranță.
+typedef enum { UI_USB_WAITING, UI_USB_HOST, UI_USB_PAUSED, UI_USB_RELEASED } ui_usb_t;
+
 // Ce îi dă platforma interfeței. Toate funcțiile primesc `ctx`.
 typedef struct {
     const char *root;    // rădăcina cardului, fără '/' la final: "/sd" pe dispozitiv
@@ -52,6 +56,13 @@ typedef struct {
     int (*diag)(void *ctx, char (*lines)[UI_DIAG_LINE], int max);
     // Un marcaj de timp pentru jurnalul de măsurători (FW-13); poate fi NULL.
     void (*perf)(void *ctx, const char *event, uint32_t a, uint32_t b);
+    // Cardul ca disc USB pentru un calculator (FW-12); toate trei sau niciunul.
+    // Fără ele lansatorul nu arată „Conectare la PC”. Între usb_start (true) și
+    // usb_stop cardul e al calculatorului: interfața nu citește și nu scrie
+    // nimic pe el. După usb_stop cardul e montat din nou, dacă se poate.
+    bool (*usb_start)(void *ctx);
+    ui_usb_t (*usb_state)(void *ctx);
+    void (*usb_stop)(void *ctx);
 } ui_platform_t;
 
 typedef struct ui ui_t;

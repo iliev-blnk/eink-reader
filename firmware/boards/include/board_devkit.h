@@ -32,6 +32,10 @@
 #define BOARD_BTN_NEXT GPIO_NUM_5
 #define BOARD_BTN_MENU GPIO_NUM_6
 
+// Tensiunea de pe USB (VBUS), pentru discul USB: placa de dezvoltare nu are
+// divizorul, deci scoaterea cablului se vede doar ca magistrală în repaus.
+#define BOARD_VBUS_SENSE_GPIO (-1)
+
 // Tensiunea bateriei printr-un divizor 100k/100k.
 #define BOARD_BAT_ADC_GPIO GPIO_NUM_1
 #define BOARD_BAT_DIVIDER 2.0f

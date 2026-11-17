@@ -36,6 +36,7 @@
 #include "perflog.h"
 #include "sdcard.h"
 #include "ui.h"
+#include "usbdisk.h"
 
 static const char *TAG = "cititor";
 
@@ -46,10 +47,12 @@ static RTC_DATA_ATTR uint32_t s_boot_count;
 
 static uint8_t s_fb[EPD_FB_SIZE];
 static gfx_t s_gfx;
-static bool s_epd_ok, s_sd_ok, s_battery_ok;
+static bool s_epd_ok, s_sd_ok, s_battery_ok, s_usb;
 static char s_sd[32];
 
 // ---- platforma interfeței ----
+
+static void mount_sd(void);
 
 static uint32_t now_ms(void *ctx)
 {
@@ -121,6 +124,42 @@ static void deep_sleep(void *ctx)
     }
     fflush(stdout);
     esp_deep_sleep_start();
+}
+
+// Discul USB (FW-12). Cât timp e pornit, cardul e demontat și jurnalul de
+// măsurători rămâne în memorie (o scriere ar eșua și l-ar opri).
+static bool usb_start(void *ctx)
+{
+    (void)ctx;
+    perflog_flush(now_us);
+    if (s_sd_ok) sdcard_unmount();
+    s_sd_ok = false;
+    const sdcard_config_t cfg = {.host = BOARD_SPI_HOST, .cs = BOARD_SD_CS, .mount_point = MOUNT_POINT};
+    if (usbdisk_start(&cfg, BOARD_VBUS_SENSE_GPIO) != ESP_OK) {
+        mount_sd();
+        return false;
+    }
+    s_usb = true;
+    return true;
+}
+
+static ui_usb_t usb_state(void *ctx)
+{
+    (void)ctx;
+    switch (usbdisk_state()) {
+    case USBDISK_HOST: return UI_USB_HOST;
+    case USBDISK_PAUSED: return UI_USB_PAUSED;
+    case USBDISK_RELEASED: return UI_USB_RELEASED;
+    default: return UI_USB_WAITING;
+    }
+}
+
+static void usb_stop(void *ctx)
+{
+    (void)ctx;
+    usbdisk_stop();
+    s_usb = false;
+    mount_sd();
 }
 
 static int diag(void *ctx, char (*lines)[UI_DIAG_LINE], int max)
@@ -244,7 +283,7 @@ void app_main(void)
     const ui_platform_t platform = {
         .root = MOUNT_POINT, .now_ms = now_ms, .show = show, .battery_mv = battery_mv,
         .load_settings = load_settings, .save_settings = save_settings, .sleep = deep_sleep, .diag = diag,
-        .perf = perf,
+        .perf = perf, .usb_start = usb_start, .usb_state = usb_state, .usb_stop = usb_stop,
     };
     ui_t *ui = ui_init(&platform, &s_gfx);
     ui_start(ui, wake ? UI_BOOT_WAKE : UI_BOOT_COLD);
@@ -256,7 +295,7 @@ void app_main(void)
     bool more = true;
     for (;;) {
         button_event_t ev;
-        if (!more || perflog_urgent()) perflog_flush(now_us);
+        if (!s_usb && (!more || perflog_urgent())) perflog_flush(now_us);
         TickType_t wait = more ? 0 : pdMS_TO_TICKS(ui_wait_ms(ui));
         if (buttons_wait(&ev, wait)) {
             perflog_add((uint64_t)ev.edge_us, "btn_edge", ev.button, ev.press);

@@ -1,0 +1,4 @@
+## Dependențele din registrul de componente ESP-IDF (descărcate la prima compilare).
+dependencies:
+  # TinyUSB cu clasa Mass Storage, pentru discul USB (usbdisk.c).
+  espressif/esp_tinyusb: "~3.0.1"

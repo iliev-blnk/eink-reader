@@ -19,3 +19,12 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=16384
 # FAT pe cardul SD: nume lungi de fișiere, nume UTF-8
 CONFIG_FATFS_LFN_HEAP=y
 CONFIG_FATFS_API_ENCODING_UTF_8=y
+
+# Discul USB (FW-12): cardul ca stick pe portul USB nativ. Consola rămâne pe
+# UART0 (portul „UART” al plăcii de dezvoltare). Tamponul de 4 KB lasă TinyUSB
+# să scrie 8 sectoare deodată pe card, nu câte unul.
+CONFIG_TINYUSB_MSC_ENABLED=y
+CONFIG_TINYUSB_MSC_BUFSIZE=4096
+CONFIG_TINYUSB_DESC_MANUFACTURER_STRING="USV Suceava"
+CONFIG_TINYUSB_DESC_PRODUCT_STRING="Cititor e-ink"
+CONFIG_TINYUSB_DESC_MSC_STRING="Cititor e-ink"

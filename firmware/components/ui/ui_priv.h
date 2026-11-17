@@ -13,6 +13,8 @@
 #define UI_STACK 6
 #define UI_FOOTER 22            // px sub zona de text a lectorului, pentru subsol
 #define UI_PATH 256
+#define HEADER_H 28             // bara de sus (ui_header)
+#define LIST_HINT_H 20          // rândul de jos cu tastele
 
 // O aplicație. Toate funcțiile sunt opționale în afară de draw.
 typedef struct app {
@@ -111,5 +113,9 @@ void reader_auto_turn(ui_t *ui);
 // Rândurile lectorului pentru ecranul de diagnostic.
 int reader_diag(char (*lines)[UI_DIAG_LINE], int max);
 
+// Discul USB (app_usb.c): cât timp e pornit, cardul e al calculatorului.
+bool usb_active(void);
+uint32_t usb_wait_ms(ui_t *ui);    // până la următoarea verificare a stării; UINT32_MAX dacă e oprit
+
 extern const app_t app_home, app_library, app_reader, app_reader_menu, app_toc, app_bookmarks, app_settings,
-    app_diag;
+    app_diag, app_usb;

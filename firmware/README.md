@@ -55,6 +55,14 @@ Totul merge pe **3V3**, niciodată pe 5V.
 - **MENIU**: deschide elementul ales; în lector deschide meniul cărții (cuprins, semn de carte, mărimea textului, setări, bibliotecă, întoarcerea automată, diagnostic).
 - **MENIU ținut apăsat**: somn adânc, cu coperta cărții pe ecran. Orice buton trezește dispozitivul la aceeași pagină. Somnul vine și singur după inactivitate (setarea „Somn după”).
 
+## Conectare la PC (copierea cărților prin USB)
+
+Din meniul principal, **Conectare la PC**: cardul SD apare pe calculator ca un stick (USB nativ, TinyUSB MSC). Cât timp ecranul e deschis, cardul e al calculatorului: cititorul îl demontează, nu scrie nimic pe el și nu adoarme de la sine. Se copiază cărțile `.ibv` în `books/`, apoi se scoate discul în siguranță de pe calculator (Eject): cititorul ia cardul înapoi, recitește biblioteca și revine singur la meniu. MENIU iese oricând; dacă discul e încă montat pe calculator, cere o a doua apăsare. Firmware-ul nu formatează cardul niciodată: un card fără FAT apare pe calculator așa cum e.
+
+Pe prototip se folosește portul marcat **USB** al DevKit-ului (cel nativ, GPIO19/20), nu UART. Placa se alimentează atunci din cablu, deci **SW1 trebuie să fie oprit**, ca ieșirea TPS63020 să nu fie legată de regulatorul DevKit-ului. DevKit-ul nu are divizor pe VBUS (`BOARD_VBUS_SENSE_GPIO` = −1), așa că scoaterea cablului apare doar ca magistrală în repaus („Calculatorul nu răspunde”), iar ecranul se închide cu MENIU.
+
+Încă neîncercat pe hardware: emulatorul nu are USB, iar în simulator discul e fals (`u:STARE` în scenariu). De verificat pe prototip: cum îl vede calculatorul, viteza de copiere, scoaterea în siguranță pe Linux și Windows și dacă portul USB-Serial-JTAG revine după ieșire.
+
 Pe card: cărțile `.ibv` în rădăcină sau în `/books`, fonturile în `/fonts` (din `tools/fonttool/out/fam`). Dispozitivul își scrie starea în `/.ibv/` (specificația, secțiunea 6). Setările sunt în NVS. Pe UART ies linii `PERF,…` pentru apăsări, paginare, reîmprospătări și somn.
 
 ## Ce face aplicația de punere în funcțiune

@@ -27,6 +27,7 @@ add_executable(sim
     ${UI}/sidecar.c
     ${UI}/app_library.c
     ${UI}/app_reader.c
+    ${UI}/app_usb.c
     ${FW}/main/screen_bringup.c)
 target_include_directories(sim PRIVATE ${CORE}/include ${UI}/include ${UI} ${FW}/main)
 target_link_libraries(sim PRIVATE ZLIB::ZLIB)

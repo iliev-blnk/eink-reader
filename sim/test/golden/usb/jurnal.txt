@@ -1,0 +1,13 @@
+001  start  completă
+002  start  parțială  0,0 240x413
+003  n      parțială  0,32 240x100
+004  m      parțială  0,8 240x405
+005  u:h    parțială  8,58 216x355
+006  M      parțială  8,57 216x353
+007  n      parțială  8,57 216x353
+008  M      parțială  8,57 216x353
+009  u:p    parțială  8,57 224x356
+010  u:h    parțială  8,58 224x355
+011  u:r    completă
+012  m      parțială  0,8 240x405
+013  m      parțială  0,8 240x405

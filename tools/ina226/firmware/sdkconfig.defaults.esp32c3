@@ -1,0 +1,2 @@
+# ESP32-C3 SuperMini: fără convertor, consola pe USB-ul nativ (USB Serial/JTAG).
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y

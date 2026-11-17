@@ -14,6 +14,11 @@ pe experiment:
 
 `common/svgplot.py` face graficele: SVG simplu, doar biblioteca standard Python.
 
+Uneltele de pe hardware: `tools/perf/perf.py` citește jurnalul de timpi al
+cititorului (E1, E2, E4, E6), iar `tools/ina226/` e înregistratorul de curent
+(firmware plus `ina226.py`: captura, rezumatul, figura și energia pe pagină
+pentru E3 și E4).
+
 ## Experimentele
 
 | ID | Întrebarea | Unde rulează | Stare |

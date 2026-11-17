@@ -305,7 +305,7 @@ Metoda fiecărui experiment se scrie **înainte** de a-l rula, ca rezultatele s�
 | E9 | Le place cititorilor reali? | 3–5 oameni citesc 20 min, chestionar scurt | note + comentarii | mai (opțional) |
 
 - [ ] MEAS-1 Corpusul de test: ~20 de cărți din domeniul public în EN, RO și RU (Project Gutenberg, Wikisource), scurte și lungi, simple și cu formatare bogată. Listate cu sursele și licențele. În lucru: 15 fișiere / 13 cărți în `corpus/` (`fetch.sh`, README cu surse și rezultate). Lipsesc: un FB2 real și un TXT românesc CP1250.
-- [ ] MEAS-2 Firmware-ul de înregistrare pentru placa INA226, plus scripturile CSV → figură.
+- [ ] MEAS-2 Firmware-ul de înregistrare pentru placa INA226, plus scripturile CSV → figură. *2026-11-17: scrise (`tools/ina226`): firmware pentru ESP32 și ESP32-C3, compilat; `ina226.py` cu captura, rezumatul, figura și energia pe pagină aliniată cu jurnalul `perf`, testat pe date sintetice. Rămâne de încercat pe hardware, după cumpărarea modulului și a plăcii.*
 - [x] MEAS-3 O fișă de metodă de o pagină pentru fiecare experiment. Făcut 2026-11-17: `measurements/E1…E9/METODA.md`, scrise înainte de date, cu predicții și praguri.
 - [ ] MEAS-4 Rularea lor: fotografii ale montajului, datele brute rămân brute. *2026-11-17: rulate partea din simulator a E6 și partea de pe PC a E5 (`measurements/E5`, `E6`); restul cer prototipul.*
 - [ ] MEAS-5 Analiza + figurile + o notă scurtă cu concluziile fiecărui experiment. Fiecare notă intră direct în capitolul lucrării. *2026-11-17: E5 (PC) și E6 (simulator) au `analiza.py`, `tabele.md`, figuri și `REZULTATE.md`.*

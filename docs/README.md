@@ -15,11 +15,19 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 - `../tools/converter/`: convertorul de cărți (EPUB / FB2 / TXT → `.ibv`), cititorul, scriitorul și validatorul de referință al formatului (`ibv.py`) și testele lor. Vezi README-ul lui.
 - `../tools/texref/`: TeX ca arbitru al ruperii în rânduri. Compară rândurile dispozitivului cu LuaTeX pe tot corpusul și explică diferențele printr-un model al algoritmului. Vezi README-ul lui.
 - `../tools/fuzz/`: fuzzere (libFuzzer, ASan, UBSan, pe 32 de biți) pentru fișierele citite de pe card (`.ibv`, `.ibf`, indexul de pagini, poziția, semnele, setările), pe codul din firmware, plus verificarea exhaustivă a decodorului UTF-8. Vezi README-ul lui.
+- `../tools/perf/`: `perf.py`, analiza jurnalului de timpi scris de cititor pe card (E1, E2, E4, E6).
+- `../tools/ina226/`: înregistratorul de curent pentru E3 și E4: firmware pentru o placă ESP32 cu INA226 și `ina226.py` (captura, rezumatul, figura, energia pe pagină aliniată cu jurnalul `perf`). Vezi README-ul lui.
 - `../measurements/`: experimentele E1–E9. Pentru fiecare: fișa de metodă, scrisă înainte de date, scripturile, datele brute, tabelele și figurile generate și nota cu rezultatele. Vezi README-ul lui.
 - `../corpus/`: cărțile de test (le descarcă `fetch.sh`; neurmărite în git) și rezultatele conversiei lor.
 - `../spec/`: specificația formatului de carte (`book-format.md`), specificația formatului de font (`font-format.md`) și un fișier exemplu comentat (`examples/`).
 
 ## Jurnal
+
+### 2026-11-17: înregistratorul de curent (MEAS-2, `tools/ina226`)
+- Ce e: firmware ESP-IDF pentru placa de înregistrare (ESP32-WROOM-32D sau ESP32-C3 SuperMini) și `ina226.py` pe PC. INA226 convertește continuu, ~850 de eșantioane pe secundă (588 µs pe canal, fără mediere); firul ALERT dă întreruperea la fiecare conversie, iar marcajul de timp se ia în ea. Rândurile `t_us,shunt,bus` sunt registrele brute; antetul cu constantele se repetă la 2 s. Citirea și scrierea pe consolă sunt taskuri separate, cu o coadă de ~5 s între ele; pierderile și erorile I2C se raportează în flux.
+- `ina226.py`: `captura` (portul prin `termios`, fără pyserial; aruncă mesajele de pornire), `rezumat` (rata, golurile, curentul mediu, median, p99, min, max, tensiunea, puterea, energia, sarcina), `figura` (media și maximul pe coloane), `pagini` (energia fiecărei întoarceri din `perf.py --pagini`, cu ceasul cititorului aliniat prin corelație pe toate întoarcerile și o măsură a calității alinierii).
+- Rezultatul: firmware-ul compilează fără avertismente pentru esp32 și esp32c3; 10 teste pe date sintetice (conversia, repornirea, golurile, integrala, alinierea găsește decalajul exact, energia pe pagină); `captura` încercată cu un port serial simulat, cu zgomot de pornire înaintea antetului.
+- Ce nu e: nimic pe hardware; modulul INA226 și placa de înregistrare nu sunt cumpărate. Rata reală, pierderile pe consolă și firul ALERT se verifică la prima pornire, cu `rezumat`.
 
 ### 2026-11-17: firmware-ul plăcii proprii (PCB-8)
 - Ce e: `firmware/boards/include/board_pcb_v1.h`, a doua placă din menuconfig, cu `sdkconfig.pcb_v1` pentru compilare (`firmware/README.md`). Panoul e pe SPI3 (SCK IO47, MOSI IO48), cardul rămâne pe SPI2. Antetele folosesc acum nume separate pentru magistrala cardului și a panoului; pe DevKit ele sunt aceeași.

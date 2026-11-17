@@ -1,0 +1,42 @@
+menu "Înregistratorul INA226"
+
+    config LOGGER_SDA
+        int "GPIO pentru SDA"
+        default 21 if IDF_TARGET_ESP32
+        default 6
+
+    config LOGGER_SCL
+        int "GPIO pentru SCL"
+        default 22 if IDF_TARGET_ESP32
+        default 7
+
+    config LOGGER_ALERT
+        int "GPIO pentru ALERT (-1: fără, se citește registrul în buclă)"
+        default 19 if IDF_TARGET_ESP32
+        default 5
+
+    config LOGGER_ADDR
+        hex "Adresa I2C a INA226 (A0 și A1 la masă: 0x40)"
+        default 0x40
+
+    config LOGGER_SHUNT_MOHM
+        int "Șuntul de pe modul, în mΩ (R100 = 100)"
+        default 100
+
+    config LOGGER_CT
+        int "Timpul de conversie, codul 0–7 (3 = 588 µs)"
+        range 0 7
+        default 3
+        help
+            Același pentru șunt și pentru tensiune. 0=140, 1=204, 2=332, 3=588,
+            4=1100, 5=2116, 6=4156, 7=8244 µs (foaia INA226, 7.6.1). Cu media pe 1,
+            un eșantion durează 2 × timpul de conversie: 3 dă ~850 pe secundă.
+
+    config LOGGER_AVG
+        int "Media, codul 0–7 (0 = un singur eșantion)"
+        range 0 7
+        default 0
+        help
+            0=1, 1=4, 2=16, 3=64, 4=128, 5=256, 6=512, 7=1024 eșantioane mediate.
+
+endmenu

@@ -1,0 +1,22 @@
+(version 1)
+# Reguli în plus față de cele din eink-reader-pcb.kicad_pro (care sunt deja în
+# limitele JLCPCB pentru 4 straturi: pistă și spațiu 0,15 mm, via 0,6/0,3 mm,
+# gaură–gaură 0,5 mm, cupru–margine 0,5 mm).
+
+# Amprentele producătorului pentru butoanele Alps SKRTLAE010 și pentru USB-C
+# (GCT USB4105) au pastile la 0,10 mm, respectiv 0,20 mm de propriile găuri de
+# fixare. Sunt desenate așa în foile de catalog; restul plăcii păstrează 0,25 mm.
+(rule "gaura-cupru in amprenta butoanelor"
+    (constraint hole_clearance (min 0.09mm))
+    (condition "A.memberOfFootprint('SW*') && B.memberOfFootprint('SW*')"))
+(rule "gaura-cupru in amprenta USB-C"
+    (constraint hole_clearance (min 0.19mm))
+    (condition "A.memberOfFootprint('J1') && B.memberOfFootprint('J1')"))
+
+# Pistele de alimentare: trasarea încearcă 0,4 mm și coboară la 0,25 mm doar unde
+# 0,4 nu încape (lângă pinii la 0,5 mm ai BQ24074, TPS63900 și USB-C). Curenții
+# sunt sub 0,5 A (ILIM ≈ 0,47 A, ICHG ≈ 0,5 A), iar 0,25 mm pe 35 µm duce ~1 A
+# la o încălzire de 10 °C. Lungimile pe 0,25 mm sunt în README.
+(rule "putere"
+    (constraint track_width (min 0.25mm))
+    (condition "A.NetClass == 'Power'"))

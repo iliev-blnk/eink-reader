@@ -5,6 +5,7 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 - `MASTER-PLAN.md`: planul general. Direcțiile de lucru, sarcinile, calendarul și etapele, planul de măsurători, lista de cumpărături, riscurile, deciziile și întrebările deschise. Singura sursă de adevăr.
 - `project-brief.md`: ce e proiectul, lista pieselor, cumpărăturile deschise, note despre ecran și alimentare, ce cuprinde firmware-ul și planul formatului de carte.
 - `../hardware/`: schema KiCad (`eink-reader.kicad_sch`), exporturile ei PDF/SVG și `gen.py`, care le generează.
+- `../hardware/pcb/`: placa proprie v1, ciornă. Schema, placa trasată, verificările și fișierele pentru JLCPCB, toate generate de script din `circuit.py` (`make.sh`), cu un trasor propriu. Vezi README-ul ei.
 - `../firmware/`: firmware-ul ESP-IDF. README-ul lui descrie compilarea, scrierea în flash și conexiunile.
 - `../sim/`: simulatorul pe PC. Compilează nucleul portabil al firmware-ului (fonturi, cititorul IBV, paginare) și desenează ecrane și pagini de carte în PNG, cu statistici pe cărți întregi și teste cu imagini de referință. Vezi README-ul lui.
 - `../emu/`: emulatorul. Firmware-ul adevărat rulat fără hardware, pe un ESP32-S3 emulat (QEMU) cu panoul, cardul și butoanele modelate, comparat cadru cu cadru cu simulatorul. Vezi README-ul lui.
@@ -16,6 +17,13 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 - `../spec/`: specificația formatului de carte (`book-format.md`), specificația formatului de font (`font-format.md`) și un fișier exemplu comentat (`examples/`).
 
 ## Jurnal
+
+### 2026-11-17: placa proprie v1, ciornă generată de script (`hardware/pcb`)
+- De ce: PCB-1…3 sunt în calendar abia din februarie, cu comanda pe la 15 martie și o singură rezervă pentru refacere. O ciornă completă acum mută riscul mai devreme: se vede de pe acum dacă piesele încap pe placa afișajului, ce consumă în somn și ce rămâne de verificat, iar PCB-4 are ce revizui.
+- Ce e: piesele și legăturile scrise o dată în `circuit.py`. Din el `gen_sch.py` face schema, `gen_pcb.py` face placa (105,79 × 53,80 mm, ca modulul WeAct, 4 straturi cu planuri GND și +3V3), iar `route.py` o trasează. KiCad nu are trasor automat, așa că trasorul e propriu: A* în C pe o grilă de 0,125 mm, cu smulgere și retrasare în felul PathFinder. `make.sh` rulează tot, cu ERC, DRC cu paritatea schemă–placă și fișierele pentru JLCPCB (gerbere, BOM, CPL).
+- Piesele: ESP32-S3-WROOM-1-N16R8 (același modul și aceeași hartă de pini ca pe DevKit), BQ24074 (încărcare cu power-path din USB-C, 0,5 A), TPS63900 (buck-boost cu 75 nA în gol), MAX17048 (indicatorul bateriei), două TPS22917 care taie alimentarea cardului și a panoului, trei butoane pe margini, o punte de lipit în serie cu bateria pentru măsurătorile E3/E4.
+- Rezultatul: 48 din 48 de rețele trasate (1.415 mm, 201 via). ERC 0, DRC 0 erori, 0 legături lipsă, 0 diferențe față de schemă; 4 avertismente pentru amprente schimbate dinadins. Consumul în somn estimat din foile de catalog: ~17,5 µA.
+- Ce nu e încă: revizuită (PCB-4) și comandată. Codurile LCSC nu sunt verificate, poziția baretei afișajului trebuie măsurată pe modulul adevărat, iar TPS63900 nu are rezervă la vârfurile de WiFi. Lista întreagă e în `hardware/pcb/README.md`.
 
 ### 2026-11-17: fuzzing pentru fișierele de pe card (`tools/fuzz`), patru greșeli reparate
 - De ce: tot ce citește dispozitivul vine de pe card, inclusiv fișierele pe care și le scrie singur, iar un card poate avea fișiere stricate sau făcute anume. Analizoarele fuseseră testate doar cu fișiere bune, făcute de convertor și de simulator.

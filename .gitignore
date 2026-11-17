@@ -35,3 +35,6 @@ corpus/out/
 # fonttool: downloaded source fonts (fetch-fonts.sh) and built fonts
 tools/fonttool/fonts/
 tools/fonttool/out/
+
+# Placa proprie: fișierele pentru fabrică se refac cu hardware/pcb/make.sh
+hardware/pcb/fab/

@@ -17,7 +17,7 @@ C0603 = 'Capacitor_SMD:C_0603_1608Metric'
 LED0603 = 'LED_SMD:LED_0603_1608Metric'
 # coduri LCSC pentru piesele de bază 0603; toate se verifică în catalog la comandă (PCB-5)
 LCSC_R = {'1k': 'C21190', '1.8k': 'C4177', '3.3k': 'C22978', '4.7k': 'C23162', '5.1k': 'C23186',
-          '10k': 'C25804', '22': 'C23345', '47k': 'C25819', '100k': 'C25803', '1M': 'C22935', '16.2k': '', '36.5k': ''}
+          '10k': 'C25804', '22': 'C23345', '47k': 'C25819', '100k': 'C25803', '470k': '', '1M': 'C22935', '16.2k': '', '36.5k': ''}
 LCSC_C = {'100nF': 'C14663', '1uF': 'C15849', '4.7uF': 'C19666', '10uF': 'C19702', '22uF': '', '1nF': 'C1588'}
 
 def R(ref, val, a, b, group, mpn=''):
@@ -39,8 +39,10 @@ R('R2', '5.1k', 'CC2', 'GND', G)
 part('U1', 'Power_Protection:USBLC6-2P6', 'USBLC6-2SC6', 'Package_TO_SOT_SMD:SOT-23-6',
      {'1': 'USB_DP', '6': 'USB_DP', '3': 'USB_DN', '4': 'USB_DN', '2': 'GND', '5': 'VBUS'},
      'C7519', 'ST USBLC6-2SC6', G)
-R('R17', '100k', 'VBUS', 'VBUS_SENSE', G)
-R('R18', '100k', 'VBUS_SENSE', 'GND', G)
+# 470k/470k: curent mic prin IO2 cât ESP-ul e oprit; C17 ține sarcina pentru ADC (REVIEW.md, punctul 5)
+R('R17', '470k', 'VBUS', 'VBUS_SENSE', G)
+R('R18', '470k', 'VBUS_SENSE', 'GND', G)
+C('C17', '100nF', 'VBUS_SENSE', 'GND', G)
 part('TP1', 'Connector:TestPoint', 'VBUS', 'TestPoint:TestPoint_Pad_D1.5mm', {'1': 'VBUS'}, group=G)
 
 # ======================================================================= ÎNCĂRCĂTORUL
@@ -110,6 +112,9 @@ for ref, en, out, cref, ct, rpd, cout in (('U4', 'SD_PWR_EN', '3V3_SD', 'C7', 'C
     R(rpd, '1M', en, 'GND', G)             # ON nu are voie să plutească
     C(cout, '10uF', out, 'GND', G)
 C('C10', '100nF', '3V3_SD', 'GND', G)
+# punctele de test pe șinele comutate (REVIEW.md, punctul 6)
+part('TP7', 'Connector:TestPoint', '3V3_SD', 'TestPoint:TestPoint_Pad_D1.5mm', {'1': '3V3_SD'}, group=G)
+part('TP8', 'Connector:TestPoint', '3V3_EPD', 'TestPoint:TestPoint_Pad_D1.5mm', {'1': '3V3_EPD'}, group=G)
 
 # ======================================================================= MCU
 G = 'mcu'

@@ -22,7 +22,7 @@ de pe drumul găsit se smulg, rețeaua se trasează, apoi ele se retrasează. Ce
 disputate devin tot mai scumpe (ca în PathFinder), deci rețelele nu se dau la
 nesfârșit afară una pe alta.
 """
-import ctypes, os, random, subprocess, sys, time
+import ctypes, math, os, random, subprocess, sys, time
 import numpy as np
 import pcbnew
 from pcbnew import FromMM, ToMM, VECTOR2I_MM
@@ -38,6 +38,8 @@ HOLE_HOLE = 0.5                # gaură–gaură
 EDGE = 0.5                     # cupru–margine
 MARGIN = 0.03                  # rezerva pentru pista dintre centrele celulelor
 VIA_D, VIA_DRILL = 0.6, 0.3
+# două viauri ale aceluiași drum: distanța minimă dintre centre, la pătrat, în celule
+VIA_GAP2 = math.ceil(((HOLE_HOLE + VIA_DRILL + MARGIN) / G) ** 2)
 VIA_COST = 60                  # un via costă cât 0,75 mm de pistă
 LAYER_COST = (0, 3)            # B.Cu puțin mai scump: rămâne mai mult loc pentru turnarea GND
 PASSES = 6
@@ -59,7 +61,7 @@ def load_astar():
     lib = ctypes.CDLL(out)
     u8 = np.ctypeslib.ndpointer(np.uint8, flags='C_CONTIGUOUS')
     i32 = np.ctypeslib.ndpointer(np.int32, flags='C_CONTIGUOUS')
-    lib.astar.argtypes = [ctypes.c_int, ctypes.c_int, u8, u8, u8, u8, i32, ctypes.c_int, ctypes.c_int, i32,
+    lib.astar.argtypes = [ctypes.c_int, ctypes.c_int, u8, u8, u8, u8, i32, ctypes.c_int, ctypes.c_int, ctypes.c_int, i32,
                           i32, ctypes.c_int32, i32, ctypes.c_int]
     lib.astar.restype = ctypes.c_int
     return lib
@@ -268,7 +270,7 @@ class Router:
         path = np.zeros(200000, np.int32)
         n = self.lib.astar(g.nx, g.ny, np.ascontiguousarray(free), np.ascontiguousarray(via_ok),
                            np.ascontiguousarray(start), np.ascontiguousarray(target), boxes, len(boxes),
-                           VIA_COST, np.array(LAYER_COST, np.int32),
+                           VIA_COST, VIA_GAP2, np.array(LAYER_COST, np.int32),
                            np.ascontiguousarray(self.zero if cost is None else cost, np.int32),
                            max_cost, path, len(path))
         if n <= 0:

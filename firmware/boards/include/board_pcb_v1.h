@@ -42,7 +42,8 @@
 #define BOARD_BTN_NEXT GPIO_NUM_5
 #define BOARD_BTN_MENU GPIO_NUM_6
 
-// VBUS prin divizorul R17/R18 (100k/100k): 2,5 V cât e cablul pus.
+// VBUS prin divizorul R17/R18 (470k/470k, cu C17 de 100 nF): 2,5 V cât e cablul pus;
+// constanta de timp e ~24 ms, destul pentru detectarea cablului.
 #define BOARD_VBUS_SENSE_GPIO GPIO_NUM_2
 
 // Tensiunea bateriei prin R15/R16 (1M/1M), cu 100 nF pe ADC.

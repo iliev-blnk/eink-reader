@@ -23,6 +23,12 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 
 ## Jurnal
 
+### 2026-11-18: PCB-4, punctele 3–6 hotărâte
+- Ce e: divizorul VBUS e acum R17/R18 de 470 kΩ, cu C17 de 100 nF pe VBUS_SENSE; cât ESP-ul e oprit și cablul e pus, prin pinul IO2 curg ~9 µA în loc de ~40 µA. Raportul rămâne 1/2, deci firmware-ul nu se schimbă. TP7 și TP8 pe 3V3_SD și 3V3_EPD, în rândul celorlalte puncte de test. WiFi-ul (punctul 4) rămâne în firmware: 13 dBm cel mult, doar cu panoul și cardul inactive. Decuparea sub antenă (punctul 3) e amânată până la măsurătoarea de semnal din carcasă (ENC-3).
+- Trasorul: un drum nu mai poate pune două viauri mai aproape decât distanța minimă dintre găuri (0,5 mm între margini). Înainte, câte două viauri ale aceleiași rețele puteau ieși aproape suprapuse; DRC-ul le arăta ca avertismente `hole_to_hole`.
+- Rezultatul: 52 din 52 de rețele (1.506 mm, 209 via), 76 de piese. ERC 0, DRC 0 erori (doar cele 4 avertismente cunoscute pentru amprente), 0 diferențe față de schemă; `verifica.py` 0 erori, 1 avertisment (traseele USB lungi: D+ 72 mm, D− 64 mm). VBUS a ieșit la 0,25 mm (71,1 mm, ≤ 0,5 A), trecut în tabelul pistelor de putere; VSYS e iar de 0,4 mm. Conturul plăcii nu se schimbă, deci nici carcasa.
+- Ce nu e: codul LCSC al rezistenței de 470 kΩ e de găsit la comandă (PCB-5). Nimic nu e măsurat pe placă; placa nu e comandată.
+
 ### 2026-11-17: planul adus la zi
 - Sarcinile cu o versiune v0 sau o ciornă scrisă trec pe `[~]` (în lucru): FW-2…FW-14, PCB-4, SPEC-2, MEAS-1, MEAS-2, MEAS-4, MEAS-5.
 - PCB-1, PCB-2, PCB-3 bifate pentru ciorna v1 (tabelul pieselor, schema cu ERC 0 și bugetul de somn, placa rutată cu DRC 0); revizuirea rămâne PCB-4.

@@ -74,7 +74,7 @@ unde lipsesc, piesa se alege atunci sau se lipește de mână.
 
 | bloc | piese | de ce |
 |---|---|---|
-| USB-C | J1 GCT USB4105, R1/R2 5,1 kΩ pe CC, U1 USBLC6-2SC6 (LCSC C7519), R17/R18 divizor VBUS → IO2, R25/R26 22 Ω serie pe D+/D− lângă modul | 5 V de la orice încărcător C; ESD pe D+/D−; firmware-ul vede când e cablul pus |
+| USB-C | J1 GCT USB4105, R1/R2 5,1 kΩ pe CC, U1 USBLC6-2SC6 (LCSC C7519), R17/R18 470 kΩ divizor VBUS → IO2 cu C17 100 nF, R25/R26 22 Ω serie pe D+/D− lângă modul | 5 V de la orice încărcător C; ESD pe D+/D−; firmware-ul vede când e cablul pus |
 | încărcătorul | U2 BQ24074 (VQFN-16), R3 3,3 kΩ (ILIM ≈ 0,47 A), R4 1,8 kΩ (ICHG ≈ 0,5 A), R5 10 kΩ pe TS, D1/D2 PGOOD/CHG | power-path: dispozitivul merge din USB cu bateria goală; EN1/EN2 legați pentru USB500 |
 | bateria | J2 JST-PH 2 pini, JP1 punte de lipit (I_BAT), U6 MAX17048 (indicator ModelGauge, I2C), R15/R16 1 MΩ divizor VBAT → IO1 | JP1 tăiată = un ampermetru în serie cu bateria, pentru E3/E4 |
 | 3,3 V | SW1 PCM12 (comutator pornit/oprit pe EN), U3 TPS63900 buck-boost, L1 2,2 µH, R8/R9 configurarea | 75 nA în gol și buck-boost: 3,3 V stabil de la 4,2 V până la 2,5 V din baterie |
@@ -83,7 +83,7 @@ unde lipsesc, piesa se alege atunci sau se lipește de mână.
 | butoane | SW2–SW4 Alps SKRTLAE010 (C110293), pe margini (două pe stânga, MENIU sus), apăsate din lateral | ÎNAPOI, ÎNAINTE, MENIU |
 | afișaj | J3 baretă 1×8 de 2,54 mm spre modulul WeAct | BUSY, RST, DC, CS, SCK, MOSI, GND, 3V3_EPD; SCK și MOSI sunt ale lui, nu le împarte cu cardul |
 | card | J4 Molex 104031 microSD, R21–R24 47 kΩ | modul SPI; pull-up pe CS, MISO și DAT1/DAT2 |
-| test | TP1–TP6: VBUS, VSYS, BAT_J, VBAT, +3V3, GND | pentru punerea în funcțiune și măsurători |
+| test | TP1–TP8: VBUS, VSYS, BAT_J, VBAT, +3V3, GND, 3V3_SD, 3V3_EPD | pentru punerea în funcțiune și măsurători, într-un singur rând |
 
 GPIO-urile păstrează harta de pe DevKit (`firmware/boards/include/board_devkit.h`); antetul plăcii
 e `firmware/boards/include/board_pcb_v1.h`, verificat de `verifica.py`. În plus față de DevKit:
@@ -150,11 +150,11 @@ Pistele de putere de 0,25 mm (unde 0,4 nu încape):
 | rețea | lățime | lungime | curent |
 |---|---|---:|---|
 | LX2 | 0,25 mm | 4,6 mm | nodul de comutație al TPS63900, sub 0,5 A |
-| VSYS | 0,25 mm | 65,9 mm | de la U2 la U3, SW1 și LED-uri: doar consumul sistemului (curentul de încărcare rămâne în U2), ≤ ~0,45 A la vârfurile de WiFi, ~0,13 Ω, deci ~60 mV cădere la intrarea unui buck-boost |
+| VBUS | 0,25 mm | 71,1 mm | de la J1 la U2, U1, R17 și TP1: curentul de intrare al încărcătorului, ≤ 0,5 A (modul USB500), ~0,14 Ω, deci ~70 mV cădere din cei 5 V |
 
 O pistă de 0,25 mm în cupru de 1 oz duce ~1 A la o încălzire de 10 °C, deci
-are rezervă de două ori. Celelalte rețele de putere sunt de 0,4 mm: VBUS
-75,3 mm, 3V3_EPD 14,2 mm, 3V3_SD 28,6 mm, BAT_J 13,7 mm, LX1 1,7 mm, VBAT 55,5 mm.
+are rezervă de două ori. Celelalte rețele de putere sunt de 0,4 mm: VSYS
+58,6 mm, 3V3_EPD 31,8 mm, 3V3_SD 42,8 mm, BAT_J 13,8 mm, LX1 1,7 mm, VBAT 51,9 mm.
 
 ## De știut înainte de comandă
 
@@ -170,7 +170,11 @@ are rezervă de două ori. Celelalte rețele de putere sunt de 0,4 mm: VBUS
   pe 0 fără să-l încurce pe celălalt (`REVIEW.md`, punctul 1).
 - **TPS63900 la vârfurile de WiFi**: dă până la ~400 mA; ESP32-S3 cere vârfuri
   de ~350 mA la transmisie. Merge cu C5 + C14 (2 × 22 µF), dar fără rezervă.
-  Cititorul nu folosește WiFi în mod normal; dacă va folosi, e de măsurat.
+  Hotărât (`REVIEW.md`, punctul 4): firmware-ul limitează emisia la 13 dBm și
+  pornește WiFi-ul doar cu panoul și cardul inactive. Cititorul nu are încă
+  WiFi; vârfurile se măsoară pe placă.
+- **Decuparea sub antenă** e amânată până la măsurătoarea de semnal din
+  carcasă (ENC-3; `REVIEW.md`, punctul 3).
 - **TS cu rezistor fix**: R5 îi spune încărcătorului că bateria are mereu
   25 °C, deci nu oprește încărcarea la cald sau la rece. Bateria trebuie să aibă
   protecția ei (PCM), ca toate celulele LiPo din comerț.
@@ -182,5 +186,5 @@ are rezervă de două ori. Celelalte rețele de putere sunt de 0,4 mm: VBUS
   pozițiile se văd în `build/cupru.svg`.
 - **Rotațiile din `cpl.csv`** trebuie verificate în previzualizarea JLCPCB:
   convențiile KiCad și JLCPCB diferă pentru unele capsule.
-- Piesele fără cod LCSC: J1, U2, U3, U4/U5, U6, L1, R8/R9, C5/C14 (22 µF),
-  J4. Se caută la comandă sau se lipesc de mână.
+- Piesele fără cod LCSC: J1, U2, U3, U4/U5, U6, L1, R8/R9, R17/R18 (470 kΩ),
+  C5/C14 (22 µF), J4. Se caută la comandă sau se lipesc de mână.

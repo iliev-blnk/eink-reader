@@ -71,7 +71,7 @@ Pinii vin din `hardware/pcb/circuit.py`. `hardware/pcb/verifica.py` compară ant
 | Ecran CS / DC / RST / BUSY | 10 / 9 / 8 / 18 | ca pe DevKit |
 | Alimentarea cardului / ecranului | 15 / 21 | comutatoarele U4 / U5 (TPS22917), 1 = pornit |
 | Butoane PREV / NEXT / MENU | 4 / 5 / 6 | ca pe DevKit |
-| VBUS (cablul USB pus) | 2 | divizor 100k/100k; discul USB vede când e scos cablul |
+| VBUS (cablul USB pus) | 2 | divizor 470k/470k, 100 nF; discul USB vede când e scos cablul |
 | Măsurarea bateriei | 1 | divizor 1M/1M, 100 nF |
 | Indicatorul MAX17048: SDA / SCL / ALRT | 16 / 17 / 7 | pull-up-uri pe placă; ALRT nefolosit încă |
 

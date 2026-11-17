@@ -7,7 +7,10 @@
  * celulele din start[] (arborele rețelei construit până acum) și se oprește la
  * prima celulă din target[]. Mutări: 8 vecini pe același strat (diagonala numai
  * dacă amândouă celulele ortogonale sunt libere, ca pista să nu taie un colț) și
- * viaul pe celălalt strat.
+ * viaul pe celălalt strat. Un via nou nu poate sta mai aproape de viaurile
+ * de mai devreme ale aceluiași drum decât via_gap2 (distanța dintre centre, la
+ * pătrat, în celule): găurile lor ar fi prea apropiate pentru burghiu. Viaurile
+ * rețelelor deja trasate sunt scoase din via_ok[] în Python.
  *
  * Euristica: distanța octilă până la cel mai apropiat dreptunghi-țintă, deci
  * admisibilă; costurile sunt 10 pe ortogonală, 14 pe diagonală, plus cost[] al
@@ -62,11 +65,27 @@ static int32_t octile(int dx, int dy)
     return dx > dy ? 10 * (dx - dy) + 14 * dy : 10 * (dy - dx) + 14 * dx;
 }
 
+/* Drumul care ajunge în celula i are, în urmă, un via la mai puțin de
+ * sqrt(gap2) celule? Se merge înapoi cel mult 128 de pași. */
+static int via_near(const int32_t *from, int i, int plane, int nx, int gap2)
+{
+    int r0 = i % plane, x0 = r0 % nx, y0 = r0 / nx;
+    for (int k = 0, a = i; k < 128 && from[a] != -1; k++) {
+        int b = from[a];
+        if (b / plane != a / plane) {
+            int r = a % plane, dx = r % nx - x0, dy = r / nx - y0;
+            if (dx * dx + dy * dy < gap2) return 1;
+        }
+        a = b;
+    }
+    return 0;
+}
+
 /* boxes: nbox × (x0, y0, x1, y1), în celule. layer_cost[l]: cost în plus pe pas,
  * în aceleași unități (10 = încă o dată lungimea pasului). Întoarce lungimea drumului scrisă în path[] (indici de
  * celule, de la țintă la start), 0 dacă nu există drum, -1 dacă path[] e prea mic. */
 int astar(int nx, int ny, const uint8_t *free_, const uint8_t *via_ok, const uint8_t *start,
-          const uint8_t *target, const int32_t *boxes, int nbox, int via_cost, const int32_t *layer_cost,
+          const uint8_t *target, const int32_t *boxes, int nbox, int via_cost, int via_gap2, const int32_t *layer_cost,
           const int32_t *cost, int32_t max_cost, int32_t *path, int path_cap)
 {
     int plane = nx * ny, n = 2 * plane;
@@ -111,7 +130,7 @@ int astar(int nx, int ny, const uint8_t *free_, const uint8_t *via_ok, const uin
                 if (!push(&h, c + H(x2, y2), j)) goto out;
             }
         }
-        if (via_ok[r]) {
+        if (via_ok[r] && !via_near(from, i, plane, nx, via_gap2)) {
             int j = (1 - l) * plane + r;
             int32_t c = gi + via_cost + cost[j];
             if (free_[j] && c < g[j]) {

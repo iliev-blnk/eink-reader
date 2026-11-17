@@ -66,7 +66,7 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
 
 ## Pe blocuri
 
-### USB-C (J1, U1, R1/R2, R17/R18)
+### USB-C (J1, U1, R1/R2, R17/R18, C17)
 
 | | Ce | Sursa |
 |---|---|---|
@@ -75,8 +75,8 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
 | ✔ | U1: I/O1 pe 1/6 = D+, I/O2 pe 3/4 = D−, VBUS pe 5, masa pe 2 | simbolul KiCad; ? foaia ST |
 | ✔ | D− pe GPIO19, D+ pe GPIO20, singurii pini ai USB-ului intern | WROOM-1, tabelul 3-1 |
 | ✎ | R25/R26, 22 Ω (0603, ca restul plăcii), la ~4 mm de pinii 13/14 ai modulului; între ele și mufă rețelele se numesc USB_DP/USB_DN, între ele și modul ESP_DP/ESP_DN. Locurile pentru condensatori, pe care ghidul zice să le „rezervi”, nu sunt puse: la full speed nu se populează de obicei | lista de verificare, USB |
-| ⚠ | Trasee lungi: D+ 67 mm cu 9 via, D− 69 mm cu 8 via. **Nu s-au scurtat**: pinii USB sunt pe latura de sus a modulului, mufa e pe marginea de jos, la 40 mm de el; scurtarea înseamnă mutarea mufei și a blocului de încărcare, deci și a carcasei. La full speed (12 Mbit/s, fronturi de ~4 ns) 70 mm nu contează electric. De făcut la v2 | `verifica.py` |
-| ⚠ | Divizorul VBUS (100k/100k) pune 2,5 V pe IO2 și când ESP-ul e oprit (SW1 pe OPRIT, cablul pus). Curge ~40 µA prin dioda de protecție a pinului în șina de 3,3 V | calcul |
+| ⚠ | Trasee lungi: D+ 72 mm cu 8 via, D− 64 mm cu 6 via. **Nu s-au scurtat**: pinii USB sunt pe latura de sus a modulului, mufa e pe marginea de jos, la 40 mm de el; scurtarea înseamnă mutarea mufei și a blocului de încărcare, deci și a carcasei. La full speed (12 Mbit/s, fronturi de ~4 ns) 70 mm nu contează electric. De făcut la v2 | `verifica.py` |
+| ✎ | Divizorul VBUS, acum 470k/470k (punctul 5), pune tot 2,5 V pe IO2, deci și când ESP-ul e oprit (SW1 pe OPRIT, cablul pus). Prin dioda de protecție a pinului în șina de 3,3 V curg acum ~9 µA, nu ~40 µA ca la 100k/100k. C17 (100 nF, ca C13 la VBAT_SENSE) dă sarcina pentru eșantionarea ADC-ului; constanta de timp, ~24 ms, ajunge pentru detectarea cablului | calcul |
 
 ### Încărcătorul (U2 BQ24074, D1/D2)
 
@@ -174,7 +174,7 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
 |---|---|---|
 | ✔ | Niciun cupru (plan, traseu sau via) sub antenă, pe niciunul din cele 4 straturi | `verifica.py` |
 | ✔ | Antena e la marginea plăcii, cu punctul de alimentare lângă margine | ghid, „Module-on-board” |
-| ⚠ | Placa continuă sub antenă (FR4 fără cupru, ~6 mm). Espressif preferă antena în afara plăcii sau o decupare sub ea. Găurile H2/H4 din colțuri ar permite o decupare între ele | ghid, figura „Keepout Zone” |
+| ⚠ | Placa continuă sub antenă (FR4 fără cupru, ~6 mm). Espressif preferă antena în afara plăcii sau o decupare sub ea. Găurile H2/H4 din colțuri ar permite o decupare între ele. Amânat (punctul 3) | ghid, figura „Keepout Zone” |
 | ⚠ | Placa WeAct și panoul sunt la 11 mm deasupra antenei, iar ghidul cere 15 mm liberi în toate direcțiile, în carcasă. Cel mai aproape metal din carcasă sunt șuruburile H2/H4, la ~15 mm | ghid; `enclosure/README.md` |
 
 ### Punctele de test
@@ -182,6 +182,7 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
 | | Ce |
 |---|---|
 | ✔ | TP1–TP6: VBUS, VSYS, BAT_J, VBAT, +3V3, GND |
+| ✎ | TP7, TP8: 3V3_SD și 3V3_EPD, după comutatoare (punctul 6), în același rând cu TP1–TP6 |
 | ✔ | JP1 (I_BAT): puntea se taie, iar ampermetrul se pune între BAT_J și VBAT, pentru măsurătorile de consum |
 | ✔ | J5 (UART0) pentru jurnal, lângă BOOT și RESET |
 | ⚠ | 3V3_SD și 3V3_EPD nu au punct de test. Se măsoară pe C9 și C11 |
@@ -189,11 +190,11 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
 ## De hotărât la citire
 
 1. ✎ **Bus-uri SPI separate pentru card și panou. Făcut.** Cardul a rămas pe pinii de pe DevKit (SCK 12, MOSI 11, MISO 13, CS 14), iar panoul a primit SCK pe GPIO47 și MOSI pe GPIO48, pinii de lângă CS-ul și DC-ul lui pe latura modulului (în loc de GPIO38–42, cum scria prima trecere: așa traseele sunt mai scurte, iar firmware-ul cardului nu se schimbă). Placa s-a retrasat: 52 din 52 de rețele, DRC 0.
-2. ✎ **Rezistențe serie pe D+/D−. Făcut**, pe jumătate: R25/R26 de 22 Ω (0603, ca restul plăcii) stau lângă modul. Traseele USB **n-au fost scurtate** (67 și 69 mm); asta cere mutarea mufei USB-C și a încărcătorului, deci și a carcasei. La full speed nu contează; rămâne pentru v2.
-3. **Decupare sub antenă**, ~6 × 30 mm, între H2 și H4. Schimbă și conturul carcasei (`placa.py` îl preia singur). *Recomandare: de hotărât după o măsurătoare de semnal pe DevKit în carcasa printată (ENC-3), dacă WiFi-ul contează.*
-4. **WiFi-ul și cei 400 mA.** Varianta ieftină e în firmware: puterea de emisie limitată la ~13 dBm (`esp_wifi_set_max_tx_power`), iar WiFi-ul doar cu panoul și cardul inactive. Varianta scumpă e alt regulator, dar ar pierde cei 75 nA în gol, pentru care a fost ales TPS63900. *Recomandare: firmware-ul, și măsurat.*
-5. **Divizorul VBUS mai mare** (de exemplu 470k/470k), ca să scadă curentul din IO2 cât ESP-ul e oprit. Atunci îi trebuie un condensator de 100 nF, ca la VBAT_SENSE. *Mărunt; opțional.*
-6. **Puncte de test pe 3V3_SD și 3V3_EPD.** *Opțional; C9/C11 ajung.*
+2. ✎ **Rezistențe serie pe D+/D−. Făcut**, pe jumătate: R25/R26 de 22 Ω (0603, ca restul plăcii) stau lângă modul. Traseele USB **n-au fost scurtate** (acum 72 și 64 mm); asta cere mutarea mufei USB-C și a încărcătorului, deci și a carcasei. La full speed nu contează; rămâne pentru v2.
+3. **Decupare sub antenă**, ~6 × 30 mm, între H2 și H4. Schimbă și conturul carcasei (`placa.py` îl preia singur). **Amânat:** se hotărăște după o măsurătoare de semnal pe DevKit în carcasa printată (ENC-3), dacă WiFi-ul contează. Placa v1 rămâne fără decupare până atunci.
+4. ✎ **WiFi-ul și cei 400 mA. Hotărât: în firmware.** Puterea de emisie e limitată la 13 dBm (`BOARD_WIFI_MAX_TX_QDBM` = 52 în `board_pcb_v1.h`, pentru `esp_wifi_set_max_tx_power`), iar WiFi-ul pornește doar cu panoul și cardul inactive. Regulatorul rămâne TPS63900, pentru cei 75 nA în gol. Firmware-ul nu are încă WiFi; regula se aplică atunci, iar vârfurile de curent se măsoară pe placă (E3).
+5. ✎ **Divizorul VBUS mai mare. Făcut:** R17/R18 de 470 kΩ și C17 de 100 nF pe VBUS_SENSE, lângă ele. Raportul rămâne 1/2, deci firmware-ul nu se schimbă. Codul LCSC al rezistenței de 470 kΩ e de găsit la comandă (PCB-5).
+6. ✎ **Puncte de test pe 3V3_SD și 3V3_EPD. Făcut:** TP7 și TP8, în rândul celorlalte puncte de test (y = 33 mm). `verifica.py` nu mai dă avertismentul pentru ele.
 
 ## Pentru firmware (PCB-8, `board_pcb_v1.h`)
 

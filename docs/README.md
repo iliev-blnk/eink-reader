@@ -14,10 +14,17 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 - `../tools/converter/`: convertorul de cărți (EPUB / FB2 / TXT → `.ibv`), cititorul, scriitorul și validatorul de referință al formatului (`ibv.py`) și testele lor. Vezi README-ul lui.
 - `../tools/texref/`: TeX ca arbitru al ruperii în rânduri. Compară rândurile dispozitivului cu LuaTeX pe tot corpusul și explică diferențele printr-un model al algoritmului. Vezi README-ul lui.
 - `../tools/fuzz/`: fuzzere (libFuzzer, ASan, UBSan, pe 32 de biți) pentru fișierele citite de pe card (`.ibv`, `.ibf`, indexul de pagini, poziția, semnele, setările), pe codul din firmware, plus verificarea exhaustivă a decodorului UTF-8. Vezi README-ul lui.
+- `../measurements/`: experimentele E1–E9. Pentru fiecare: fișa de metodă, scrisă înainte de date, scripturile, datele brute, tabelele și figurile generate și nota cu rezultatele. Vezi README-ul lui.
 - `../corpus/`: cărțile de test (le descarcă `fetch.sh`; neurmărite în git) și rezultatele conversiei lor.
 - `../spec/`: specificația formatului de carte (`book-format.md`), specificația formatului de font (`font-format.md`) și un fișier exemplu comentat (`examples/`).
 
 ## Jurnal
+
+### 2026-11-17: fișele de metodă E1–E9; E6 în simulator și E5 pe PC (`measurements/`)
+- MEAS-3: câte o fișă `METODA.md` pentru fiecare experiment, scrisă înainte de orice dată: întrebarea, predicțiile cu praguri, montajul, procedura, metricile, criteriul și ce poate strica măsurătoarea.
+- E6, toată partea din simulator: greedy și Knuth–Plass, cu și fără despărțire, la cele 5 trepte de mărime, pe cele 12 cărți. `sim breaks` scrie acum și lățimea spațiului, ca r să se poată calcula din ieșire. Pe proză, la treapta implicită, cu despărțire: r mediu 1,53 → 1,12 (−27 %), r p95 4,23 → 2,80 (−34 %), cratime consecutive 47,6 → 22,1 la 1000 de rânduri, cu 1,8 % mai puține pagini. Despărțirea contează mai mult decât algoritmul. 4 din 5 predicții trec; a cincea nu: pe PC, Knuth–Plass e de 2,32 ori mai lent decât greedy (pragul era 2), costul venind din rupturile aduse de despărțire. Timpul pe dispozitiv rămâne pentru E2.
+- E5, partea de pe PC: secțiunea de text comprimată are 27–46 % din textul brut; deschiderea încape în 4 KB la 9 din 12 cărți (nu încap cele cu cuprins lung); conversia ține cel mult 1,67 s. 3 din 5 predicții trec: cratimele moi costă până la 10,2 % (pragul 10), iar blocurile de 32 KB câștigă 5,7 % (pragul 5). 16 KB rămâne implicit: la 32 KB un salt citește și decomprimă de două ori mai mult.
+- Corpusul are încă 12 cărți, nu ~20 (MEAS-1); experimentele se rulează din nou cu aceleași scripturi când crește.
 
 ### 2026-11-17: desenul plăcii de prototipare, ciornă (HW-6, `hardware/proto`)
 - Ce e: `layout.py` așază modulele pe o placă de prototipare de 41 × 21 de găuri, tăiată cât spatele afișajului și prinsă în găurile lui de M2: DevKit-ul pe socluri, cu antena liberă, soclul afișajului pe fața dinspre ecran, cardul pe bareta lui, TP4056 și TPS63020 lipite cu bandă, divizorul bateriei sub DevKit, butoanele pe o plăcuță separată.

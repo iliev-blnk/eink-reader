@@ -1,0 +1,20 @@
+# font după limbă, zona de text 216x382, hash de paginare f02884c1
+# ruperea rândurilor: încadrare totală
+# min: cele mai puține rânduri pe o pagină care nu e ultima; dep: px de cerneală în afara zonei de text;
+#   văd, orf: rânduri văduve și orfane; lipsă: caractere fără glifă în font
+# înap: pagini așezate ca să se întoarcă o pagină fără index (maximul și media pe cel mult 64 de pagini)
+# cr: % din rânduri cu cratimă, 2cr: două la rând; r: cu cât e mai lat decât un spațiu simplu un spațiu
+#   justificat (0,5 = un spațiu și jumătate), media și percentila 95; larg: % din rânduri cu r > 0,5
+carte                        pagini   parag       ms   us/pag   min  dep  văd   orf   înap  medie    cr  2cr     r   r95   larg  lipsă  hash      font
+libru-dubrovsky.ibv             468     429      8.1       17     2  1px    0     0     43   14.9   0.0    0  4.31 12.60   88.7      0  4f832611  ptserif-18
+pg11.ibv                        433    1034      7.2       17     2  4px    0     0     40   18.0   0.0    0  1.61  4.34   75.0      0  26b4216d  libron-17
+pg1322.ibv                     2681   14550     30.6       11     9  2px    0     0   2666 1333.5   0.0    0  3.10 13.64   77.0      0  e3b9675c  libron-17
+pg1342.ibv                     2106    2430     36.1       17     2  4px    0     0     68   20.7   0.0    0  2.04  5.33   80.4      0  10b2288e  libron-17
+pg14741.ibv                     509    4041      5.7       11     9  1px    0     0    505  253.0   0.0    0  3.59 12.11   84.9      0  aec5fec5  ptserif-18
+pg16527-8.ibv                   480    1005      8.2       17    13  2px    0     0    477  239.0   0.0    0  2.50  7.21   81.5      0  d0181006  ptserif-18
+pg2701.ibv                     3552    2954     63.6       18     2  4px    0     0     95   18.7   0.0    0  2.07  5.28   81.0      0  faa8af1b  libron-17
+pg35323.ibv                    3275   22951     39.4       12     3  2px    0     0   2420 1009.0   0.0    0  3.09  9.18   84.6      0  ec2b2653  libron-17
+pg62916.ibv                     766    1559     15.5       20     2  0px    0     0    196   63.6   0.0    0  1.61  4.51   73.7      0  aeb4a929  libron-17
+pg64597.ibv                     549     977     11.0       20     2  3px    0     0    149   45.9   0.0    0  2.07  5.55   79.9      0  36d9f432  libron-17
+pg65565.ibv                     801    1079     15.6       19     1  3px    0     0    229   54.1   0.0    0  2.24  6.07   80.1      0  9d8144b9  libron-17
+pg84.ibv                       1209     850     21.5       18     2  4px    0     0    128   27.2   0.0    0  2.01  5.07   81.5      0  9330eaf1  libron-17

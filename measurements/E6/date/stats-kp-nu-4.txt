@@ -1,0 +1,20 @@
+# font după limbă, zona de text 216x382, hash de paginare f02884c1
+# ruperea rândurilor: încadrare totală
+# min: cele mai puține rânduri pe o pagină care nu e ultima; dep: px de cerneală în afara zonei de text;
+#   văd, orf: rânduri văduve și orfane; lipsă: caractere fără glifă în font
+# înap: pagini așezate ca să se întoarcă o pagină fără index (maximul și media pe cel mult 64 de pagini)
+# cr: % din rânduri cu cratimă, 2cr: două la rând; r: cu cât e mai lat decât un spațiu simplu un spațiu
+#   justificat (0,5 = un spațiu și jumătate), media și percentila 95; larg: % din rânduri cu r > 0,5
+carte                        pagini   parag       ms   us/pag   min  dep  văd   orf   înap  medie    cr  2cr     r   r95   larg  lipsă  hash      font
+libru-dubrovsky.ibv             643     429      8.2       13     2  1px    0     0     61   20.5   0.0    0  5.36 15.48   90.2      0  b39f8f8b  ptserif-21
+pg11.ibv                        589    1034      7.0       12     1  3px    0     0     56   25.3   0.0    0  2.24  6.17   80.0      0  8114db02  libron-20
+pg1322.ibv                     3711   14550     31.7        9     8  2px    0     0   3706 1853.5   0.0    0  4.62 15.77   79.0      0  5e931ad2  libron-20
+pg1342.ibv                     2890    2430     36.8       13     2  5px    0     0    114   27.0   0.0    0  2.88  7.73   84.8      0  d7df7558  libron-20
+pg14741.ibv                     673    4041      5.8        9     8  1px    0     0    671  336.0   0.0    0  3.48 13.39   81.5      0  96432e9f  ptserif-21
+pg16527-8.ibv                   654    1005      7.7       12    12  1px    0     0    651  326.0   0.0    0  3.48 11.12   84.9      0  b77f987c  ptserif-21
+pg2701.ibv                     4872    2954     64.7       13     2  5px    0     0    142   27.2   0.0    0  2.81  7.60   84.5      0  87e6b871  libron-20
+pg35323.ibv                    4646   22951     43.6        9     7  2px    0     0   3398 1410.7   0.0    0  4.07 12.89   87.4      0  0c09d72c  libron-20
+pg62916.ibv                    1045    1559     15.2       15     2  2px    0     0    270   89.6   0.0    0  2.11  5.94   79.0      0  27358b85  libron-20
+pg64597.ibv                     753     977     10.8       14     1  3px    0     0    206   63.3   0.0    0  2.82  7.87   83.7      0  d2d32874  libron-20
+pg65565.ibv                    1100    1079     18.2       17     2  4px    0     0    326   77.4   0.0    0  3.04  8.35   84.4      0  dca20b5a  libron-20
+pg84.ibv                       1673     850     21.1       13     1  3px    0     0    173   38.2   0.0    0  2.81  7.26   85.1      0  7129d421  libron-20

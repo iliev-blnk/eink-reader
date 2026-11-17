@@ -19,6 +19,7 @@ propriu, un format de carte propriu și placa lui proprie.
 | [`sim/`](sim/) | simulatorul pe PC, cu testele cu imagini de referință |
 | [`emu/`](emu/) | emulatorul: firmware-ul adevărat pe un ESP32-S3 emulat (QEMU) |
 | [`hardware/`](hardware/) | schema prototipului, desenul plăcii de prototipare (`proto/`) și placa proprie (`pcb/`) |
+| [`measurements/`](measurements/) | experimentele: fișele de metodă, datele, figurile și rezultatele (E5 și E6 rulate până acum) |
 | [`docs/`](docs/) | planul general, descrierea proiectului și jurnalul |
 
 Planul, cu ce e gata și ce urmează: [`docs/MASTER-PLAN.md`](docs/MASTER-PLAN.md).

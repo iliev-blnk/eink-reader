@@ -640,6 +640,7 @@ static int cmd_compare(int argc, char **argv)
 // Scrie fiecare rând al fiecărei cărți: înregistrarea, octeții [start, end),
 // indicatorii, începutul peniței, justificarea și numărul de spații. E ce
 // ajunge pe ecran, luat din paginare, nu din interiorul ruperii în rânduri.
+// Antetul fiecărei cărți are și avansul spațiului (1/64 px), pentru E6.
 static int cmd_breaks(int argc, char **argv)
 {
     setup_t s;
@@ -658,8 +659,10 @@ static int cmd_breaks(int argc, char **argv)
         ibv_t *book = open_book(books[b]);
         if (!book) { failures++; continue; }
         book_setup(&s, book);
-        printf("book %s font %s width %d indent %d hyphenate %d justify %d fit %d version %d\n", books[b], s.font_name,
-               s.cfg.width, s.cfg.indent, s.cfg.hyphenate, s.cfg.justify, s.cfg.fit != NULL, LAYOUT_VERSION);
+        const font_t *body = s.cfg.body[0];
+        printf("book %s font %s width %d indent %d hyphenate %d justify %d fit %d version %d space %u\n", books[b],
+               s.font_name, s.cfg.width, s.cfg.indent, s.cfg.hyphenate, s.cfg.justify, s.cfg.fit != NULL, LAYOUT_VERSION,
+               body->glyphs[font_index_or_fallback(body, ' ')].advance);
         if (s.cfg.fit) memset(s.cfg.fit->broken, 0, sizeof s.cfg.fit->broken);
         layout_pos_t pos = {0, 0};
         for (;;) {

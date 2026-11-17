@@ -233,6 +233,11 @@ if __name__ == '__main__':
             # GND și pe straturile exterioare, în ce rămâne liber
             for l in (pcbnew.F_Cu, pcbnew.B_Cu):
                 add_zone(board, netmap['GND'], l, 1)
+    # sigla USV și numele proiectului pe spate (marking.py)
+    import marking
+    errs = marking.check(board, marking.add_marking(board))
+    if errs:
+        sys.exit('serigrafia: ' + '; '.join(errs))
     # originea fișierelor de fabricație (Gerber, găuri, CPL): colțul din stânga jos
     ds = board.GetDesignSettings()
     ds.SetAuxOrigin(VECTOR2I_MM(OX, OY + H))

@@ -31,6 +31,7 @@ sau vreo diferență între schemă și placă.
 | `route.py`, `astar.c` | trasorul (mai jos) |
 | `project.py` | `.kicad_pro`: clasele de rețele și regulile |
 | `eink-reader-pcb.kicad_dru` | regulile în plus (găurile butoanelor și ale mufei USB, traseele de putere) |
+| `marking.py`, `usv_sigla.json` | serigrafia de pe spate: sigla USV și numele proiectului (mai jos) |
 | `make.sh` | tot lanțul, cu verificările |
 
 Ies: `build/` (rapoartele ERC/DRC în JSON, poziții, BOM brut, `cupru.svg`),
@@ -53,6 +54,16 @@ din nou `make.sh`.
   0,4 mm, cu 0,25 mm admis unde nu încape altfel (mai jos).
 - Antena modulului ESP32 e pe marginea din dreapta; pe ultimii 6 mm ai plăcii
   (zona interzisă din amprenta modulului) nu e cupru pe niciun strat.
+
+## Serigrafia
+
+Pe spate (B.SilkS), fața fără piese: sigla Universității „Ștefan cel Mare” din
+Suceava, „Proiect de licență”, numele, titlul și „2027 · placa v1”. Sigla e cea
+de pe usv.ro, vectorizată cu potrace în `usv_sigla.json`. `marking.py` o pune
+într-un grup care se înlocuiește la fiecare rulare (`python3 marking.py` merge și
+pe placa deja trasată) și se oprește dacă ceva atinge o pastilă, o gaură sau o via.
+Pe față nu e serigrafie în afară de contururile amprentelor: numele pieselor
+stau pe F.Fab.
 
 ## Piesele
 

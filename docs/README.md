@@ -25,6 +25,9 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 - Ies șablonul 1:1 de tipărit (fața pieselor și fața de lipire), PNG-urile și `FIRE.md` cu lista numerotată a firelor și verificările dinainte de prima alimentare.
 - Ce nu e încă: mărimile modulului de card, ale TP4056, TPS63020 și SS12D00 sunt tipice, nu măsurate, iar poziția baretei afișajului e din desen. Se măsoară pe piesele cumpărate și se trec în script înainte de lipire (HW-7).
 
+### 2026-11-17: sigla USV și numele proiectului pe spatele plăcii proprii
+- `hardware/pcb/marking.py` pune pe B.SilkS sigla universității (vectorizată din sigla de pe usv.ro, `usv_sigla.json`), „Proiect de licență”, numele, titlul și universitatea. Rulează și din `gen_pcb.py` și verifică să nu atingă vreo pastilă, gaură sau via. DRC rămâne 0 erori.
+
 ### 2026-11-17: placa proprie v1, ciornă generată de script (`hardware/pcb`)
 - De ce: PCB-1…3 sunt în calendar abia din februarie, cu comanda pe la 15 martie și o singură rezervă pentru refacere. O ciornă completă acum mută riscul mai devreme: se vede de pe acum dacă piesele încap pe placa afișajului, ce consumă în somn și ce rămâne de verificat, iar PCB-4 are ce revizui.
 - Ce e: piesele și legăturile scrise o dată în `circuit.py`. Din el `gen_sch.py` face schema, `gen_pcb.py` face placa (105,79 × 53,80 mm, ca modulul WeAct, 4 straturi cu planuri GND și +3V3), iar `route.py` o trasează. KiCad nu are trasor automat, așa că trasorul e propriu: A* în C pe o grilă de 0,125 mm, cu smulgere și retrasare în felul PathFinder. `make.sh` rulează tot, cu ERC, DRC cu paritatea schemă–placă și fișierele pentru JLCPCB (gerbere, BOM, CPL).

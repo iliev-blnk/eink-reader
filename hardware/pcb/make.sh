@@ -44,6 +44,9 @@ for v in bad[:20]:
 sys.exit(1 if bad else 0)
 EOF
 
+echo "== verificările de proiectare (REVIEW.md)"
+python3 verifica.py
+
 echo "== fab/"
 rm -rf fab/gerber && mkdir -p fab/gerber
 kicad-cli pcb export gerbers -o fab/gerber/ --subtract-soldermask --check-zones --use-drill-file-origin \

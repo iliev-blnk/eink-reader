@@ -250,13 +250,14 @@ Direcția de proiectare (decizia mea; alegerea pieselor se verifică final după
 - **Regulatorul de 3,3 V:** un buck-boost cu curent de repaus mic. Candidați: TPS63802 sau TPS63020 (ca modulul tău).
 - **Indicatorul de baterie:** MAX17048 (I²C), comparat cu divizorul ADC în măsurători.
 - **Ecranul:** v1 păstrează modulul WeAct pe o baretă, ceea ce e puțin riscant. Ambiție: comanda panoului gol printr-un FPC de 24 de pini cu propriul nostru circuit de ridicare a tensiunii (Q4).
-- Soclu microSD, 3 butoane, comutator de alimentare, puncte de test pe fiecare linie, o baretă UART, găuri de prindere potrivite cu tiparul de 93×48 mm al ecranului.
+- Soclu microSD, 3 butoane, comutator de alimentare, puncte de test pe fiecare linie, o baretă UART, găuri de prindere potrivite cu tiparul de 91,8×48 mm al ecranului.
 - 4 straturi (plan de masă continuu, bun pentru antenă și zgomot), dacă prețul nu impune 2.
 
 - [ ] PCB-1 Cerințele + tabelul alegerii pieselor, cu motivul fiecărei piese.
 - [ ] PCB-2 Schema v2 + ERC. Calculul bugetului de consum (alimentează predicțiile E3/E4).
 - [ ] PCB-3 Conturul plăcii din dimensiunile ecranului + carcasă, plasarea, rutarea, DRC cu regulile JLCPCB.
 - [ ] PCB-4 Revizuirea proiectului după o listă de verificare: amprente, polaritate, pinii de boot/strapping, pinii USB, distanța față de antenă, puncte de test. O citești cu mine. O arăți coordonatorului, dacă vrea.
+  *Prima trecere e în `hardware/pcb/REVIEW.md`: fiecare bloc față de foaia de catalog, plus regulile din `verifica.py`, care rulează în `make.sh`. Nicio greșeală de legătură; L1 schimbată pe bobina din lista TI. Rămâne citirea împreună și cele șase puncte de hotărât (primul: bus-uri SPI separate pentru card și panou).*
 - [ ] PCB-5 Comanda: 5 plăci, cu asamblarea JLCPCB a pieselor cu pas fin. Fișierele comenzii ies din `make.sh`.
 - [ ] PCB-6 Lipirea manuală a pieselor mari (conectori, butoane, mufa bateriei, bareta ecranului).
 - [ ] PCB-7 Punerea în funcțiune, pas cu pas:

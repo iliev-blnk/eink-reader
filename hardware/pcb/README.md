@@ -6,8 +6,8 @@ alimentare comutată, trei butoane. Totul e **generat din script**: piesele și
 legăturile sunt scrise o dată în `circuit.py`, din care ies schema, placa așezată
 și trasată, verificările și fișierele pentru fabrică.
 
-**E o ciornă.** N-a fost revizuită (PCB-4), nu s-a comandat, iar codurile LCSC
-nu sunt verificate în catalog. Pașii PCB-1…3 din `docs/MASTER-PLAN.md` au acum o
+**E o ciornă.** Are o primă revizie pe hârtie (PCB-4, [`REVIEW.md`](REVIEW.md)),
+de citit împreună; nu s-a comandat, iar codurile LCSC nu sunt verificate în catalog. Pașii PCB-1…3 din `docs/MASTER-PLAN.md` au acum o
 primă variantă completă, cu trei luni înainte de calendar; prototipul de pe
 DevKit rămâne referința până la măsurători.
 
@@ -32,6 +32,8 @@ sau vreo diferență între schemă și placă.
 | `project.py` | `.kicad_pro`: clasele de rețele și regulile |
 | `eink-reader-pcb.kicad_dru` | regulile în plus (găurile butoanelor și ale mufei USB, traseele de putere) |
 | `marking.py`, `usv_sigla.json` | serigrafia de pe spate: sigla USV și numele proiectului (mai jos) |
+| `verifica.py` | regulile de proiectare pe care ERC/DRC nu le au: pinii ESP32-S3, polaritatea, decuplarea, antena, pinii din firmware (`--pini`: tabelul pin → rețea) |
+| `REVIEW.md` | revizia PCB-4: fiecare bloc față de foaia lui de catalog, plus ce rămâne de hotărât |
 | `make.sh` | tot lanțul, cu verificările |
 
 Ies: `build/` (rapoartele ERC/DRC în JSON, poziții, BOM brut, `cupru.svg`),
@@ -160,15 +162,15 @@ are rezervă de două ori. Celelalte rețele de putere sunt de 0,4 mm: 3V3_EPD
 - **Alimentarea inversă**: înainte de a opri 3V3_SD sau 3V3_EPD, firmware-ul
   trebuie să pună liniile SPI și CS-urile pe 0, altfel cardul sau panoul se
   alimentează prin diodele de protecție ale pinilor. Se scrie în
-  `board_pcb_v1.h` (PCB-8).
+  `board_pcb_v1.h` (PCB-8). Pe bus-ul SPI comun asta nu ajunge; vezi
+  `REVIEW.md`, „De hotărât la citire”, punctul 1.
 - **TPS63900 la vârfurile de WiFi**: dă până la ~400 mA; ESP32-S3 cere vârfuri
   de ~350 mA la transmisie. Merge cu C5 + C14 (2 × 22 µF), dar fără rezervă.
   Cititorul nu folosește WiFi în mod normal; dacă va folosi, e de măsurat.
 - **TS cu rezistor fix**: R5 îi spune încărcătorului că bateria are mereu
   25 °C, deci nu oprește încărcarea la cald sau la rece. Bateria trebuie să aibă
   protecția ei (PCM), ca toate celulele LiPo din comerț.
-- **R8/R9** sunt alese din tabelele foii de catalog TPS63900 pentru 3,3 V; de
-  reverificat la PCB-4.
+- **R8/R9** sunt verificate în tabelele 7-2/7-3 ale foii TPS63900 (`REVIEW.md`).
 - Contactul de detecție al cardului (J4) nu e folosit.
 - J2, J3, J5 sunt cu găuri (THT); SW2–SW4 și J1 au picioare de fixare în găuri
   nemetalizate, cu reguli de distanță proprii în `.kicad_dru`.

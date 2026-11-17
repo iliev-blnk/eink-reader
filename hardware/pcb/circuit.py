@@ -92,7 +92,7 @@ part('U3', 'Regulator_Switching:TPS63900', 'TPS63900DSKR',
      {'10': 'VSYS', '1': 'PWR_EN', '2': 'GND', '3': 'CFG1', '4': 'GND', '5': 'CFG3',
       '6': '+3V3', '7': 'LX2', '9': 'LX1', '8': 'GND', '11': 'GND'}, '', 'TI TPS63900DSKR', G)
 part('L1', 'Device:L', '2.2uH', 'Inductor_SMD:L_1008_2520Metric', {'1': 'LX1', '2': 'LX2'},
-     '', 'Murata DFE252012F-2R2M', G)
+     '', 'Murata DFE252010F-2R2M', G)   # din tabelul 8-2 al foii TPS63900: ISAT 3,1 A
 R('R8', '36.5k', 'CFG1', 'GND', G)
 R('R9', '16.2k', 'CFG3', 'GND', G)
 C('C4', '10uF', 'VSYS', 'GND', G)

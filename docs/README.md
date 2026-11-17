@@ -21,6 +21,12 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 
 ## Jurnal
 
+### 2026-11-17: revizia plăcii v1, prima trecere (PCB-4, `hardware/pcb/REVIEW.md`)
+- Ce e: fiecare bloc al plăcii comparat cu foaia de catalog a piesei: USB-C, încărcătorul, indicatorul, 3,3 V, comutatoarele de alimentare, ESP32-S3, cardul, afișajul. Au intrat și amprentele, antena și punctele de test. Concluziile, cu trimiterile la tabele, sunt în `REVIEW.md`.
+- `verifica.py` scrie în cod regulile pe care ERC/DRC nu le au: fiecare pin liber al unui circuit e motivat; USB pe GPIO19/20; nimic pe pinii PSRAM-ului; tensiunile pe ADC1; butoanele pe pini RTC; pinii de configurare la pornire; polaritatea LED-urilor și a protecției USB; decuplarea; niciun cupru sub antenă; aceiași pini ca firmware-ul de pe DevKit. Rulează în `make.sh`: 0 erori, 3 avertismente (traseele USB lungi, fără punct de test pe 3V3_SD și 3V3_EPD).
+- Găsit: nicio legătură greșită. L1 trece pe bobina din lista TI (DFE252010F-2R2M, ISAT 3,1 A). Rămân șase puncte de hotărât la citire. Primul: bus-uri SPI separate pentru card și panou, ca să nu se alimenteze unul pe altul prin linii.
+- Ce nu e: desenele de amprentă pentru U2, U3, U6 nu sunt comparate. Foaia USBLC6 nu s-a putut descărca. Nimic nu e măsurat pe placă.
+
 ### 2026-11-17: carcasa, ciornă (ENC-1, `enclosure`)
 - Ce e: un model OpenSCAD parametric (`carcasa.scad`). Are patru piese de printat: rama cu fereastra și pereții, capacul din spate, 3 împingătoare pentru butoanele laterale și 4 distanțiere între plăci. Patru șuruburi M2 cu cap înecat, din față, strâng tot pachetul (ramă, placa WeAct, placa noastră, capac), deci carcasa nu are cleme. Pe capac e gravat numele proiectului.
 - De unde vin cotele: `placa.py` citește placa KiCad prin pcbnew (contur, găuri, pozițiile USB-C, microSD, comutatorului și butoanelor) și scrie `placa.scad`. Când se mută o piesă pe placă, `make.sh` reface carcasa.
@@ -53,7 +59,7 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 - Ce e: piesele și legăturile scrise o dată în `circuit.py`. Din el `gen_sch.py` face schema, `gen_pcb.py` face placa (105,79 × 53,80 mm, ca modulul WeAct, 4 straturi cu planuri GND și +3V3), iar `route.py` o trasează. KiCad nu are trasor automat, așa că trasorul e propriu: A* în C pe o grilă de 0,125 mm, cu smulgere și retrasare în felul PathFinder. `make.sh` rulează tot, cu ERC, DRC cu paritatea schemă–placă și fișierele pentru JLCPCB (gerbere, BOM, CPL).
 - Piesele: ESP32-S3-WROOM-1-N16R8 (același modul și aceeași hartă de pini ca pe DevKit), BQ24074 (încărcare cu power-path din USB-C, 0,5 A), TPS63900 (buck-boost cu 75 nA în gol), MAX17048 (indicatorul bateriei), două TPS22917 care taie alimentarea cardului și a panoului, trei butoane pe margini, o punte de lipit în serie cu bateria pentru măsurătorile E3/E4.
 - Rezultatul: 48 din 48 de rețele trasate (1.415 mm, 201 via). ERC 0, DRC 0 erori, 0 legături lipsă, 0 diferențe față de schemă; 4 avertismente pentru amprente schimbate dinadins. Consumul în somn estimat din foile de catalog: ~17,5 µA.
-- Ce nu e încă: revizuită (PCB-4) și comandată. Codurile LCSC nu sunt verificate, poziția baretei afișajului trebuie măsurată pe modulul adevărat, iar TPS63900 nu are rezervă la vârfurile de WiFi. Lista întreagă e în `hardware/pcb/README.md`.
+- Ce nu e încă: revizuită (PCB-4) și comandată. *(Prima trecere a reviziei: intrarea de mai sus și `hardware/pcb/REVIEW.md`.)* Codurile LCSC nu sunt verificate, poziția baretei afișajului trebuie măsurată pe modulul adevărat, iar TPS63900 nu are rezervă la vârfurile de WiFi. Lista întreagă e în `hardware/pcb/README.md`.
 
 ### 2026-11-17: fuzzing pentru fișierele de pe card (`tools/fuzz`), patru greșeli reparate
 - De ce: tot ce citește dispozitivul vine de pe card, inclusiv fișierele pe care și le scrie singur, iar un card poate avea fișiere stricate sau făcute anume. Analizoarele fuseseră testate doar cu fișiere bune, făcute de convertor și de simulator.

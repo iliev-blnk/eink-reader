@@ -15,10 +15,11 @@ propriu, un format de carte propriu și placa lui proprie.
 |---|---|
 | [`firmware/`](firmware/) | firmware-ul ESP-IDF: driverul panoului, cardul, butoanele, managerul de aplicații, cititorul, somnul |
 | [`spec/`](spec/) | formatul de carte (`.ibv`) și formatul de font (`.ibf`) |
-| [`tools/`](tools/) | convertorul EPUB / FB2 / TXT → `.ibv`, unealta de fonturi, comparația cu TeX, fuzzerele |
+| [`tools/`](tools/) | convertorul EPUB / FB2 / TXT → `.ibv`, unealta de fonturi, comparația cu TeX, fuzzerele, analiza jurnalului de timpi, înregistratorul de curent |
 | [`sim/`](sim/) | simulatorul pe PC, cu testele cu imagini de referință |
 | [`emu/`](emu/) | emulatorul: firmware-ul adevărat pe un ESP32-S3 emulat (QEMU) |
 | [`hardware/`](hardware/) | schema prototipului, desenul plăcii de prototipare (`proto/`) și placa proprie (`pcb/`) |
+| [`enclosure/`](enclosure/) | carcasa: model OpenSCAD parametric, cu placa citită din fișierul KiCad |
 | [`measurements/`](measurements/) | experimentele: fișele de metodă, datele, figurile și rezultatele (E5 și E6 rulate până acum) |
 | [`docs/`](docs/) | planul general, descrierea proiectului și jurnalul |
 

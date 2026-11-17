@@ -87,6 +87,7 @@ Un cititor de cărți electronice e-ink de mână, proiectat cap-coadă:
 ```
 eink-reader/
   hardware/            schema prototipului (există, v1.0)
+  hardware/proto/      desenul plăcii de prototipare (HW-6)
   hardware/pcb/        placa proprie: schema, cablajul, fișierele de fabricație, BOM, lista de verificare
   firmware/            proiectul ESP-IDF
     components/core/   C portabil: format, fonturi, paginare (comun cu sim/)
@@ -95,16 +96,22 @@ eink-reader/
     main/              managerul de aplicații + aplicațiile
     boards/            board_devkit.h, board_pcb_v1.h (hărțile pinilor)
   sim/                 nucleul compilat pe PC → pagini PNG, teste
+  emu/                 firmware-ul întreg pe un ESP32-S3 emulat (QEMU), comparat cu sim/
   tools/converter/     convertorul și validatorul în Python
   tools/fonttool/      TTF → font bitmap
+  tools/texref/        ruperea în rânduri comparată cu TeX
+  tools/fuzz/          fuzzere pentru fișierele de pe card
+  tools/perf/          analiza jurnalului de timpi (E1, E2, E4, E6)
+  tools/ina226/        înregistratorul de curent (E3, E4)
+  corpus/              cărțile de test (descărcate de fetch.sh)
   spec/                book-format.md, font-format.md (versionate)
-  measurements/<exp>/  CSV brut, scripturi, figuri generate (câte un dosar pe experiment)
+  measurements/<exp>/  CSV brut, scripturi, figuri generate (câte un dosar pe experiment; common/ are graficele)
   enclosure/           CAD + STL
   docs/                jurnalul din README, descrierea, planul ăsta, photos/, deciziile
   thesis/              sursa lucrării (formatul depinde de Q1)
 ```
 
-Controlul versiunilor: un depozit git local din prima zi. Un depozit privat pe GitHub e întrebarea deschisă Q6.
+Controlul versiunilor: git din prima zi; depozitul e public pe GitHub (Q6).
 
 ---
 
@@ -137,20 +144,20 @@ Fiecare direcție are livrabilele, sarcinile, o verificare „gata când” și 
 Limbajul și stiva (decizia mea): **C pe ESP-IDF** (ultima versiune stabilă), cu **propriul nostru driver UC8253**. GxEPD2 e doar o referință pentru secvențele de inițializare și o verificare a hardware-ului. Nu e o dependență.
 
 - [x] FW-1 Scheletul proiectului: componentele, hărțile pinilor `boards/*.h`, instrucțiunile de compilare și scriere în flash. Instalează ESP-IDF sau rulează scriptul meu de instalare. *Făcut 2026-10-25: `firmware/` se compilează pe ESP-IDF v6.1, care era deja instalat.*
-- [ ] FW-2 Driverul EPD: inițializare, reîmprospătare completă, rapidă și parțială, comanda de somn adânc, BUSY pe întrerupere. Opțional 4 niveluri de gri, dacă panoul le suportă. *v0 2026-10-25: tot în afară de niveluri de gri, plus cronometrarea pe faze. Se compilează, dar încă n-a rulat pe panou.*
-- [ ] FW-3 Grafica: framebuffer de 1 bpp, rotație (portret 240×416), urmărirea dreptunghiurilor modificate pentru reîmprospătarea parțială. *v0: framebuffer, text UTF-8 cu un font compilat în program, dreptunghiuri modificate. Încă fără rotație.*
-- [ ] FW-4 Stocarea: SD pe SPI + montarea FATFS și recuperarea, API de fișiere folosit de servicii. *v0: montare la 20 MHz cu revenire la 5 MHz; nu formatează niciodată. Încă fără recuperare sau API de fișiere.*
-- [ ] FW-5 Intrarea: butoane cu debounce, apăsare scurtă și lungă, o coadă de evenimente. *v0: toate (interogare la 10 ms, debounce de 30 ms, apăsare lungă de 800 ms). Încă nerulat pe hardware.*
-- [ ] FW-6 Managerul de aplicații: ciclul de viață al unei aplicații (intrare, eveniment, desenare, ieșire) și împărțirea pe taskuri FreeRTOS (task de interfață, task de intrare, task de fundal pentru paginare). *v0 2026-10-27 (`components/ui`): stiva de aplicații (`enter`/`resume`/`leave`/`key`/`draw`/`idle`), reîmprospătarea parțială calculată din diferența de framebuffer, cea completă la N. Fără task de paginare separat: lucrul de fundal e cooperativ, în taskul interfeței (de ce: Jurnalul). Verificat în `sim ui`; încă nerulat pe hardware.*
-- [ ] FW-7 Managerul de energie:
+- [~] FW-2 Driverul EPD: inițializare, reîmprospătare completă, rapidă și parțială, comanda de somn adânc, BUSY pe întrerupere. Opțional 4 niveluri de gri, dacă panoul le suportă. *v0 2026-10-25: tot în afară de niveluri de gri, plus cronometrarea pe faze. Se compilează, dar încă n-a rulat pe panou.*
+- [~] FW-3 Grafica: framebuffer de 1 bpp, rotație (portret 240×416), urmărirea dreptunghiurilor modificate pentru reîmprospătarea parțială. *v0: framebuffer, text UTF-8 cu un font compilat în program, dreptunghiuri modificate. Încă fără rotație.*
+- [~] FW-4 Stocarea: SD pe SPI + montarea FATFS și recuperarea, API de fișiere folosit de servicii. *v0: montare la 20 MHz cu revenire la 5 MHz; nu formatează niciodată. Încă fără recuperare sau API de fișiere.*
+- [~] FW-5 Intrarea: butoane cu debounce, apăsare scurtă și lungă, o coadă de evenimente. *v0: toate (interogare la 10 ms, debounce de 30 ms, apăsare lungă de 800 ms). Încă nerulat pe hardware.*
+- [~] FW-6 Managerul de aplicații: ciclul de viață al unei aplicații (intrare, eveniment, desenare, ieșire) și împărțirea pe taskuri FreeRTOS (task de interfață, task de intrare, task de fundal pentru paginare). *v0 2026-10-27 (`components/ui`): stiva de aplicații (`enter`/`resume`/`leave`/`key`/`draw`/`idle`), reîmprospătarea parțială calculată din diferența de framebuffer, cea completă la N. Fără task de paginare separat: lucrul de fundal e cooperativ, în taskul interfeței (de ce: Jurnalul). Verificat în `sim ui`; încă nerulat pe hardware.*
+- [~] FW-7 Managerul de energie:
   - somn ușor în timpul lecturii, somn adânc după o perioadă de inactivitate, trezire din orice buton (ext1 ANY_LOW, pull-up RTC activate). *Trezirea din buton merge deja în aplicația de punere în funcțiune.*
   - ecran de baterie descărcată și oprire sub pragul de tăiere
   - fiecare schimbare de stare marcată în timp, pentru măsurători
 
   *v0 2026-10-27: somn adânc după inactivitate (setarea „Somn după”) și la MENIU lung, coperta pe ecran, trezirea redeschide cartea; ecranul de baterie descărcată sub 3,40 V; linii PERF la apăsare, paginare, reîmprospătare și somn. Încă fără somn ușor.*
-- [ ] FW-8 Bateria: calibrarea ADC (curba din eFuse), corecția divizorului, o curbă tensiune→% pentru LiPo, netezire. *v0: calibrarea și corecția divizorului. 2026-10-27: procentul dintr-o curbă LiPo pe 11 puncte (`ui_battery_pct`). Încă fără netezire.*
-- [ ] FW-9 Setările în NVS: mărimea fontului, spațierea rândurilor, marginile, intervalul N de reîmprospătare completă, timpul până la somn, despărțirea în silabe pornită/oprită. *v0 2026-10-27: toate, plus alinierea; blob în NVS, aplicația Setări, paginarea refăcută la aceeași poziție.*
-- [ ] FW-10 Aplicațiile:
+- [~] FW-8 Bateria: calibrarea ADC (curba din eFuse), corecția divizorului, o curbă tensiune→% pentru LiPo, netezire. *v0: calibrarea și corecția divizorului. 2026-10-27: procentul dintr-o curbă LiPo pe 11 puncte (`ui_battery_pct`). Încă fără netezire.*
+- [~] FW-9 Setările în NVS: mărimea fontului, spațierea rândurilor, marginile, intervalul N de reîmprospătare completă, timpul până la somn, despărțirea în silabe pornită/oprită. *v0 2026-10-27: toate, plus alinierea; blob în NVS, aplicația Setări, paginarea refăcută la aceeași poziție.*
+- [~] FW-10 Aplicațiile:
   - ecranul de pornire
   - lansatorul
   - biblioteca: lista cărților din metadate, ordonate după cele recente
@@ -160,10 +167,10 @@ Limbajul și stiva (decizia mea): **C pe ESP-IDF** (ultima versiune stabilă), c
   - diagnosticul: tensiuni, timpi, versiuni
 
   *v0 2026-10-27: toate, plus cuprinsul și lista semnelor de carte. Punerea în funcțiune rămâne, cu MENIU ținut la o pornire la rece.*
-- [ ] FW-11 Progresul și semnele de carte: fișiere însoțitoare lângă fiecare carte (vezi SPEC). *v0 2026-10-27: `.pos`, `.bm` (până la 64), `.pg` și `/.ibv/recent`, scrise prin `.tmp` + ștergere + redenumire.*
-- [ ] FW-12 Stocare de masă USB pe USB nativ (TinyUSB MSC): conectat la un PC, cardul SD apare ca disc și se copiază cărțile. Pe dispozitiv FATFS e demontat cât USB-ul e activ. *v0 2026-11-17: „Conectare la PC” în meniul principal; `usbdisk.c` peste esp_tinyusb 3.0.1 (cardul deschis direct prin sdspi, fără formatare), scoaterea în siguranță de pe calculator închide ecranul singură, confirmare la ieșire cât discul e montat; în simulator cu un disc fals (`u:STARE`, scenariul `usb` din `sim/test`). Se compilează; încă neîncercat pe hardware.*
-- [ ] FW-13 Puncte de măsurare: un jurnal `perf` de marcaje de timp (frontul butonului, începutul/sfârșitul paginării, transferul SPI, BUSY jos/sus) scris pe SD ca CSV, plus un mod de test cu „întoarcere automată a paginii”. *v0 2026-10-28: `perflog.c` (pornit de dosarul `/perf`, scris doar când bucla așteaptă), frontul butonului în evenimentul din coadă, reîmprospătarea cu SPI și BUSY separate, întoarcerea automată la 5 s / 1 min din meniul cărții; analiza în `tools/perf/perf.py` (E1, E2, E4, E6), încercată pe jurnalul simulatorului. Încă nefolosit pe hardware.*
-- [ ] FW-14 Scrierea în flash și testarea pe prototip după fiecare funcție. Raportează și fotografiază orice e ciudat. *2026-11-16: până e legat prototipul, firmware-ul întreg rulează în emulator (`emu/`), cu cadrele comparate cu ale simulatorului; vezi Jurnalul.*
+- [~] FW-11 Progresul și semnele de carte: fișiere însoțitoare lângă fiecare carte (vezi SPEC). *v0 2026-10-27: `.pos`, `.bm` (până la 64), `.pg` și `/.ibv/recent`, scrise prin `.tmp` + ștergere + redenumire.*
+- [~] FW-12 Stocare de masă USB pe USB nativ (TinyUSB MSC): conectat la un PC, cardul SD apare ca disc și se copiază cărțile. Pe dispozitiv FATFS e demontat cât USB-ul e activ. *v0 2026-11-17: „Conectare la PC” în meniul principal; `usbdisk.c` peste esp_tinyusb 3.0.1 (cardul deschis direct prin sdspi, fără formatare), scoaterea în siguranță de pe calculator închide ecranul singură, confirmare la ieșire cât discul e montat; în simulator cu un disc fals (`u:STARE`, scenariul `usb` din `sim/test`). Se compilează; încă neîncercat pe hardware.*
+- [~] FW-13 Puncte de măsurare: un jurnal `perf` de marcaje de timp (frontul butonului, începutul/sfârșitul paginării, transferul SPI, BUSY jos/sus) scris pe SD ca CSV, plus un mod de test cu „întoarcere automată a paginii”. *v0 2026-10-28: `perflog.c` (pornit de dosarul `/perf`, scris doar când bucla așteaptă), frontul butonului în evenimentul din coadă, reîmprospătarea cu SPI și BUSY separate, întoarcerea automată la 5 s / 1 min din meniul cărții; analiza în `tools/perf/perf.py` (E1, E2, E4, E6), încercată pe jurnalul simulatorului. Încă nefolosit pe hardware.*
+- [~] FW-14 Scrierea în flash și testarea pe prototip după fiecare funcție. Raportează și fotografiază orice e ciudat. *2026-11-16: până e legat prototipul, firmware-ul întreg rulează în emulator (`emu/`), cu cadrele comparate cu ale simulatorului; vezi Jurnalul.*
 
 **Gata când:** poți citi un roman întreg pe prototip folosind doar dispozitivul (bibliotecă → carte → lectură → somn → trezire → aceeași pagină), fără căderi și fără SD corupt după 100 de cicluri somn/trezire.
 
@@ -182,7 +189,7 @@ Deciziile mele de proiectare (de justificat în specificație):
 - **Formatul de font:** un tabel de glife cu intervale Unicode, bitmapuri de 1 bpp (opțional 2 bpp), lățimile de avans și perechi de kerning opționale. Fonturile stau într-o partiție de flash (16 MB ajung din plin) sau pe SD.
 
 - [x] SPEC-1 Scrierea v0.1 cu o diagramă la nivel de octet și un exemplu lucrat. Făcut 2026-10-26: `spec/book-format.md`, codecul + validatorul de referință `tools/converter/ibv.py` (15 teste), exemplul `spec/examples/example.ibv`.
-- [ ] SPEC-2 Revizuirea. Alegerea numelui și a extensiei (Q5). Numele e ales: IBV.
+- [~] SPEC-2 Revizuirea. Alegerea numelui și a extensiei (Q5). Numele e ales: IBV.
 - [x] SPEC-3 Specificația formatului de font v0.1. Făcut 2026-10-26: `spec/font-format.md` (IBF), codecul + validatorul de referință `tools/fonttool/ibf.py`, încărcătorul C `firmware/components/core/font.c` care verifică aceleași reguli.
 - [ ] SPEC-4 Înghețarea v1.0 după ce convertorul și firmware-ul o implementează amândouă. Schimbările de după cresc versiunea.
 
@@ -253,10 +260,10 @@ Direcția de proiectare (decizia mea; alegerea pieselor se verifică final după
 - Soclu microSD, 3 butoane, comutator de alimentare, puncte de test pe fiecare linie, o baretă UART, găuri de prindere potrivite cu tiparul de 91,8×48 mm al ecranului.
 - 4 straturi (plan de masă continuu, bun pentru antenă și zgomot), dacă prețul nu impune 2.
 
-- [ ] PCB-1 Cerințele + tabelul alegerii pieselor, cu motivul fiecărei piese.
-- [ ] PCB-2 Schema v2 + ERC. Calculul bugetului de consum (alimentează predicțiile E3/E4).
-- [ ] PCB-3 Conturul plăcii din dimensiunile ecranului + carcasă, plasarea, rutarea, DRC cu regulile JLCPCB.
-- [ ] PCB-4 Revizuirea proiectului după o listă de verificare: amprente, polaritate, pinii de boot/strapping, pinii USB, distanța față de antenă, puncte de test. O citești cu mine. O arăți coordonatorului, dacă vrea.
+- [x] PCB-1 Cerințele + tabelul alegerii pieselor, cu motivul fiecărei piese. *2026-11-17: tabelul „Piesele” din `hardware/pcb/README.md`, pe blocuri, cu motivul fiecăruia; codurile LCSC se verifică la PCB-5.*
+- [x] PCB-2 Schema v2 + ERC. Calculul bugetului de consum (alimentează predicțiile E3/E4). *2026-11-17: schema generată din `hardware/pcb/circuit.py`, ERC 0; bugetul de somn ~17,5 µA (din foile de catalog) în README-ul plăcii, folosit de E3.*
+- [x] PCB-3 Conturul plăcii din dimensiunile ecranului + carcasă, plasarea, rutarea, DRC cu regulile JLCPCB. *2026-11-17: ciornă v1, 4 straturi, rutată de trasorul propriu; DRC 0, nicio legătură lipsă. Ciorna nu e încă revizuită: asta e PCB-4.*
+- [~] PCB-4 Revizuirea proiectului după o listă de verificare: amprente, polaritate, pinii de boot/strapping, pinii USB, distanța față de antenă, puncte de test. O citești cu mine. O arăți coordonatorului, dacă vrea.
   *Prima trecere e în `hardware/pcb/REVIEW.md`: fiecare bloc față de foaia de catalog, plus regulile din `verifica.py`, care rulează în `make.sh`. Nicio greșeală de legătură; L1 schimbată pe bobina din lista TI. Punctele 1 și 2 sunt făcute: bus-uri SPI separate pentru card și panou (panoul pe GPIO47/48) și rezistențe de 22 Ω pe D+/D−; traseele USB au rămas lungi. Rămâne citirea împreună și punctele 3–6.*
 - [ ] PCB-5 Comanda: 5 plăci, cu asamblarea JLCPCB a pieselor cu pas fin. Fișierele comenzii ies din `make.sh`.
 - [ ] PCB-6 Lipirea manuală a pieselor mari (conectori, butoane, mufa bateriei, bareta ecranului).
@@ -304,11 +311,11 @@ Metoda fiecărui experiment se scrie **înainte** de a-l rula, ca rezultatele s�
 | E8 | Comportamentul la încărcare | tester USB-C | timpul de încărcare, curba curentului | mai (opțional) |
 | E9 | Le place cititorilor reali? | 3–5 oameni citesc 20 min, chestionar scurt | note + comentarii | mai (opțional) |
 
-- [ ] MEAS-1 Corpusul de test: ~20 de cărți din domeniul public în EN, RO și RU (Project Gutenberg, Wikisource), scurte și lungi, simple și cu formatare bogată. Listate cu sursele și licențele. În lucru: 15 fișiere / 13 cărți în `corpus/` (`fetch.sh`, README cu surse și rezultate). Lipsesc: un FB2 real și un TXT românesc CP1250.
-- [ ] MEAS-2 Firmware-ul de înregistrare pentru placa INA226, plus scripturile CSV → figură. *2026-11-17: scrise (`tools/ina226`): firmware pentru ESP32 și ESP32-C3, compilat; `ina226.py` cu captura, rezumatul, figura și energia pe pagină aliniată cu jurnalul `perf`, testat pe date sintetice. Rămâne de încercat pe hardware, după cumpărarea modulului și a plăcii.*
+- [~] MEAS-1 Corpusul de test: ~20 de cărți din domeniul public în EN, RO și RU (Project Gutenberg, Wikisource), scurte și lungi, simple și cu formatare bogată. Listate cu sursele și licențele. În lucru: 15 fișiere / 13 cărți în `corpus/` (`fetch.sh`, README cu surse și rezultate). Lipsesc: un FB2 real și un TXT românesc CP1250.
+- [~] MEAS-2 Firmware-ul de înregistrare pentru placa INA226, plus scripturile CSV → figură. *2026-11-17: scrise (`tools/ina226`): firmware pentru ESP32 și ESP32-C3, compilat; `ina226.py` cu captura, rezumatul, figura și energia pe pagină aliniată cu jurnalul `perf`, testat pe date sintetice. Rămâne de încercat pe hardware, după cumpărarea modulului și a plăcii.*
 - [x] MEAS-3 O fișă de metodă de o pagină pentru fiecare experiment. Făcut 2026-11-17: `measurements/E1…E9/METODA.md`, scrise înainte de date, cu predicții și praguri.
-- [ ] MEAS-4 Rularea lor: fotografii ale montajului, datele brute rămân brute. *2026-11-17: rulate partea din simulator a E6 și partea de pe PC a E5 (`measurements/E5`, `E6`); restul cer prototipul.*
-- [ ] MEAS-5 Analiza + figurile + o notă scurtă cu concluziile fiecărui experiment. Fiecare notă intră direct în capitolul lucrării. *2026-11-17: E5 (PC) și E6 (simulator) au `analiza.py`, `tabele.md`, figuri și `REZULTATE.md`.*
+- [~] MEAS-4 Rularea lor: fotografii ale montajului, datele brute rămân brute. *2026-11-17: rulate partea din simulator a E6 și partea de pe PC a E5 (`measurements/E5`, `E6`); restul cer prototipul.*
+- [~] MEAS-5 Analiza + figurile + o notă scurtă cu concluziile fiecărui experiment. Fiecare notă intră direct în capitolul lucrării. *2026-11-17: E5 (PC) și E6 (simulator) au `analiza.py`, `tabele.md`, figuri și `REZULTATE.md`.*
 
 **Gata când:** E1–E7 au date pentru ambele plăci, unde e cazul, cu figuri.
 
@@ -450,5 +457,5 @@ Fiecare dintre ele schimbă planul:
 - **Q3** Ai acces la o imprimantă 3D (facultate, maker space, un prieten) sau plănuim un serviciu de printare online?
 - **Q4** Ambiție: PCB v2 să comande panoul gol cu propriul nostru circuit de ridicare a tensiunii? E mai multă electronică, dar costă ~3 săptămâni în plus, plus riscul.
 - ~~Q5~~ Răspuns: formatul de carte e **IBV** (*Ink Book Volume*), extensia `.ibv`.
-- **Q6** Codul să meargă într-un depozit privat pe GitHub pe contul tău (iliev-blnk), ca copie de siguranță în afara calculatorului?
+- ~~Q6~~ Răspuns: depozitul e pe GitHub, public: [iliev-blnk/eink-reader](https://github.com/iliev-blnk/eink-reader).
 - **Q7** Cam câte ore pe săptămână poți da sarcinilor practice?

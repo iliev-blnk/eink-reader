@@ -23,6 +23,11 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 
 ## Jurnal
 
+### 2026-11-17: planul adus la zi
+- Sarcinile cu o versiune v0 sau o ciornă scrisă trec pe `[~]` (în lucru): FW-2…FW-14, PCB-4, SPEC-2, MEAS-1, MEAS-2, MEAS-4, MEAS-5.
+- PCB-1, PCB-2, PCB-3 bifate pentru ciorna v1 (tabelul pieselor, schema cu ERC 0 și bugetul de somn, placa rutată cu DRC 0); revizuirea rămâne PCB-4.
+- Q6 închisă: depozitul e public pe GitHub. Structura depozitului din secțiunea 5 și tabelul din `README.md` cuprind acum `emu/`, `enclosure/`, `hardware/proto/` și toate uneltele din `tools/`.
+
 ### 2026-11-17: înregistratorul de curent (MEAS-2, `tools/ina226`)
 - Ce e: firmware ESP-IDF pentru placa de înregistrare (ESP32-WROOM-32D sau ESP32-C3 SuperMini) și `ina226.py` pe PC. INA226 convertește continuu, ~850 de eșantioane pe secundă (588 µs pe canal, fără mediere); firul ALERT dă întreruperea la fiecare conversie, iar marcajul de timp se ia în ea. Rândurile `t_us,shunt,bus` sunt registrele brute; antetul cu constantele se repetă la 2 s. Citirea și scrierea pe consolă sunt taskuri separate, cu o coadă de ~5 s între ele; pierderile și erorile I2C se raportează în flux.
 - `ina226.py`: `captura` (portul prin `termios`, fără pyserial; aruncă mesajele de pornire), `rezumat` (rata, golurile, curentul mediu, median, p99, min, max, tensiunea, puterea, energia, sarcina), `figura` (media și maximul pe coloane), `pagini` (energia fiecărei întoarceri din `perf.py --pagini`, cu ceasul cititorului aliniat prin corelație pe toate întoarcerile și o măsură a calității alinierii).

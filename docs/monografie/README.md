@@ -18,7 +18,7 @@ LuaLaTeX (TeX Live), `mpost`, `python3`, `git`, `curl`.
 - pachetele TeX Live care lipsesc dintr-o instalare minimă (`luaotfload`,
   `lualibs`, `lm`, `lm-math`, `lualatex-math`, `metapost`), din arhiva CTAN,
   numai dacă `kpsewhich` nu le găsește. Pe Arch se pot pune și din sistem:
-  `pacman -S texlive-luatex texlive-metapost` (restul se aduce oricum).
+  `pacman -S texlive-luatex texlive-metapost texlive-fontsrecommended`.
 
 Fontul e Libron, cel al cititorului; dacă lipsește, îl aduce
 `tools/fonttool/fetch-fonts.sh`. Despărțirea în silabe folosește tiparele

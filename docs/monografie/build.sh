@@ -85,7 +85,7 @@ fi
 
 # ---- versiunea și calea depozitului, pentru text
 ver=$(git -C "$RAD" rev-parse --short HEAD)
-if [ -n "$(git -C "$RAD" status --porcelain -- . ':!docs/monografie/build' ':!docs/monografie/.dep')" ]; then
+if [ -n "$(git -C "$RAD" status --porcelain --untracked-files=no -- . ':!docs/monografie/build' ':!docs/monografie/.dep')" ]; then
   ver="$ver, cu modificări necomise"
 fi
 printf '\\def\\RAD{%s}\n\\def\\versiune{commitul %s}\n' "$RAD" "$ver" > "$OUT/versiune.tex"

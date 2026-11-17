@@ -269,7 +269,7 @@ Direcția de proiectare (decizia mea; alegerea pieselor se verifică final după
   6. curentul de somn
 
   Fiecare eroare se notează într-un raport de punere în funcțiune.
-- [ ] PCB-8 Adăugarea `board_pcb_v1.h`. În rest firmware-ul rulează neschimbat.
+- [x] PCB-8 Adăugarea `board_pcb_v1.h`. În rest firmware-ul rulează neschimbat. *2026-11-17: scris și compilat, plus comutarea șinelor înainte de somn (`main/board_io.c`) și indicatorul MAX17048 (`drivers/fuelgauge.c`); `verifica.py` compară antetul cu placa. Neîncercat pe placă.*
 - [ ] PCB-9 Dacă v1 are o eroare care blochează: o reparație cu fir sau o refacere v2. E rezervă de timp pentru o refacere în aprilie.
 
 **Gata când:** dispozitivul merge în întregime pe PCB-ul propriu, iar curentul de somn adânc se măsoară în microamperi.

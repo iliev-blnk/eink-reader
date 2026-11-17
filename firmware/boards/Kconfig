@@ -8,6 +8,9 @@ menu "Placa cititorului e-ink"
 
         config READER_BOARD_DEVKIT
             bool "Prototipul: ESP32-S3 DevKitC-1 + module pe breadboard"
+
+        config READER_BOARD_PCB_V1
+            bool "Placa proprie v1 (hardware/pcb)"
     endchoice
 
 endmenu

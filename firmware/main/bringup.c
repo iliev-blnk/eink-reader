@@ -11,6 +11,7 @@
 #include "battery.h"
 #include "bringup.h"
 #include "board.h"
+#include "board_io.h"
 #include "buttons.h"
 #include "driver/spi_master.h"
 #include "epd_uc8253.h"
@@ -24,6 +25,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "fuelgauge.h"
 #include "gfx.h"
 #include "screen_bringup.h"
 #include "sdcard.h"
@@ -101,8 +103,19 @@ static void describe_wake(void)
     snprintf(s_wake, sizeof s_wake, "%s · nr. %" PRIu32, cause, s_boot_count);
 }
 
+static bool s_gauge_ok;
+
 static void read_battery(void)
 {
+    // Pe placa proprie, indicatorul MAX17048: tensiunea celulei și procentul.
+    if (s_gauge_ok) {
+        int mv = fuelgauge_read_mv(), soc = fuelgauge_read_soc_permille();
+        printf("PERF,battery,mv=%d,soc=%d,adc_mv=%d\n", mv, soc, battery_read_mv());
+        if (mv > 0 && soc >= 0) {
+            snprintf(s_battery, sizeof s_battery, "%d,%02d V · %d %%", mv / 1000, mv % 1000 / 10, soc / 10);
+            return;
+        }
+    }
     int mv = battery_read_mv();
     printf("PERF,battery,mv=%d\n", mv);
     if (mv < 0) {
@@ -141,7 +154,7 @@ static void log_boot_to_sd(void)
 
 static void mount_sd(void)
 {
-    const sdcard_config_t cfg = {.host = BOARD_SPI_HOST, .cs = BOARD_SD_CS, .mount_point = MOUNT_POINT};
+    const sdcard_config_t cfg = {.host = BOARD_SD_SPI_HOST, .cs = BOARD_SD_CS, .mount_point = MOUNT_POINT};
     sdcard_info_t sd;
     int64_t t0 = esp_timer_get_time();
     esp_err_t err = sdcard_mount(&cfg, &sd);
@@ -209,6 +222,7 @@ static void go_to_sleep(void)
     show_full();
     if (s_epd_ok) epd_sleep();
     if (s_sd_ok) sdcard_unmount();
+    board_power_off();
 
     // Un buton încă apăsat ar trezi cipul imediat.
     int64_t t0 = esp_timer_get_time();
@@ -239,31 +253,17 @@ void bringup_run(void)
     snprintf(s_button, sizeof s_button, "gata");
     snprintf(s_timing, sizeof s_timing, "ultima: încă niciuna");
 
+    s_gauge_ok = BOARD_I2C_SDA >= 0 && fuelgauge_init(BOARD_I2C_SDA, BOARD_I2C_SCL) == ESP_OK;
     if (battery_init(BOARD_BAT_ADC_GPIO, BOARD_BAT_DIVIDER) == ESP_OK) {
         read_battery();
     } else {
         snprintf(s_battery, sizeof s_battery, "eroare ADC");
     }
 
-    // CS-ul cardului SD trebuie să fie în 1 înaintea oricărui trafic pentru
-    // panou, altfel cardul ar putea lua o parte din el drept comenzi.
-    gpio_set_level(BOARD_SD_CS, 1);
-    // Cu gpio_set_direction, nu cu gpio_config: gpio_config ar trece pinul ca ocupat,
-    // iar driverul SD, care îl ia apoi în primire, ar da „conflict found for GPIO”.
-    gpio_set_direction(BOARD_SD_CS, GPIO_MODE_OUTPUT);
-
-    const spi_bus_config_t bus = {
-        .sclk_io_num = BOARD_SPI_SCK,
-        .mosi_io_num = BOARD_SPI_MOSI,
-        .miso_io_num = BOARD_SPI_MISO,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
-        .max_transfer_sz = EPD_FB_SIZE,
-    };
-    ESP_ERROR_CHECK(spi_bus_initialize(BOARD_SPI_HOST, &bus, SPI_DMA_CH_AUTO));
+    ESP_ERROR_CHECK(board_spi_init());
 
     const epd_config_t epd = {
-        .host = BOARD_SPI_HOST,
+        .host = BOARD_EPD_SPI_HOST,
         .cs = BOARD_EPD_CS,
         .dc = BOARD_EPD_DC,
         .rst = BOARD_EPD_RST,
@@ -276,8 +276,8 @@ void bringup_run(void)
     if (!s_epd_ok) {
         ESP_LOGE(TAG, "panoul e-paper nu răspunde (%s). Verifică BUSY=GPIO%d, RST=GPIO%d, DC=GPIO%d, CS=GPIO%d, "
                       "SCK=GPIO%d, MOSI=GPIO%d, 3V3, GND și setarea SPI pe 4 fire a modulului.",
-                 esp_err_to_name(err), BOARD_EPD_BUSY, BOARD_EPD_RST, BOARD_EPD_DC, BOARD_EPD_CS, BOARD_SPI_SCK,
-                 BOARD_SPI_MOSI);
+                 esp_err_to_name(err), BOARD_EPD_BUSY, BOARD_EPD_RST, BOARD_EPD_DC, BOARD_EPD_CS, BOARD_EPD_SCK,
+                 BOARD_EPD_MOSI);
     }
 
     mount_sd();

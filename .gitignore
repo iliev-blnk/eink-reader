@@ -1,5 +1,6 @@
 # ESP-IDF / CMake (sdkconfig is generated from sdkconfig.defaults)
 build/
+build-pcb/
 firmware/sdkconfig
 sdkconfig.old
 firmware/log.*.txt

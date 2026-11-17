@@ -21,6 +21,15 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 
 ## Jurnal
 
+### 2026-11-17: firmware-ul plăcii proprii (PCB-8)
+- Ce e: `firmware/boards/include/board_pcb_v1.h`, a doua placă din menuconfig, cu `sdkconfig.pcb_v1` pentru compilare (`firmware/README.md`). Panoul e pe SPI3 (SCK IO47, MOSI IO48), cardul rămâne pe SPI2. Antetele folosesc acum nume separate pentru magistrala cardului și a panoului; pe DevKit ele sunt aceeași.
+- `main/board_io.c`, comun cititorului și punerii în funcțiune: pornește șinele cardului și panoului la pornire, iar înainte de somnul adânc le pune liniile pe 0, oprește șinele și ține pinii așa în somn. Pe DevKit nu face nimic.
+- `drivers/fuelgauge.c`: citește tensiunea și procentul de la MAX17048 pe I2C, fără să-i scrie setările (rămâne în hibernare automată). Tensiunea bateriei vine de la el când răspunde; diagnosticul și punerea în funcțiune arată și procentul.
+- WiFi: doar limita de emisie, ca define în antet (13 dBm); firmware-ul nu are WiFi.
+- `hardware/pcb/verifica.py` compară acum `board_pcb_v1.h` cu placa: eroare la un pin diferit, la un semnal fără define sau la un `-1` pentru ceva ce placa are. Încercat cu un pin greșit pus intenționat: îl prinde.
+- Rezultatul: ambele variante compilează fără avertismente; `emu/test.sh` trece pe varianta DevKit (ui, auto, carte, perf, punerea în funcțiune cu somn și trezire, repetare); `verifica.py` 0 erori.
+- Ce nu e: nimic nu a rulat pe placa proprie, care nu e comandată. Ținerea pinilor în somn, timpii șinelor (10 ms la pornire, 5 ms la oprire) și indicatorul se verifică la punerea în funcțiune (PCB-7), cu curentul de somn măsurat.
+
 ### 2026-11-17: bus-uri SPI separate și rezistențe serie pe USB (PCB-4, punctele 1 și 2)
 - Ce e: cardul și panoul nu mai împart SCK și MOSI. Cardul a rămas pe pinii de pe DevKit (IO11/12/13, CS pe IO14), panoul a primit SCK pe IO47 și MOSI pe IO48. Așa, înainte de a opri șina unuia, firmware-ul îi pune liniile pe 0 fără să-l încurce pe celălalt, și niciunul nu mai e alimentat prin linii. Pe D+/D− au intrat R25/R26 de 22 Ω, lângă modul.
 - `verifica.py` dă acum eroare dacă J3 și J4 împart o linie sau dacă lipsește rezistența serie pe USB.

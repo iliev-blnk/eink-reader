@@ -7,8 +7,9 @@ firmware/
   boards/              hărțile pinilor, câte un header pe placă; placa se alege în menuconfig
   components/core/     C portabil (fonturi, grafică pe 1 bit, cărți IBV, paginare); sim/ compilează aceleași fișiere
   components/ui/       C portabil: managerul de aplicații și aplicațiile (acasă, biblioteca, lectorul, setările…)
-  components/drivers/  epd_uc8253 (ecranul), sdcard, butoane, baterie
-  main/                main.c: cititorul pe placă (panou, card, NVS, somn); bringup.c: punerea în funcțiune
+  components/drivers/  epd_uc8253 (ecranul), sdcard, butoane, baterie, fuelgauge (MAX17048, doar pe placa proprie)
+  main/                main.c: cititorul pe placă (panou, card, NVS, somn); bringup.c: punerea în funcțiune;
+                       board_io.c: șinele cardului și panoului și magistralele lor SPI, comune celor două
 ```
 
 ## Compilare
@@ -22,6 +23,16 @@ idf.py build
 ```
 
 Ținta ESP32-S3 și setările care contează (flash de 16 MB, PSRAM octal, tabela de partiții proprie) vin din `sdkconfig.defaults`. `sdkconfig` e generat și nu e urmărit în git. Pentru o pornire curată: `rm sdkconfig && idf.py set-target esp32s3`.
+
+`idf.py build` compilează pentru prototipul de pe DevKit. Pentru placa proprie v1 (`hardware/pcb`) se compilează în alt director, cu `sdkconfig.pcb_v1` peste setările de bază:
+
+```sh
+idf.py -B build-pcb -D SDKCONFIG=build-pcb/sdkconfig \
+       -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.pcb_v1" build
+idf.py -B build-pcb -p /dev/ttyACM0 flash monitor
+```
+
+Placa se poate alege și din `idf.py menuconfig`, la „Placa cititorului e-ink”.
 
 ## Scrierea în flash
 
@@ -48,6 +59,31 @@ DevKitC-1 are două porturi USB-C. Se folosește cel marcat **UART**: rămâne c
 | Măsurarea bateriei | 1 | divizor 100k/100k de la baterie, 100 nF la GND |
 
 Totul merge pe **3V3**, niciodată pe 5V.
+
+## Placa proprie v1 (`boards/include/board_pcb_v1.h`)
+
+Pinii vin din `hardware/pcb/circuit.py`. `hardware/pcb/verifica.py` compară antetul cu placa la fiecare `make.sh` și dă eroare la orice pin diferit sau lipsă.
+
+| Semnal | GPIO | Note |
+|---|---|---|
+| Card SCK / MOSI / MISO / CS | 12 / 11 / 13 / 14 | SPI2, ca pe DevKit |
+| Ecran SCK / MOSI | 47 / 48 | SPI3: panoul are magistrala lui |
+| Ecran CS / DC / RST / BUSY | 10 / 9 / 8 / 18 | ca pe DevKit |
+| Alimentarea cardului / ecranului | 15 / 21 | comutatoarele U4 / U5 (TPS22917), 1 = pornit |
+| Butoane PREV / NEXT / MENU | 4 / 5 / 6 | ca pe DevKit |
+| VBUS (cablul USB pus) | 2 | divizor 100k/100k; discul USB vede când e scos cablul |
+| Măsurarea bateriei | 1 | divizor 1M/1M, 100 nF |
+| Indicatorul MAX17048: SDA / SCL / ALRT | 16 / 17 / 7 | pull-up-uri pe placă; ALRT nefolosit încă |
+
+**Alimentarea cardului și a panoului.** La pornire, `board_power_on()` pornește cele două comutatoare, așteaptă 10 ms să urce tensiunea, apoi eliberează pinii. Înainte de somnul adânc, după ce panoul a primit comanda de somn și cardul e demontat, `board_power_off()` pune pe 0 toate liniile spre card și panou, oprește pull-up-ul de pe BUSY și abia apoi oprește șinele. Pinii rămân ținuți așa în somn (`gpio_hold_en`, iar pentru IO47/IO48, care nu sunt pini RTC, și `gpio_deep_sleep_hold_en`). O linie lăsată în 1 ar alimenta piesa oprită prin diodele ei de protecție (`hardware/pcb/REVIEW.md`). Pe DevKit, unde nu sunt comutatoare, funcțiile nu fac nimic.
+
+Fără tensiune, panoul uită imaginea din memoria lui, dar nu și pe cea de pe ecran. Prima reîmprospătare după trezire e deci una completă, ca după orice pornire; driverul o face oricum după somn.
+
+**Indicatorul de baterie.** Dacă MAX17048 răspunde, tensiunea afișată vine de la el, iar ecranul de diagnostic și punerea în funcțiune arată și procentul. Altfel rămâne ADC-ul. Firmware-ul doar citește registrele: nu scrie MODE, ca indicatorul să treacă singur în hibernare (~3 µA) în loc să se oprească.
+
+**WiFi.** Firmware-ul nu are încă WiFi. Antetul are `BOARD_WIFI_MAX_TX_QDBM` (13 dBm), limita de emisie pentru regulatorul de ~400 mA (`hardware/pcb/REVIEW.md`, punctul 4), de aplicat cu `esp_wifi_set_max_tx_power` când va exista.
+
+Nimic din acestea nu a rulat pe placă: placa nu e comandată. Codul compilează pentru ambele plăci, iar emulatorul (`emu/test.sh`) rulează varianta DevKit.
 
 ## Butoanele cititorului
 

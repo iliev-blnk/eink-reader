@@ -85,7 +85,8 @@ unde lipsesc, piesa se alege atunci sau se lipește de mână.
 | card | J4 Molex 104031 microSD, R21–R24 47 kΩ | modul SPI; pull-up pe CS, MISO și DAT1/DAT2 |
 | test | TP1–TP6: VBUS, VSYS, BAT_J, VBAT, +3V3, GND | pentru punerea în funcțiune și măsurători |
 
-GPIO-urile păstrează harta de pe DevKit (`firmware/boards/include/board_devkit.h`); în plus:
+GPIO-urile păstrează harta de pe DevKit (`firmware/boards/include/board_devkit.h`); antetul plăcii
+e `firmware/boards/include/board_pcb_v1.h`, verificat de `verifica.py`. În plus față de DevKit:
 I2C pe IO16 (SDA) și IO17 (SCL), FG_ALRT pe IO7, SD_PWR_EN pe IO15,
 EPD_PWR_EN pe IO21, VBUS_SENSE pe IO2. Singura diferență: pe DevKit cardul și
 panoul împart bus-ul SPI (IO11/12/13); aici bus-ul acela rămâne cardului, iar
@@ -164,8 +165,8 @@ are rezervă de două ori. Celelalte rețele de putere sunt de 0,4 mm: VBUS
   conectare.
 - **Alimentarea inversă**: înainte de a opri 3V3_SD sau 3V3_EPD, firmware-ul
   trebuie să pună liniile SPI și CS-urile pe 0, altfel cardul sau panoul se
-  alimentează prin diodele de protecție ale pinilor. Se scrie în
-  `board_pcb_v1.h` (PCB-8). Cum fiecare are bus-ul lui, liniile unuia se pun
+  alimentează prin diodele de protecție ale pinilor. O face `board_power_off()`
+  din `firmware/main/board_io.c` (PCB-8), netestat pe placă. Cum fiecare are bus-ul lui, liniile unuia se pun
   pe 0 fără să-l încurce pe celălalt (`REVIEW.md`, punctul 1).
 - **TPS63900 la vârfurile de WiFi**: dă până la ~400 mA; ESP32-S3 cere vârfuri
   de ~350 mA la transmisie. Merge cu C5 + C14 (2 × 22 µF), dar fără rezervă.

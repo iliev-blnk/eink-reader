@@ -21,7 +21,7 @@ from sexp import parse                               # noqa: E402
 
 SCH = os.path.join(HERE, 'eink-reader-pcb.kicad_sch')
 PCB = os.path.join(HERE, 'eink-reader-pcb.kicad_pcb')
-DEVKIT = os.path.join(HERE, '../../firmware/boards/include/board_devkit.h')
+ANTET = os.path.join(HERE, '../../firmware/boards/include/board_pcb_v1.h')
 
 erori, avert = [], []
 def eroare(m): erori.append(m)
@@ -144,23 +144,32 @@ def check_esp():
     if rc != ['10k', '1uF']:
         eroare(f'EN are {rc}; ghidul Espressif cere 10 kΩ spre 3,3 V și 1 µF spre masă')
 
+# rețelele ESP fără define în antet: USB (perifericul fix), consola, pornirea
+FARA_DEFINE = {'GND', '+3V3', 'ESP_EN', 'BOOT', 'ESP_DN', 'ESP_DP', 'UART_TX', 'UART_RX'}
+
 def check_firmware():
-    """Pinii comuni cu prototipul de pe DevKit trebuie să rămână aceiași, ca
-    firmware-ul să meargă pe placă doar cu un antet nou (PCB-8)."""
-    # pe DevKit bus-ul e comun; pe placă pinii lui au rămas cardului
-    nume = {'BAT_ADC_GPIO': 'VBAT_SENSE', 'SPI_SCK': 'SD_SCK', 'SPI_MOSI': 'SD_MOSI', 'SPI_MISO': 'SD_MISO'}
+    """Antetul plăcii (firmware/boards/include/board_pcb_v1.h) trebuie să
+    folosească exact pinii de aici: fiecare BOARD_* cu GPIO pe rețeaua cu același
+    nume, fiecare semnal al modulului cu define-ul lui."""
+    nume = {'BAT_ADC_GPIO': 'VBAT_SENSE', 'VBUS_SENSE_GPIO': 'VBUS_SENSE'}
     m = esp_map()
-    src = open(DEVKIT, encoding='utf-8').read()
+    src = open(ANTET, encoding='utf-8').read()
+    vazute = set()
     for k, g in re.findall(r'#define BOARD_(\w+)\s+GPIO_NUM_(\d+)', src):
         net = nume.get(k, k)
+        vazute.add(net)
         if net not in m:
-            atentie(f'firmware: BOARD_{k} (GPIO{g}) nu are rețea „{net}” pe placă')
+            eroare(f'firmware: BOARD_{k} (GPIO{g}) nu are rețea „{net}” pe placă')
         elif m[net] != int(g):
-            atentie(f'firmware: BOARD_{k} e GPIO{g} pe DevKit, dar {net} e GPIO{m[net]} pe placă')
+            eroare(f'firmware: BOARD_{k} e GPIO{g}, dar {net} e GPIO{m[net]} pe placă')
+    for net in sorted(set(m) - vazute - FARA_DEFINE):
+        eroare(f'firmware: {net} (GPIO{m[net]}) nu are define în {os.path.basename(ANTET)}')
+    for k in re.findall(r'#define BOARD_(\w+)\s+\(-1\)', src):
+        eroare(f'firmware: BOARD_{k} e -1, dar placa îl are')
     d = re.search(r'BOARD_BAT_DIVIDER\s+([\d.]+)', src)
     r15, r16 = (float(PARTS[r]['value'].rstrip('M')) for r in ('R15', 'R16'))
-    if d and abs((r15 + r16) / r16 - float(d.group(1))) > 1e-6:
-        eroare(f'divizorul bateriei e {(r15 + r16) / r16:g} pe placă și {d.group(1)} în firmware')
+    if not d or abs((r15 + r16) / r16 - float(d.group(1))) > 1e-6:
+        eroare(f'divizorul bateriei e {(r15 + r16) / r16:g} pe placă și {d and d.group(1)} în firmware')
 
 # ---------------------------------------------------------------- polaritatea
 def check_polaritate():

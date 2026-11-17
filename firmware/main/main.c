@@ -17,6 +17,7 @@
 
 #include "battery.h"
 #include "board.h"
+#include "board_io.h"
 #include "bringup.h"
 #include "buttons.h"
 #include "driver/spi_master.h"
@@ -30,6 +31,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "fuelgauge.h"
 #include "gfx.h"
 #include "nvs.h"
 #include "nvs_flash.h"
@@ -47,7 +49,7 @@ static RTC_DATA_ATTR uint32_t s_boot_count;
 
 static uint8_t s_fb[EPD_FB_SIZE];
 static gfx_t s_gfx;
-static bool s_epd_ok, s_sd_ok, s_battery_ok, s_usb;
+static bool s_epd_ok, s_sd_ok, s_battery_ok, s_gauge_ok, s_usb;
 static char s_sd[32];
 
 // ---- platforma interfeței ----
@@ -81,6 +83,11 @@ static void show(void *ctx, const gfx_t *g, ui_refresh_t kind, gfx_rect_t r)
 static int battery_mv(void *ctx)
 {
     (void)ctx;
+    // Indicatorul măsoară direct celula; ADC-ul trece prin divizor și e mai imprecis.
+    if (s_gauge_ok) {
+        int mv = fuelgauge_read_mv();
+        if (mv > 0) return mv;
+    }
     return s_battery_ok ? battery_read_mv() : -1;
 }
 
@@ -116,6 +123,7 @@ static void deep_sleep(void *ctx)
     int64_t t0 = esp_timer_get_time();
     while (buttons_any_down() && esp_timer_get_time() - t0 < RELEASE_WAIT_US) vTaskDelay(pdMS_TO_TICKS(10));
     vTaskDelay(pdMS_TO_TICKS(50));
+    board_power_off();
 
     esp_err_t err = buttons_enable_wakeup();
     if (err != ESP_OK) {
@@ -134,7 +142,7 @@ static bool usb_start(void *ctx)
     perflog_flush(now_us);
     if (s_sd_ok) sdcard_unmount();
     s_sd_ok = false;
-    const sdcard_config_t cfg = {.host = BOARD_SPI_HOST, .cs = BOARD_SD_CS, .mount_point = MOUNT_POINT};
+    const sdcard_config_t cfg = {.host = BOARD_SD_SPI_HOST, .cs = BOARD_SD_CS, .mount_point = MOUNT_POINT};
     if (usbdisk_start(&cfg, BOARD_VBUS_SENSE_GPIO) != ESP_OK) {
         mount_sd();
         return false;
@@ -179,6 +187,10 @@ static int diag(void *ctx, char (*lines)[UI_DIAG_LINE], int max)
     if (n < max)
         snprintf(lines[n++], UI_DIAG_LINE, "Stiva: %u octeți nefolosiți", (unsigned)uxTaskGetStackHighWaterMark(NULL));
     if (n < max) snprintf(lines[n++], UI_DIAG_LINE, "Card: %s", s_sd);
+    if (n < max && s_gauge_ok) {
+        int mv = fuelgauge_read_mv(), soc = fuelgauge_read_soc_permille();
+        snprintf(lines[n++], UI_DIAG_LINE, "Indicator: %d,%d %%, %d mV", soc / 10, soc % 10, mv);
+    }
     if (n < max && perflog_on())
         snprintf(lines[n++], UI_DIAG_LINE, "Jurnal: %s, %d în memorie", perflog_file(), perflog_pending());
     else if (n < max)
@@ -214,22 +226,9 @@ static void init_nvs(void)
 
 static void init_bus_and_panel(void)
 {
-    // CS-ul cardului în 1 înaintea oricărui trafic pentru panou (vezi bringup.c).
-    gpio_set_level(BOARD_SD_CS, 1);
-    // Cu gpio_set_direction, nu cu gpio_config: gpio_config ar trece pinul ca ocupat,
-    // iar driverul SD, care îl ia apoi în primire, ar da „conflict found for GPIO”.
-    gpio_set_direction(BOARD_SD_CS, GPIO_MODE_OUTPUT);
-    const spi_bus_config_t bus = {
-        .sclk_io_num = BOARD_SPI_SCK,
-        .mosi_io_num = BOARD_SPI_MOSI,
-        .miso_io_num = BOARD_SPI_MISO,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
-        .max_transfer_sz = EPD_FB_SIZE,
-    };
-    ESP_ERROR_CHECK(spi_bus_initialize(BOARD_SPI_HOST, &bus, SPI_DMA_CH_AUTO));
+    ESP_ERROR_CHECK(board_spi_init());
     const epd_config_t epd = {
-        .host = BOARD_SPI_HOST,
+        .host = BOARD_EPD_SPI_HOST,
         .cs = BOARD_EPD_CS,
         .dc = BOARD_EPD_DC,
         .rst = BOARD_EPD_RST,
@@ -245,7 +244,7 @@ static void init_bus_and_panel(void)
 
 static void mount_sd(void)
 {
-    const sdcard_config_t cfg = {.host = BOARD_SPI_HOST, .cs = BOARD_SD_CS, .mount_point = MOUNT_POINT};
+    const sdcard_config_t cfg = {.host = BOARD_SD_SPI_HOST, .cs = BOARD_SD_CS, .mount_point = MOUNT_POINT};
     sdcard_info_t sd;
     int64_t t0 = esp_timer_get_time();
     esp_err_t err = sdcard_mount(&cfg, &sd);
@@ -270,11 +269,13 @@ void app_main(void)
     // Primul, ca butonul care a trezit cipul să fie văzut ca ținut și ignorat.
     ESP_ERROR_CHECK(buttons_init(pins));
     s_boot_count++;
+    board_power_on();
     bool wake = esp_reset_reason() == ESP_RST_DEEPSLEEP;
     if (wake ? bringup_slept() : buttons_any_down()) bringup_run();
 
     init_nvs();
     s_battery_ok = battery_init(BOARD_BAT_ADC_GPIO, BOARD_BAT_DIVIDER) == ESP_OK;
+    s_gauge_ok = BOARD_I2C_SDA >= 0 && fuelgauge_init(BOARD_I2C_SDA, BOARD_I2C_SCL) == ESP_OK;
     init_bus_and_panel();
     mount_sd();
     if (s_sd_ok && perflog_open(MOUNT_POINT, now_us())) ESP_LOGI(TAG, "jurnalul de măsurători: %s", perflog_file());

@@ -49,7 +49,7 @@ Erorile opresc `make.sh`.
   - butoanele și alerta pe pini RTC;
   - GPIO0 cu rezistență spre 3,3 V;
   - EN cu RC 10 kΩ / 1 µF.
-- Pinii comuni cu prototipul (SPI, afișaj, card, butoane, ADC-ul bateriei) sunt aceiași ca în `board_devkit.h`, iar divizorul bateriei se potrivește cu firmware-ul.
+- Fiecare pin din `board_pcb_v1.h` e pe rețeaua cu același nume, fiecare semnal al modulului are define-ul lui, iar divizorul bateriei se potrivește cu firmware-ul.
 - Polaritatea:
   - LED-urile;
   - USBLC6;
@@ -140,7 +140,7 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
 | ✔ | VBAT_SENSE pe GPIO1 și VBUS_SENSE pe GPIO2, ambele pe ADC1 (ADC2 nu merge cât e pornit WiFi-ul) | 3-1 |
 | ✔ | Butoanele pe GPIO4–6 și alerta indicatorului pe GPIO7, toți pini RTC: trezesc din somnul adânc (ext1). Rezistențele interne spre 3,3 V le pornește firmware-ul în somn (`buttons.c`) | 3-1 |
 | ✔ | I2C pe GPIO16/17 (pinii cristalului de 32 kHz, nefolosit) | 3-1 |
-| ✔ | Pinii comuni cu prototipul sunt aceiași ca pe DevKit (cardul pe SPI 11/12/13 cu CS pe 14, afișajul pe 8/9/10/18, butoanele 4/5/6, bateria 1). În plus, panoul are SCK pe GPIO47 și MOSI pe GPIO48, deci firmware-ul are nevoie de un antet nou și de a doua gazdă SPI (PCB-8) | `verifica.py` |
+| ✔ | Pinii comuni cu prototipul sunt aceiași ca pe DevKit (cardul pe SPI 11/12/13 cu CS pe 14, afișajul pe 8/9/10/18, butoanele 4/5/6, bateria 1). În plus, panoul are SCK pe GPIO47 și MOSI pe GPIO48, pe a doua gazdă SPI; antetul `board_pcb_v1.h` (PCB-8) le are pe toate | `verifica.py` |
 | ✔ | GPIO47/48 merg la 3,3 V: nota c din foaia modulului (1,8 V) e doar pentru ESP32-S3R16V; N16R8 are VDD_SPI de 3,3 V | WROOM-1, tabelul 3-1, nota c |
 | ✔ | Decuplarea: C14 22 µF și C15 100 nF la 3 mm de pinul 2 | `verifica.py` |
 | ⚠ | J5 (UART): pinul 2 e TX al ESP-ului și merge la RX-ul adaptorului. Pe față nu e serigrafie, deci se ține minte: pinul 1 (pătrat) e masa | — |
@@ -197,6 +197,8 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
 
 ## Pentru firmware (PCB-8, `board_pcb_v1.h`)
 
+✎ **Scris** (`firmware/boards/include/board_pcb_v1.h`, `firmware/main/board_io.c`, `firmware/components/drivers/fuelgauge.c`). Compilează; nu a rulat pe placă. `verifica.py` compară acum antetul cu placa și dă eroare la orice diferență.
+
 - Pini noi față de DevKit:
   - panoul pe a doua gazdă SPI (SPI3): SCK GPIO47, MOSI GPIO48; cardul rămâne pe SPI2 cu 12/11/13 și CS 14;
   - SD_PWR_EN GPIO15;
@@ -204,9 +206,9 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
   - I2C SDA GPIO16 / SCL GPIO17;
   - FG_ALRT GPIO7;
   - VBUS_SENSE GPIO2, cu divizor 2.
-- Pe MAX17048 nu se setează MODE.EnSleep.
-- Înainte de a opri o șină comutată: liniile piesei de pe ea (SCK, MOSI, CS și restul) pe 0. Cu bus-urile separate, asta nu-l încurcă pe celălalt.
-- WiFi-ul: puterea de emisie limitată, vezi punctul 4.
+- Pe MAX17048 nu se setează MODE.EnSleep. ✎ `fuelgauge.c` doar citește.
+- Înainte de a opri o șină comutată: liniile piesei de pe ea (SCK, MOSI, CS și restul) pe 0. Cu bus-urile separate, asta nu-l încurcă pe celălalt. ✎ `board_power_off()`, ținute pe 0 și în somn.
+- WiFi-ul: puterea de emisie limitată, vezi punctul 4. ✎ Doar limita, în antet (`BOARD_WIFI_MAX_TX_QDBM`): firmware-ul nu are încă WiFi.
 
 ## Ce nu acoperă revizia
 

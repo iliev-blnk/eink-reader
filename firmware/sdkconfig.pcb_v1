@@ -1,0 +1,2 @@
+# Placa proprie v1. Se adaugă peste sdkconfig.defaults (README, „Compilare”).
+CONFIG_READER_BOARD_PCB_V1=y

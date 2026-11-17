@@ -7,6 +7,7 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 - `../hardware/`: schema KiCad (`eink-reader.kicad_sch`), exporturile ei PDF/SVG și `gen.py`, care le generează.
 - `../hardware/pcb/`: placa proprie v1, ciornă. Schema, placa trasată, verificările și fișierele pentru JLCPCB, toate generate de script din `circuit.py` (`make.sh`), cu un trasor propriu. Vezi README-ul ei.
 - `../hardware/proto/`: desenul plăcii de prototipare (HW-6): șablonul 1:1, lista firelor și ce se măsoară înainte, generate de `layout.py` din schema KiCad. Vezi README-ul ei.
+- `../enclosure/`: carcasa (ENC-1), ciornă. Model OpenSCAD parametric, cu placa citită din fișierul KiCad; piesele de printat și imaginile se refac cu `make.sh`. Vezi README-ul ei.
 - `../firmware/`: firmware-ul ESP-IDF. README-ul lui descrie compilarea, scrierea în flash și conexiunile.
 - `../sim/`: simulatorul pe PC. Compilează nucleul portabil al firmware-ului (fonturi, cititorul IBV, paginare) și desenează ecrane și pagini de carte în PNG, cu statistici pe cărți întregi și teste cu imagini de referință. Vezi README-ul lui.
 - `../emu/`: emulatorul. Firmware-ul adevărat rulat fără hardware, pe un ESP32-S3 emulat (QEMU) cu panoul, cardul și butoanele modelate, comparat cadru cu cadru cu simulatorul. Vezi README-ul lui.
@@ -19,6 +20,12 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 - `../spec/`: specificația formatului de carte (`book-format.md`), specificația formatului de font (`font-format.md`) și un fișier exemplu comentat (`examples/`).
 
 ## Jurnal
+
+### 2026-11-17: carcasa, ciornă (ENC-1, `enclosure`)
+- Ce e: un model OpenSCAD parametric (`carcasa.scad`). Are patru piese de printat: rama cu fereastra și pereții, capacul din spate, 3 împingătoare pentru butoanele laterale și 4 distanțiere între plăci. Patru șuruburi M2 cu cap înecat, din față, strâng tot pachetul (ramă, placa WeAct, placa noastră, capac), deci carcasa nu are cleme. Pe capac e gravat numele proiectului.
+- De unde vin cotele: `placa.py` citește placa KiCad prin pcbnew (contur, găuri, pozițiile USB-C, microSD, comutatorului și butoanelor) și scrie `placa.scad`. Când se mută o piesă pe placă, `make.sh` reface carcasa.
+- Verificat: fiecare piesă iese un singur corp închis. Șurubul are o lungime standard care nu iese prin capac (M2×25). Avertismentele acoperă patru cazuri: un colț de apăsare cade pe sticla panoului, o piesă nu încape între plăci, bateria ajunge sub antenă sau se lovește de un stâlp.
+- Ce nu e: printată și probată. Panoul, placa WeAct, bareta dintre plăci și bateria au cote estimate, iar lista de măsurat e în `enclosure/README.md`. Cu valorile de acum carcasa are 110,8 × 58,8 × 25,8 mm. Grosimea vine din spațiul de 11 mm dintre plăci.
 
 ### 2026-11-17: copierea cărților prin USB (FW-12, v0)
 - De ce: până acum cărțile ajungeau pe card doar scoțându-l din cititor. Pe placa proprie cardul e un slot microSD lipit, deci e nevoie de altă cale.

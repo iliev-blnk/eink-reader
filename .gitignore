@@ -39,5 +39,8 @@ tools/fonttool/out/
 # Placa proprie: fișierele pentru fabrică se refac cu hardware/pcb/make.sh
 hardware/pcb/fab/
 
+# Carcasa: piesele de printat se refac cu enclosure/make.sh
+enclosure/stl/
+
 # Măsurători: cărțile convertite pentru rulări (se refac din corpus/files)
 measurements/*/carti/

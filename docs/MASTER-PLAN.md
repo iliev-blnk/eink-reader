@@ -278,7 +278,7 @@ Direcția de proiectare (decizia mea; alegerea pieselor se verifică final după
 **Livrabil:** o carcasă printată care ține PCB-ul, ecranul, bateria și butoanele; CAD în `enclosure/`.
 **Lucrare:** partea mecanică (o secțiune scurtă + fotografii).
 
-- [ ] ENC-1 CAD parametric (OpenSCAD sau similar). Intrări: ecranul de 105,79×53,80 mm cu găuri la 93×48 mm, conturul PCB-ului, mărimea bateriei.
+- [x] ENC-1 CAD parametric (OpenSCAD sau similar). Intrări: ecranul de 105,79×53,80 mm cu găuri la 91,8×48 mm, conturul PCB-ului, mărimea bateriei. *(2026-11-17: ciornă în `enclosure/`, cu placa citită din fișierul KiCad; cotele panoului, ale baretei dintre plăci și ale bateriei sunt estimate și se măsoară înainte de ENC-2, lista e în README-ul ei.)*
 - [ ] ENC-2 Printarea: la facultate, într-un maker space sau la un serviciu online (Q3).
 - [ ] ENC-3 Verificarea potrivirii → revizuire → printul final.
 

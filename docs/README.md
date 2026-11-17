@@ -6,6 +6,7 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 - `project-brief.md`: ce e proiectul, lista pieselor, cumpărăturile deschise, note despre ecran și alimentare, ce cuprinde firmware-ul și planul formatului de carte.
 - `../hardware/`: schema KiCad (`eink-reader.kicad_sch`), exporturile ei PDF/SVG și `gen.py`, care le generează.
 - `../hardware/pcb/`: placa proprie v1, ciornă. Schema, placa trasată, verificările și fișierele pentru JLCPCB, toate generate de script din `circuit.py` (`make.sh`), cu un trasor propriu. Vezi README-ul ei.
+- `../hardware/proto/`: desenul plăcii de prototipare (HW-6): șablonul 1:1, lista firelor și ce se măsoară înainte, generate de `layout.py` din schema KiCad. Vezi README-ul ei.
 - `../firmware/`: firmware-ul ESP-IDF. README-ul lui descrie compilarea, scrierea în flash și conexiunile.
 - `../sim/`: simulatorul pe PC. Compilează nucleul portabil al firmware-ului (fonturi, cititorul IBV, paginare) și desenează ecrane și pagini de carte în PNG, cu statistici pe cărți întregi și teste cu imagini de referință. Vezi README-ul lui.
 - `../emu/`: emulatorul. Firmware-ul adevărat rulat fără hardware, pe un ESP32-S3 emulat (QEMU) cu panoul, cardul și butoanele modelate, comparat cadru cu cadru cu simulatorul. Vezi README-ul lui.
@@ -17,6 +18,12 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 - `../spec/`: specificația formatului de carte (`book-format.md`), specificația formatului de font (`font-format.md`) și un fișier exemplu comentat (`examples/`).
 
 ## Jurnal
+
+### 2026-11-17: desenul plăcii de prototipare, ciornă (HW-6, `hardware/proto`)
+- Ce e: `layout.py` așază modulele pe o placă de prototipare de 41 × 21 de găuri, tăiată cât spatele afișajului și prinsă în găurile lui de M2: DevKit-ul pe socluri, cu antena liberă, soclul afișajului pe fața dinspre ecran, cardul pe bareta lui, TP4056 și TPS63020 lipite cu bandă, divizorul bateriei sub DevKit, butoanele pe o plăcuță separată.
+- Legăturile se iau din schema KiCad prin `kicad-cli`, iar firele se trasează cu A* pe grila de găuri. Scriptul verifică pinii pe grilă, suprapunerile, șuruburile, antena și că firele realizează exact rețelele din schemă (16 rețele pe placă, 29 de fire, fără scurtcircuite).
+- Ies șablonul 1:1 de tipărit (fața pieselor și fața de lipire), PNG-urile și `FIRE.md` cu lista numerotată a firelor și verificările dinainte de prima alimentare.
+- Ce nu e încă: mărimile modulului de card, ale TP4056, TPS63020 și SS12D00 sunt tipice, nu măsurate, iar poziția baretei afișajului e din desen. Se măsoară pe piesele cumpărate și se trec în script înainte de lipire (HW-7).
 
 ### 2026-11-17: placa proprie v1, ciornă generată de script (`hardware/pcb`)
 - De ce: PCB-1…3 sunt în calendar abia din februarie, cu comanda pe la 15 martie și o singură rezervă pentru refacere. O ciornă completă acum mută riscul mai devreme: se vede de pe acum dacă piesele încap pe placa afișajului, ce consumă în somn și ce rămâne de verificat, iar PCB-4 are ce revizui.

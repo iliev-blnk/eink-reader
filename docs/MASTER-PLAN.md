@@ -122,7 +122,7 @@ Fiecare direcție are livrabilele, sarcinile, o verificare „gata când” și 
 - [ ] HW-3 Testul de fum pe breadboard sau cu fire jumper, cu aplicația de punere în funcțiune din `firmware/` (vezi `firmware/README.md`): text pe ecran, reîmprospătare parțială, citire și scriere pe SD, butoane, somn adânc și trezire. Aplicația e gata din 2026-10-25. Se leagă și se scrie flash-ul.
 - [ ] HW-4 Cumpără piesele lipsă (secțiunea 9, „Acum”).
 - [ ] HW-5 Verifică polaritatea JST a LiPo-ului față de B+/B− ale TP4056 cu multimetrul *înainte* de a conecta ceva.
-- [ ] HW-6 Desenul plăcii de prototipare: unde stă fiecare modul și traseul firelor, ca să încapă cam în spatele ecranului de 106×54 mm.
+- [x] HW-6 Desenul plăcii de prototipare: unde stă fiecare modul și traseul firelor, ca să încapă cam în spatele ecranului de 106×54 mm. *(2026-11-17: ciornă în `hardware/proto`, șablonul 1:1 + `FIRE.md`; mărimile modulelor marcate „estimat” se măsoară pe piese înainte de HW-7.)*
 - [ ] HW-7 Lipește prototipul și fotografiază fiecare etapă.
 - [ ] HW-8 Lista de punere în funcțiune: tensiunile pe linii în gol și în timpul reîmprospătării, citirea ADC a bateriei față de multimetru, fiecare buton, SD la viteza SPI maximă.
 - [ ] HW-9 Actualizează schema dacă s-a schimbat ceva la asamblare. Trece la v1.1 cu jurnal de schimbări.

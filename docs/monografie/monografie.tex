@@ -1,0 +1,712 @@
+% Monografia proiectului, ediție de probă. Se construiește cu build.sh, care
+% pregătește planșele, datele și versiune.tex în build/; aici doar textul.
+\documentclass[11pt,a4paper,oneside]{article}
+\input{versiune}   % \RAD (rădăcina depozitului), \versiune (commitul)
+
+% ---------------------------------------------------------------- limba
+\usepackage{babel}
+\babelprovide[import,main]{romanian}
+% Tiparele de despărțire sunt aceleași pe care le folosește convertorul.
+\directlua{
+  local f = assert(io.open("\luaescapestring{\RAD}/tools/converter/patterns/hyph-ro.pat.txt"))
+  local s = f:read("*a"); f:close()
+  lang.patterns(lang.new(tex.language), s)
+}
+\lefthyphenmin=2 \righthyphenmin=2
+
+% ---------------------------------------------------------------- literele
+\usepackage{fontspec}
+\defaultfontfeatures{Ligatures=TeX}
+\edef\libron{\noexpand\setmainfont{Libron_R}[Path=\RAD/tools/fonttool/fonts/libron/,
+  Extension=.ttf, UprightFont=*-Regular, BoldFont=*-Bold,
+  ItalicFont=*-Italic, BoldItalicFont=*-BoldItalic,
+  Numbers={OldStyle,Proportional}]}
+\libron
+\newcommand\ohm{{\fontfamily{lmr}\selectfont Ω}}
+\newcommand\lin{\addfontfeatures{Numbers={Lining,Monospaced}}}
+\usepackage{amsmath}
+\usepackage{unicode-math}
+\setmathfont{Latin Modern Math}
+% cifrele și literele latine din formule, tot în Libron; restul din Latin Modern
+\edef\mathlibron{\noexpand\setmathfont{Libron_R-Regular.ttf}[Path=\RAD/tools/fonttool/fonts/libron/,
+  range={up/{num,latin,Latin}}]%
+  \noexpand\setmathfont{Libron_R-Italic.ttf}[Path=\RAD/tools/fonttool/fonts/libron/,
+  range={it/{latin,Latin}}]}
+\mathlibron
+\usepackage[protrusion=true,expansion=true]{microtype}
+
+% Paragrafele acestui text se rup cu parametrii dispozitivului (§ II).
+\linepenalty=10 \hyphenpenalty=100 \exhyphenpenalty=100
+\doublehyphendemerits=100000 \finalhyphendemerits=5000 \adjdemerits=10000
+\tolerance=400 \emergencystretch=1em
+
+% ---------------------------------------------------------------- pagina
+\usepackage[a4paper, left=27mm, textwidth=118mm, marginparsep=7mm,
+  marginparwidth=40mm, top=30mm, bottom=32mm, headsep=9mm, footskip=13mm]{geometry}
+\newlength\latplin \setlength\latplin{\dimexpr\textwidth+\marginparsep+\marginparwidth}
+\usepackage{fancyhdr}
+\pagestyle{fancy}\fancyhf{}
+\renewcommand\headrulewidth{0pt}
+\fancyhead[C]{\footnotesize\scshape despre așezarea cărților pe hârtie electronică}
+\fancyfoot[C]{\small\thepage}
+\setlength\parindent{1.4em}
+
+\usepackage{titlesec, titletoc, needspace}
+\titlecontents{section}[2.2em]{\addvspace{0.3ex}}{\contentslabel[\scshape\thecontentslabel]{2.2em}}{}{\titlerule*[0.7pc]{.}\contentspage}
+\newcommand\ornament{%
+  \tikz[baseline=-0.6ex]{\draw[line width=0.3pt] (-1.1,0)--(-0.12,0) (0.12,0)--(1.1,0);
+    \draw[line width=0.3pt] (0,-0.07)--(0.07,0)--(0,0.07)--(-0.07,0)--cycle;}}
+\titleformat{\section}[display]{\needspace{14\baselineskip}\centering\normalfont}
+  {\scshape §\,\Roman{section}}{2pt}{\large\itshape}[\vspace{3pt}\ornament]
+\titlespacing*{\section}{0pt}{5ex}{3ex}
+\renewcommand\thesection{\Roman{section}}
+\renewcommand\thesubsection{\arabic{subsection}}
+\titleformat{\subsection}[runin]{\normalfont\itshape}{\thesubsection.}{0.4em}{}[.]
+\titlespacing*{\subsection}{\parindent}{1.2ex}{0.6em}
+
+\usepackage{lettrine}
+\renewcommand\LettrineFontHook{\normalfont}
+\setcounter{DefaultLines}{3}
+
+\usepackage{marginnote}
+\renewcommand*{\raggedleftmarginnote}{\raggedright}
+\newcommand\sursa[1]{\marginnote{\footnotesize\itshape\raggedright\hyphenpenalty=10000\exhyphenpenalty=10000 #1}}
+\usepackage[hidelinks]{hyperref}
+\urlstyle{same}
+\newcommand\fisier[1]{{\lin\upshape\nolinkurl{#1}}}
+\hypersetup{pdftitle={Despre așezarea cărților pe hârtie electronică},
+  pdfauthor={Beleniuc Ilie}, pdflang={ro}}
+
+% ---------------------------------------------------------------- figuri, tabele
+\usepackage{graphicx, booktabs, tabularx, array, enumitem}
+\usepackage{tikz}
+\usetikzlibrary{calc, arrows.meta}
+\usepackage{pgfplots, pgfplotstable}
+\usepgfplotslibrary{groupplots}
+\pgfplotsset{compat=1.18,
+  every axis/.append style={axis lines*=left, tick align=outside,
+    axis line style={line width=0.4pt}, tick style={line width=0.4pt, black},
+    every tick label/.append style={font=\footnotesize\lin},
+    label style={font=\small\itshape},
+    legend style={draw=none, fill=none, font=\footnotesize},
+    /pgf/number format/use comma, /pgf/number format/1000 sep={.}}}
+\usepackage[labelsep=period, font=small, labelfont=sc, justification=justified,
+  singlelinecheck=true]{caption}
+\DeclareCaptionType[fileext=lop, placement=tp]{plansa}[Planșa][Lista planșelor]
+\renewcommand\theplansa{\Roman{plansa}}
+\addto\captionsromanian{\renewcommand\figurename{Fig.}\renewcommand\tablename{Tabelul}}
+\renewcommand\figurename{Fig.}\renewcommand\tablename{Tabelul}
+\setlist{itemsep=0.2ex, topsep=0.6ex}
+
+% literă pe planșă, cu firul ei până la piesă
+\newcommand\lit[3]{% eticheta, unde stă litera, unde arată
+  \draw[line width=0.25pt] (#2) -- (#3);
+  \fill (#3) circle (0.18);
+  \node[fill=white, inner sep=0.6pt, font=\small\itshape] at (#2) {#1};}
+
+\newcommand\ceva[1]{\IfFileExists{#1}}
+\newcommand\lipseste[2]{\fbox{\parbox[c][#2][c]{#1}{\centering\footnotesize\itshape
+  lipsește la această compilare\\(vezi README)}}}
+
+\begin{document}
+% ================================================================ titlul
+\begin{titlepage}
+\centering
+\vspace*{8mm}
+{\scshape universitatea „ștefan cel mare” din suceava}\\[1mm]
+{\small\itshape Facultatea de Inginerie Electrică și Știința Calculatoarelor}
+
+\vspace{26mm}
+{\fontsize{27}{31}\selectfont Despre așezarea cărților\\[1mm] pe hârtie electronică}
+
+\vspace{7mm}\ornament\vspace{7mm}
+
+\begin{minipage}{0.78\textwidth}\centering\itshape
+Cercetare asupra unui cititor de buzunar cu ecran electroforetic, asupra felului
+în care își rupe paragrafele în rânduri, a încăperii cărților în memoria lui,
+precum și a celor ce nu s-au putut încă măsura
+\end{minipage}
+
+\vspace{24mm}
+{\small de}\\[2mm]
+{\Large\scshape beleniuc ilie}
+
+\vspace*{\fill}
+{\small Proiect de licență\\[1mm] ediție de probă, \lin\versiune\\[1mm] noiembrie 2026}
+\end{titlepage}
+
+% ================================================================ rezumat
+\thispagestyle{empty}
+\begin{center}
+\begin{minipage}{0.84\textwidth}
+\begin{center}\scshape rezumat\end{center}
+\small
+Lucrarea descrie un cititor de cărți construit în jurul unui ecran electroforetic
+de 3,7 țoli (416 × 240 de pixeli) și al unui microcontroler ESP32-S3, împreună cu
+uneltele de pe calculator care îi pregătesc cărțile. Partea măsurată este
+așezarea textului: pe o coloană de 216 pixeli, algoritmul lui Knuth și Plass, cu
+despărțire în silabe făcută dinainte pe calculator, micșorează spațiul mediu
+adăugat la justificare cu 27~\% și percentila 95 cu 34~\% față de umplerea lacomă
+a rândurilor, la 127.876 de rânduri de proză. Un model al algoritmului din TeX,
+verificat paragraf cu paragraf față de LuaTeX, arată că motorul dispozitivului dă
+rupturile lui TeX la 98,63~\% din paragrafe, iar diferențele rămase sunt alese.
+Formatul cărților ține textul comprimat la 27–46~\% din mărimea lui. Placa,
+carcasa și măsurătorile de curent sunt proiectate, dar nimic nu a rulat încă pe
+hardware; lucrarea spune, la fiecare cifră, de unde vine și cât e de sigură.
+
+\medskip
+{\raggedright\textit{Cuvinte-cheie:} hârtie electronică, ruperea paragrafelor,
+Knuth–Plass, despărțire în silabe, compresie DEFLATE, ESP32-S3.\par}
+\end{minipage}
+\end{center}
+
+\vspace{10mm}
+\begin{center}
+\begin{minipage}{0.84\textwidth}
+\renewcommand\contentsname{\centering\normalsize\scshape cuprins}
+\small
+\setcounter{tocdepth}{1}
+\tableofcontents
+\end{minipage}
+\end{center}
+\clearpage
+
+% ================================================================ I
+\section{Introducere}
+
+\lettrine{U}{n cititor de cărți} electronice pare un lucru rezolvat. Cele din
+comerț arată textul bine, dar o fac cu un procesor de aplicații, un sistem de
+operare întreg și sute de megaocteți de memorie. Întrebarea acestei lucrări e
+mai îngustă: cât de bine se poate așeza o carte pe un ecran mic, cu un
+microcontroler cu 512 KB de memorie internă, 8 MB de PSRAM și un ceas de 240 MHz, dacă
+munca grea se face o singură dată, pe calculator.
+
+Proiectul are patru părți. \emph{Convertorul} citește EPUB sau text simplu și
+scrie un fișier IBV: textul despărțit în silabe, tăiat în blocuri comprimate,
+cu un index care permite saltul la orice poziție. \emph{Uneltele de fonturi}
+pregătesc literele ca imagini gata de pus pe ecran, la cinci mărimi.
+\emph{Programul dispozitivului} așază paginile, le desenează și le trimite
+panoului. \emph{Simulatorul} compilează pe calculator exact sursele de așezare ale
+dispozitivului, așa că paginile din Planșa~II sunt, pixel cu pixel, cele pe care
+le-ar arăta cititorul.
+\sursa{sim/CMakeLists.txt compilează firmware/components/core}
+
+\subsection{Ecranul}
+Panoul este unul electroforetic. Între doi electrozi stă un strat de capsule
+microscopice, fiecare cu particule albe și negre încărcate cu sarcini opuse
+\cite{comiskey}. Tensiunea dintre electrodul comun și cel al unui pixel trage
+particulele de un fel sub sticlă, pe celelalte la fund. Imaginea rămâne după ce
+tensiunea dispare: pagina nu costă nimic cât timp e citită, ci doar când e
+întoarsă. De aici vine măsura care contează pentru un asemenea cititor, energia
+pe pagină întoarsă, nu puterea medie (§\,V).
+
+\begin{plansa}[t]
+\makebox[\textwidth][l]{%
+\ceva{capsule.mps}{%
+\begin{tikzpicture}
+  \node[anchor=south west, inner sep=0] at (0,0) {\includegraphics[width=\latplin]{capsule.mps}};
+  \begin{scope}[x=\latplin/143.2, y=\latplin/143.2, shift={(71.6,15.8)}]
+    \foreach \cx/\st in {-49.5/alb, -4.9/negru, 44.6/alb}
+      \node[font=\footnotesize\scshape] at (\cx, 17.6) {\st};
+    \lit{a}{-66,18}{-66,10.6}
+    \lit{g}{-55,-19.5}{-49.2,-4.5}
+    \lit{b}{-44,-19.5}{-43.8,-6.6}
+    \lit{c}{-22,-19.5}{-19.6,-5}
+    \lit{e}{0,-19.5}{2,-9.3}
+    \lit{d}{36,-19.5}{39.2,-5}
+    \lit{f}{56,-19.5}{56,-11.5}
+  \end{scope}
+\end{tikzpicture}}{\lipseste{\latplin}{30mm}}}
+\caption[Principiul panoului electroforetic]{Principiul panoului
+electroforetic, în secțiune; nu la scară. \textit{a}, folia de deasupra, cu
+electrodul comun transparent; \textit{b}, membrana unei capsule; \textit{c},
+particule albe; \textit{d}, particule negre; \textit{e}, electrozii celor trei
+pixeli; \textit{f}, substratul; \textit{g}, liantul dintre capsule. Pixelii arată,
+de la stânga, alb, negru, alb. Capsula a cincea stă pe granița dintre doi pixeli
+și se împarte: de aici marginile ușor neclare ale literelor pe asemenea ecrane.
+Desenul arată principiul descris de Comiskey și alții \cite{comiskey}; stratul
+panoului folosit nu a fost secționat.}
+\end{plansa}
+
+\subsection{Ce se arată aici}
+Paragrafele de mai jos se opresc la ce s-a putut verifica pe calculator.
+Fiecare cifră are pe margine fișierul din care vine; figurile sunt desenate la
+compilare, din aceleași fișiere.
+
+\begin{center}
+\begin{minipage}{0.9\textwidth}
+\rule{\linewidth}{0.4pt}\\[0.5ex]
+{\small\scshape declarație asupra limitelor.}\enspace{\small
+Nimic din această lucrare nu a rulat pe hardware. Placa proprie este proiectată
+și verificată electric, dar nu a fost comandată; carcasa nu a fost tipărită;
+modulul de măsurare a curentului nu a fost cumpărat. Programul dispozitivului
+trece testele într-un emulator al lui ESP32-S3, nu pe cip. Cifrele de consum din
+§\,V sunt valori tipice din foile de catalog, nu măsurători.}\\[-0.6ex]
+\rule{\linewidth}{0.4pt}
+\end{minipage}
+\end{center}
+
+% ================================================================ II
+\section{Despre ruperea paragrafelor}
+
+\lettrine{P}{e un rând îngust}, fiecare spațiu contează. Coloana de text a
+cititorului are 216 pixeli; la mărimea implicită a literei încap pe ea cam
+patru-cinci cuvinte. Când textul e aliniat la ambele margini, ce lipsește
+rândului ca să ajungă la margine se împarte între spațiile lui, iar un rând cu
+două spații și un gol mare de umplut se vede de departe.
+
+\subsection{Măsura}
+Fie $s_0$ lățimea spațiului simplu al fontului și $s$ lățimea spațiului după
+justificare. Atunci
+\begin{equation}
+  r = \frac{s - s_0}{s_0}
+\end{equation}
+spune cât s-a lățit spațiul: $r = 0$ pentru un spațiu firesc, $r = 1$ pentru
+unul dublu. Un spațiu se poate și îngusta, cu cel mult o treime, deci
+$r \ge -\tfrac13$.
+\sursa{firmware/components/ core/layout.c: STRETCH, SHRINK}
+
+\subsection{Doi algoritmi}
+\emph{Umplerea lacomă} pune pe fiecare rând câte cuvinte încap și trece mai
+departe; e ce fac cele mai multe cititoare simple. \emph{Algoritmul lui Knuth și
+Plass} \cite{knuthplass} privește tot paragraful deodată și alege, dintre toate
+felurile de a-l rupe, pe cel cu penalizarea totală cea mai mică. Fiecare spațiu
+are o elasticitate: $\sigma = 2s_0$ când se lățește și $\sigma = s_0/3$ când se
+îngustează. Urâțenia unui rând este
+\begin{equation}
+  b = 100\,\lvert \rho\rvert^{3}, \qquad \rho = \frac{s - s_0}{\sigma},
+\end{equation}
+iar penalizarea rândului $j$ este
+\begin{equation}
+  d_j = (\lambda + b_j)^2 + \pi_j^2 + \alpha\,[\text{două cratime la rând}]
+        + \gamma\,[\text{salt de clasă}],
+\end{equation}
+cu $\lambda = 10$, $\pi_j = 100$ dacă rândul se termină într-o cratimă,
+$\alpha = 100\,000$ și $\gamma = 10\,000$ dacă rândul e cu cel puțin două clase
+mai strâns sau mai larg decât cel de deasupra. Penultimul rând despărțit mai
+costă 5\,000. Algoritmul încearcă întâi cu $b \le 400$, adică
+$\rho \le 1{,}59$ sau $r \le 3{,}17$; dacă paragraful nu se poate rupe așa, acceptă orice rând care încape.
+Parametrii sunt cei din TeX \cite{texprogram}, cu două schimbări făcute cu
+intenție (§\,III); textul pe care îl citiți este rupt cu aceiași parametri.
+\sursa{layout.c: LINE, HYPHEN, DOUBLE\_HYPHEN, FINAL\_HYPHEN, ADJ\_FITNESS, TOLERANCE}
+
+Despărțirea în silabe nu se face pe dispozitiv. Convertorul aplică tiparele lui
+Liang \cite{liang} pentru română și pune în text cratime moi (U+00AD), iar
+dispozitivul doar le folosește. Costul în spațiu e măsurat în §\,IV.
+
+\subsection{Experimentul}
+Opt cărți în proză (Caragiale, Slavici, Regina Maria, Pușkin în rusă, Austen,
+Carroll, Melville, Shelley) au fost paginate în patru condiții: cei doi
+algoritmi, cu și fără despărțire, la fiecare din cele cinci trepte de mărime a
+literei. Rezultatul e determinist: cinci rulări repetate dau aceleași pagini.
+Înainte de rulare au fost scrise cinci predicții; patru au trecut.
+\sursa{measurements/E6/ METODA.md, REZULTATE.md}
+
+\begin{table}[t]
+\centering\small
+\caption{Proza, la treapta implicită (2): toate rândurile justificate ale celor
+opt cărți, puse împreună. „Perechi” sunt rânduri consecutive încheiate amândouă
+cu cratimă, la mia de rânduri.}
+\label{tab:e6}
+\lin\setlength\tabcolsep{4pt}
+\begin{tabular}{@{}l rrrrr@{}}
+\toprule
+& \multicolumn{2}{c}{$r$} & rânduri & perechi & \\
+\cmidrule(lr){2-3}
+condiția & medie & p95 & $r > 1$ & ‰ & pagini \\
+\midrule
+lacom, fără despărțire        & 2,89 & 9,21 & 69,2 \% & 0    & 10.086 \\
+Knuth–Plass, fără despărțire  & 2,13 & 5,68 & 67,6 \% & 0    & 9.884 \\
+lacom, cu despărțire          & 1,53 & 4,23 & 55,3 \% & 47,6 & 9.755 \\
+Knuth–Plass, cu despărțire    & 1,12 & 2,80 & 49,7 \% & 22,1 & 9.579 \\
+\bottomrule
+\end{tabular}
+\sursa{measurements/E6/ tabele.md, tabelul 1}
+\end{table}
+
+\subsection{Ce arată}
+Despărțirea în silabe contează cel mai mult: fără ea, spațiul mediu este de
+aproape două ori mai mare, la ambii algoritmi, iar Knuth–Plass fără despărțire
+(2,13) e mai rău decât umplerea lacomă cu despărțire (1,53). Peste despărțire,
+Knuth–Plass scade spațiul mediu cu 27~\% și percentila 95 cu 34~\%, are de două
+ori mai puține perechi de cratime și ocupă cu 1,8~\% mai puține pagini
+(tabelul~\ref{tab:e6}). Coada distribuției se vede în fig.~\ref{fig:hist}: la
+umplerea lacomă, 6,0~\% din rânduri au spații de aproape cinci ori mai late
+decât cele firești ($r \ge 3{,}95$); la Knuth–Plass, 0,9~\%.
+
+\begin{figure}[t]
+\centering
+\ceva{date/histograma.dat}{%
+\begin{tikzpicture}
+\begin{axis}[width=\textwidth, height=52mm, xmin=-0.5, xmax=3.95, ymin=0,
+  xlabel={$r$}, ylabel={\% din rânduri}, clip=false,
+  xtick={-0.5,0,1,2,3}, extra x ticks={0.333}, extra x tick labels={},
+  legend pos=north east, legend cell align=left]
+  \addplot[const plot mark left, draw=black!45, fill=black!10, line width=0.3pt]
+    table[x=r, y=greedy, restrict x to domain=-1:3.92] {date/histograma.dat} \closedcycle;
+  \addplot[const plot mark left, black, line width=0.7pt]
+    table[x=r, y=kp, restrict x to domain=-1:3.92] {date/histograma.dat};
+  \draw[densely dotted, line width=0.3pt] (axis cs:1,0) -- ({axis cs:1,0}|-{rel axis cs:0,0.92})
+    node[above, font=\footnotesize\itshape] {spațiu dublu};
+  \legend{umplerea lacomă, Knuth–Plass}
+\end{axis}
+\end{tikzpicture}}{\lipseste{\textwidth}{50mm}}
+\caption{Distribuția lui $r$ pe rândurile justificate, cu despărțire, la
+treapta 2, pe intervale de 0,05. Valorile negative sunt rândurile strânse, pe
+care doar Knuth–Plass le folosește. Ultimul interval ($r \ge 3{,}95$) nu e
+desenat.}
+\label{fig:hist}
+\sursa{E6/date/ histograma.csv}
+\end{figure}
+
+Litera mai mare strică spațierea la toate variantele (fig.~\ref{fig:trepte}):
+de la treapta 0 la 4, spațiul mediu crește de 1,5–1,7 ori. Knuth–Plass cu
+despărțire la treapta cea mai mare (1,45) e cam cât umplerea lacomă cu
+despărțire la treapta 1 (1,39).
+
+\begin{figure}[t]
+\centering
+\ceva{date/trepte.dat}{%
+\begin{tikzpicture}
+\begin{groupplot}[group style={group size=2 by 1, horizontal sep=16mm},
+  width=0.5\textwidth, height=50mm, xmin=-0.3, xmax=4.3, xtick={0,...,4},
+  xlabel={treapta}, ymin=0]
+\nextgroupplot[ylabel={$r$ mediu}, ymax=4,
+  legend to name=legtrepte, legend columns=2, legend cell align=left,
+  legend style={/tikz/every even column/.append style={column sep=6mm}}]
+  \addplot[densely dashed, mark=o, mark size=1.6pt] table[x=treapta, y=greedy_nu_m] {date/trepte.dat};
+  \addplot[densely dashed, mark=*, mark size=1.6pt] table[x=treapta, y=kp_nu_m] {date/trepte.dat};
+  \addplot[solid, mark=o, mark size=1.6pt] table[x=treapta, y=greedy_da_m] {date/trepte.dat};
+  \addplot[solid, mark=*, mark size=1.6pt] table[x=treapta, y=kp_da_m] {date/trepte.dat};
+  \legend{lacom fără despărțire, Knuth–Plass fără despărțire,
+          lacom cu despărțire, Knuth–Plass cu despărțire}
+\nextgroupplot[ylabel={$r$, percentila 95}, ymax=14]
+  \addplot[densely dashed, mark=o, mark size=1.6pt] table[x=treapta, y=greedy_nu_p95] {date/trepte.dat};
+  \addplot[densely dashed, mark=*, mark size=1.6pt] table[x=treapta, y=kp_nu_p95] {date/trepte.dat};
+  \addplot[solid, mark=o, mark size=1.6pt] table[x=treapta, y=greedy_da_p95] {date/trepte.dat};
+  \addplot[solid, mark=*, mark size=1.6pt] table[x=treapta, y=kp_da_p95] {date/trepte.dat};
+\end{groupplot}
+\end{tikzpicture}\\[1ex]
+\pgfplotslegendfromname{legtrepte}}{\lipseste{\textwidth}{50mm}}
+\caption{Spațierea pe treptele de mărime ale literei (0 e cea mai mică).}
+\label{fig:trepte}
+\sursa{E6/date/linii.csv}
+\end{figure}
+
+Predicția care nu a trecut privește timpul. Pe calculator, Knuth–Plass e de
+2,32 ori mai lent decât umplerea lacomă, nu de cel mult două ori. Pe pagină,
+asta înseamnă paginarea unei cărți întregi în 376 de milisecunde în loc de 162,
+pe un laptop. Cât costă pe ESP32-S3 nu e măsurat.
+\sursa{E6/date/timp.csv}
+
+\begin{plansa}[p]
+\centering
+\newcommand\pag[2]{%
+  \ceva{#1}{\begin{tikzpicture}
+    \node[inner sep=0, anchor=south west] (p) at (0,0)
+      {\includegraphics[width=48mm, interpolate=false]{#1}};
+    \draw[line width=0.4pt] ($(p.south west)+(-2mm,-2mm)$) rectangle ($(p.north east)+(2mm,2mm)$);
+    \draw[line width=1.2pt] ($(p.south west)+(-3.2mm,-3.2mm)$) rectangle ($(p.north east)+(3.2mm,3.2mm)$);
+    #2
+  \end{tikzpicture}}{\lipseste{48mm}{83.2mm}}}
+\makebox[\textwidth][c]{%
+\pag{pagini/lacom-4.png}{%
+  \draw[overlay, line width=0.4pt, -{Stealth[length=2mm]}] (-9mm, 0.355*83.2mm) -- (-4.2mm, 0.355*83.2mm);}%
+\hspace{9mm}%
+\pag{pagini/kp-4.png}{}}
+
+\vspace{4mm}
+\begin{minipage}{48mm}\centering\small\itshape a. umplerea lacomă\end{minipage}\hspace{15.4mm}%
+\begin{minipage}{48mm}\centering\small\itshape b. Knuth–Plass\end{minipage}
+\caption[Aceeași pagină, ruptă în două feluri]{Pagina a patra din Caragiale,
+\textit{Nuvele}, la mărime naturală pe ecranul de 3,7 țoli, așa cum o desenează
+simulatorul cu codul dispozitivului. Ambele variante despart în silabe. Rândul
+arătat de săgeată, „tut stăpânì\ldots{} a biruit-o”, nu are unde să ia o silabă
+de pe rândul următor fără să iasă din margine, așa că umplerea lacomă îl
+întinde; Knuth–Plass mută „pu-” un rând mai jos și împarte golul pe trei
+rânduri. Pe toată cartea, varianta \textit{b} are 526 de pagini în loc de 537.}
+\end{plansa}
+
+% ================================================================ III
+\section{Verificarea cu TeX}
+
+\lettrine{A}{lgoritmul} lui Knuth și Plass e ușor de scris greșit, iar o
+greșeală nu se vede: paginile tot arată bine. Ca motorul dispozitivului să poată
+fi numit „Knuth–Plass”, el a fost comparat cu TeX, care e implementarea de
+referință, pe tot corpusul de cincisprezece cărți.
+
+\subsection{Metoda}
+Comparația are sens numai dacă TeX primește exact paragraful pe care l-a avut
+dispozitivul. Unealta \fisier{texref.py} reface fiecare paragraf din fișierul
+IBV și din fonturi (cutii, spații elastice, cratime moi, ruperi după liniuță)
+fără să ia nimic din codul C, în afară de rândurile finale. Lățimile calculate
+așa se potrivesc cu ale dispozitivului la 201.015 rânduri din 201.015. În
+aceeași unealtă e un model al algoritmului din TeX \cite[§\,813–890]{texprogram},
+cu abaterile dispozitivului ca opțiuni. Fără abateri, modelul dă exact rupturile
+și penalizarea totală raportate de LuaTeX, la 15.578 de paragrafe din 15.578.
+\sursa{tools/texref/ README.md}
+
+\subsection{Prima rulare}
+Prima comparație a găsit cinci abateri, niciuna scrisă undeva, și a măsurat-o
+pe fiecare singură, peste modelul lui TeX (tabelul~\ref{tab:abateri}). Cea mai
+mare era o greșeală: motorul ținea o singură stare pe fiecare punct de rupere,
+în loc de câte una pe clasă de potrivire, așa că penalizarea pentru un salt de
+la un rând strâns la unul larg era calculată față de un rând care nu fusese
+neapărat ales.
+
+\begin{table}[t]
+\centering\small
+\caption{Abaterile motorului v3 de la TeX: câte paragrafe din prima trecere
+schimbă fiecare, pornită singură.}
+\label{tab:abateri}
+\begin{tabularx}{\textwidth}{@{}>{\itshape}l X >{\lin}r@{}}
+\toprule
+abaterea & ce face & paragrafe \\
+\midrule
+one\_node & o singură stare pe punct de rupere, nu câte una pe clasă & 450 \\
+fill\_natural & ultimul rând nu se îngustează & 229 \\
+exact\_bad & urâțenia exactă, fără plafonul de 10.000 & 74 \\
+no\_first\_adj & primul rând nu e comparat cu o clasă dinainte & 58 \\
+shrink\_total & îngustarea, rotunjită o dată pe rând & 3 \\
+\midrule
+toate cinci & & 751 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{După corectură}
+Motorul v4 a păstrat două abateri, cu intenție. A doua trecere a dispozitivului
+acceptă orice rând care încape și trebuie să deosebească un rând foarte larg de
+unul și mai larg, iar plafonul lui TeX nu permite asta; de aici
+\textit{exact\_bad}. A doua, \textit{shrink\_total}, ar cere încă o sumă ținută
+pe fiecare punct de rupere pentru câteva unități de 1/64 de pixel. Înainte de a
+fi scris, modelul a prezis trecerile motorului nou (12.128 de paragrafe în prima,
+3.453 în a doua, 2 fără niciun punct de rupere posibil), iar motorul le-a dat
+exact.
+
+\begin{table}[t]
+\centering\small
+\caption{Motorul dispozitivului față de LuaTeX, pe tot corpusul. Prima trecere
+se compară cu TeX la toleranța 400, a doua la 10.000.}
+\label{tab:texref}
+\lin
+\begin{tabular}{@{}lrr@{}}
+\toprule
+& v3, înainte & v4, după \\
+\midrule
+prima trecere: paragrafe identice & 93,79 \% & 99,36 \% \\
+prima trecere: rânduri identice & 97,60 \% & 99,65 \% \\
+a doua trecere: paragrafe identice & 86,84 \% & 96,06 \% \\
+toate: paragrafe identice & 92,24 \% & 98,63 \% \\
+toate: rânduri identice & 97,59 \% & 99,39 \% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Cu metricile din §\,II, motorul corectat are spațiul mediu mai mic sau egal în
+toate cele cincisprezece cărți, iar corpusul ocupă cu 20 de pagini mai puțin
+(tabelul~\ref{tab:texref}).
+
+% ================================================================ IV
+\section{Încăperea cărților}
+
+\lettrine{F}{ormatul IBV} ține textul în blocuri comprimate cu DEFLATE
+\cite{rfc1951}, de cel mult 32 KB fiecare. Decompresorul nu ocupă loc în
+program: e cel din memoria ROM a lui ESP32-S3. Pentru un salt la o poziție
+oarecare, dispozitivul citește și decomprimă un singur bloc.
+
+\subsection{Mărimea}
+Textul comprimat are 27–46~\% din textul brut. Toate cărțile ies mai mici decât
+sursa, inclusiv EPUB-urile, care sunt deja arhive; cea mai lungă, \textit{Moby
+Dick}, are 600 KB. Cratimele moi din §\,II costă: fiecare e un caracter de doi
+octeți, iar după compresie adaugă până la 10,2~\% la fișier, la \textit{Țara
+mea}. E prețul pentru o despărțire făcută o singură dată, pe calculator, în loc
+de la fiecare paginare.
+\sursa{measurements/E5/ REZULTATE.md}
+
+\subsection{Blocul}
+Un bloc mai mare se comprimă mai bine, dar un salt îl citește întreg, iar
+memoria pentru decomprimare crește cu el (tabelul~\ref{tab:bloc}). Câștigul de
+5,7~\% al blocurilor de 32 KB înseamnă vreo 100 KB pe toate cele opt cărți în
+proză, nimic pe un card de câțiva gigaocteți; de aceea rămâne 16 KB. Cât costă
+de fapt un salt pe dispozitiv nu e măsurat.
+
+\begin{table}[t]
+\centering\small
+\caption{Cărțile în proză, pe mărimea țintă a blocului. Mărimea e a tuturor
+celor opt fișiere, față de blocurile de 16 KB.}
+\label{tab:bloc}
+\lin
+\ceva{date/blocuri.dat}{%
+\pgfplotstabletypeset[
+  columns={kb,relativ,citit_kb},
+  columns/kb/.style={column name={bloc (KB)}, column type={@{}r}},
+  columns/relativ/.style={column name={mărimea}, fixed, precision=1, showpos, zerofill,
+    use comma, postproc cell content/.append style={/pgfplots/table/@cell content/.add={}{\,\%}}},
+  columns/citit_kb/.style={column name={citit la un salt, mediana (KB)}, fixed, precision=1,
+    zerofill, use comma, column type={r@{}}},
+  every head row/.style={before row=\toprule, after row=\midrule},
+  every last row/.style={after row=\bottomrule}]{date/blocuri.dat}}{\lipseste{0.6\textwidth}{20mm}}
+\sursa{E5/date/ blocuri.csv}
+\end{table}
+
+\subsection{Deschiderea}
+La nouă cărți din douăsprezece, tot ce trebuie pentru deschidere (antetul,
+directorul, metadatele, cuprinsul și indexul blocurilor) e în primii 4 KB ai
+fișierului. Celelalte trei au cuprinsuri lungi: \textit{Moby Dick}, Eminescu și
+Whitman. Conversia unei cărți durează 0,23–1,67 secunde pe un laptop.
+
+% ================================================================ V
+\section{Carcasa și curentul}
+
+\lettrine{P}{laca proprie} are exact conturul modulului de afișaj de 3,7 țoli,
+105,79 × 53,80 mm, și stă sub el, în aceeași stivă de șuruburi. Are patru
+straturi și trece verificarea regulilor electrice și de desen fără nicio eroare.
+Bateria stă dedesubt, într-un buzunar al capacului. Planșa~III e o secțiune
+prin mijlocul carcasei, desenată din aceleași cote din care e generată carcasa
+pentru tipărire.
+\sursa{hardware/pcb/ README.md, enclosure/ carcasa.scad}
+
+\begin{plansa}[t]
+\makebox[\textwidth][l]{%
+\ceva{stiva.mps}{%
+\begin{tikzpicture}
+  \node[anchor=south west, inner sep=0] at (0,0) {\includegraphics[width=\latplin]{stiva.mps}};
+  \begin{scope}[x=\latplin/122.79, y=\latplin/122.79, shift={(4.5,13)}]
+    \lit{a}{78,-2.9}{75,0.8}
+    \lit{b}{-7.5,16}{-1.4,16}
+    \node[fill=white, inner sep=0.8pt, font=\small\itshape] at (44,4.6) {c};
+    \lit{d}{30,13}{30,9.4}
+    \lit{e}{76,15}{86,12.4}
+    \lit{f}{50,18.2}{50,21.4}
+    \lit{g}{62,29}{62,23.4}
+    \lit{h}{30,29}{30,24.2}
+    \lit{i}{13.5,4.6}{8.4,4.6}
+    \lit{k}{13.5,16}{8.0,16}
+    \lit{l}{104,29}{99.2,24.4}
+    \node[fill=white, inner sep=1pt, font=\footnotesize\lin] at (52.9,-5.5) {110,8};
+    \node[fill=white, inner sep=1pt, font=\footnotesize\lin, rotate=90] at (114.29,12.9) {25,8};
+    \node[anchor=west, font=\footnotesize\lin] at (8,-10.3) {10 mm};
+  \end{scope}
+\end{tikzpicture}}{\lipseste{\latplin}{60mm}}}
+\caption[Secțiune prin carcasă]{Secțiune prin carcasă, în planul de mijloc al
+plăcii; cotele în milimetri. \textit{a}, capacul; \textit{b}, rama, cu pereții;
+\textit{c}, bateria, 50 × 34 × 6 mm (presupusă); \textit{d}, placa proprie;
+\textit{e}, modulul ESP32-S3-WROOM-1, cu antena la margine; \textit{f}, placa
+modulului de afișaj; \textit{g}, sticla panoului; \textit{h}, zona activă,
+81,40 mm; \textit{i}, stâlpii capacului; \textit{k}, distanțierele dintre plăci;
+\textit{l}, șuruburile M2 × 25 cu cap înecat și piulițele lor, în spatele
+planului, deci întrerupte. Piesele din plan sunt hașurate; cele din spatele lui,
+umbrite.}
+\end{plansa}
+
+\subsection{Somnul}
+Cât timp o pagină e citită, cititorul doarme. Comutatoarele de sarcină taie
+alimentarea cardului și a panoului, iar ce rămâne e în tabelul~\ref{tab:somn}.
+Împărțind capacitatea bateriei la acest curent,
+\begin{equation}
+  \frac{1500~\text{mAh}}{17{,}5~\text{µA}} \approx 85\,700~\text{h} \approx 9{,}8~\text{ani},
+\end{equation}
+ceea ce nu e o durată de funcționare, ci doar arată că somnul nu e problema:
+o baterie LiPo se descarcă singură mai repede de atât. Ce golește bateria sunt
+paginile întoarse, și acelea se măsoară.
+
+\begin{table}[t]
+\centering\small
+\caption{Curentul în somn, pe piese: valori tipice din foile de catalog,
+nemăsurate.}
+\label{tab:somn}
+\begin{tabular}{@{}l>{\lin}r@{}}
+\toprule
+piesa & µA \\
+\midrule
+ESP32-S3, somn adânc, cu temporizatorul RTC & \textasciitilde 8 \\
+BQ24074, din baterie, fără USB & 4,3 \\
+MAX17048, în hibernare & 3 \\
+divizorul tensiunii bateriei, 2 M\ohm & 2,1 \\
+TPS63900, în gol & \textasciitilde 0,1 \\
+cardul și panoul, cu comutatoarele oprite & \textasciitilde 0 \\
+\midrule
+total & \textasciitilde 17,5 \\
+\bottomrule
+\end{tabular}
+\sursa{hardware/pcb/ README.md}
+\end{table}
+
+\subsection{Măsurarea}
+Pentru energia pe pagină, un INA226 cu un șunt de 0,1~\ohm stă în serie cu
+bateria, iar o a doua placă îl citește la fiecare conversie, cam de 850 de ori
+pe secundă. Rezoluția curentului este
+\begin{equation}
+  \Delta I = \frac{2{,}5~\text{µV}}{0{,}1~\text{\ohm}} = 25~\text{µA},
+\end{equation}
+prea grosieră pentru somn, care se măsoară cu multimetrul, dar suficientă
+pentru o reîmprospătare a ecranului. Energia unei pagini este integrala puterii
+pe intervalul întoarcerii, prin trapeze:
+\begin{equation}
+  E = \int_{t_0}^{t_1} V I \,\mathrm{d}t
+    \approx \sum_k \frac{(t_{k+1} - t_k)\,(V_k I_k + V_{k+1} I_{k+1})}{2}.
+\end{equation}
+Intervalele vin din jurnalul de timp al cititorului, care are alt ceas;
+unealta le aliniază căutând decalajul care pune toate întoarcerile peste
+curentul cel mai mare. Pe date sintetice găsește decalajul exact.
+\sursa{tools/ina226/ README.md}
+
+% ================================================================ VI
+\section{Ce nu e dovedit}
+
+O lucrare care măsoară trebuie să spună la fel de limpede și ce
+n-a măsurat. Iată tot ce presupune textul de până aici fără să fi văzut cu
+ochii pe un dispozitiv adevărat:
+\begin{itemize}[leftmargin=1.4em]
+  \item nimic nu a rulat pe hardware; testele dispozitivului (22, 29 și 41 de
+    cazuri, toate trecute) rulează într-un emulator;
+  \item placa nu a fost comandată, deci nici pornită; carcasa nu a fost
+    tipărită, iar bateria are dimensiuni presupuse;
+  \item consumul în somn e o sumă de valori tipice din cataloage;
+  \item timpul de paginare e măsurat pe un laptop, nu pe ESP32-S3; la fel
+    costul unui salt în carte;
+  \item măsurarea energiei pe pagină e scrisă și testată pe date sintetice,
+    dar modulul de măsură nu a fost cumpărat.
+\end{itemize}
+Ce e dovedit: paginile din Planșa~II sunt cele ale codului dispozitivului,
+algoritmul lui de rupere e cel al lui TeX cu două abateri numite, iar cifrele
+din §§\,II și IV sunt reproductibile din fișierele depozitului.
+
+% ================================================================ bibliografia
+\renewcommand\refname{\normalfont\large\itshape Bibliografie}
+\begin{thebibliography}{9}\small
+\bibitem{knuthplass} \textsc{D. E. Knuth, M. F. Plass}, „Breaking paragraphs
+  into lines”, \textit{Software: Practice and Experience} 11(11), 1981,
+  p.~1119–1184.
+\bibitem{texprogram} \textsc{D. E. Knuth}, \textit{TeX: The Program}, Computers
+  \& Typesetting, vol.~B, Addison-Wesley, 1986.
+\bibitem{liang} \textsc{F. M. Liang}, \textit{Word Hy-phen-a-tion by
+  Com-put-er}, teză de doctorat, Stanford University, 1983.
+\bibitem{comiskey} \textsc{B. Comiskey, J. D. Albert, H. Yoshizawa,
+  J. Jacobson}, „An electrophoretic ink for all-printed reflective electronic
+  displays”, \textit{Nature} 394, 1998, p.~253–255.
+\bibitem{rfc1951} \textsc{P. Deutsch}, \textit{DEFLATE Compressed Data Format
+  Specification version 1.3}, RFC 1951, 1996.
+\bibitem{ina226} \textsc{Texas Instruments}, \textit{INA226: High-Side or
+  Low-Side Measurement, Bi-Directional Current and Power Monitor with
+  I²C Compatible Interface}, foaie de catalog.
+\bibitem{fiziko} \textsc{S. Slyusarev}, \textit{fiziko}, bibliotecă MetaPost
+  pentru ilustrații în stilul manualelor vechi, GPL-3.0.
+\bibitem{gutenberg} \textit{Project Gutenberg}, sursa cărților din corpus.
+\end{thebibliography}
+
+% ================================================================ colofon
+\vfill
+\begin{center}
+\ornament\\[3mm]
+\begin{minipage}{0.7\textwidth}\centering\footnotesize\itshape
+Cules în Libron, de Nico Verbruggen (licența OFL), fontul cu care cititorul
+însuși arată textul latin. Așezat cu LuaLaTeX; paragrafele sunt rupte cu
+parametrii dispozitivului și despărțite după tiparele convertorului. Planșele
+sunt gravate în MetaPost, cu fiziko de Sergey Slyusarev. Figurile și tabelele
+din §§\,II și IV sunt citite la compilare din datele măsurătorilor.\\[2mm]
+{\upshape\lin Construit din \versiune.}
+\end{minipage}
+\end{center}
+\end{document}

@@ -46,3 +46,6 @@ enclosure/stl/
 
 # Măsurători: cărțile convertite pentru rulări (se refac din corpus/files)
 measurements/*/carti/
+
+# monografia: dependențele aduse de build.sh
+docs/monografie/.dep/

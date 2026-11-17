@@ -6,6 +6,8 @@
 //   sim stats BOOK.ibv... [opțiuni de paginare]  paginează cărți întregi: timpi,
 //                                           verificări și un hash al fiecărei pagini
 //                                           (testele cu imagini de referință)
+//   sim breaks BOOK.ibv... [opțiuni de paginare]  rândurile fiecărei cărți, ca text, pentru
+//                                           compararea ruperii cu TeX (tools/texref)
 //   sim compare BOOK.ibv -o OUT.png [--page N] FONT... [opțiuni de paginare]
 //                                           o pagină în mai multe fonturi, una lângă alta
 //   sim ui CARD -o DIR --keys "..."         interfața întreagă, după un scenariu de
@@ -635,13 +637,56 @@ static int cmd_compare(int argc, char **argv)
     return rc;
 }
 
+// Scrie fiecare rând al fiecărei cărți: înregistrarea, octeții [start, end),
+// indicatorii, începutul peniței, justificarea și numărul de spații. E ce
+// ajunge pe ecran, luat din paginare, nu din interiorul ruperii în rânduri.
+static int cmd_breaks(int argc, char **argv)
+{
+    setup_t s;
+    default_setup(&s);
+    const char *books[256];
+    int nbooks = 0, indent = -1;
+    for (int i = 1; i < argc; i++) {
+        if (layout_option(&s, argc, argv, &i, &indent)) continue;
+        if (argv[i][0] != '-' && nbooks < 256) books[nbooks++] = argv[i];
+        else { fprintf(stderr, "breaks: argument greșit %s\n", argv[i]); return 2; }
+    }
+    finish_setup(&s, indent);
+    static layout_page_t page;
+    int failures = 0;
+    for (int b = 0; b < nbooks; b++) {
+        ibv_t *book = open_book(books[b]);
+        if (!book) { failures++; continue; }
+        book_setup(&s, book);
+        printf("book %s font %s width %d indent %d hyphenate %d justify %d fit %d version %d\n", books[b], s.font_name,
+               s.cfg.width, s.cfg.indent, s.cfg.hyphenate, s.cfg.justify, s.cfg.fit != NULL, LAYOUT_VERSION);
+        if (s.cfg.fit) memset(s.cfg.fit->broken, 0, sizeof s.cfg.fit->broken);
+        layout_pos_t pos = {0, 0};
+        for (;;) {
+            ibv_err_t err = layout_page(&s.cfg, book, pos, &page);
+            if (err) { fprintf(stderr, "%s: %s\n", books[b], ibv_strerror(err)); failures++; break; }
+            for (int i = 0; i < page.line_count; i++) {
+                const layout_line_t *l = &page.lines[i];
+                printf("%u %u %u %u %d %d %u\n", l->para, l->start, l->end, l->flags, l->x, l->extra, l->gaps);
+            }
+            if (page.at_end || layout_pos_cmp(page.end, pos) <= 0) break;
+            pos = page.end;
+        }
+        if (s.cfg.fit)
+            printf("passes %u %u %u\n", s.cfg.fit->broken[0], s.cfg.fit->broken[1], s.cfg.fit->broken[2]);
+        ibv_close(book);
+    }
+    return failures ? 1 : 0;
+}
+
 int main(int argc, char **argv)
 {
     if (argc < 2 || !strcmp(argv[1], "screens")) return cmd_screens(argc - 1, argv + 1);
     if (!strcmp(argv[1], "pages")) return cmd_pages(argc - 1, argv + 1);
     if (!strcmp(argv[1], "stats")) return cmd_stats(argc - 1, argv + 1);
+    if (!strcmp(argv[1], "breaks")) return cmd_breaks(argc - 1, argv + 1);
     if (!strcmp(argv[1], "compare")) return cmd_compare(argc - 1, argv + 1);
     if (!strcmp(argv[1], "ui")) return cmd_ui(argc - 1, argv + 1);
-    fprintf(stderr, "folosire: sim screens|pages|stats|compare|ui ... (vezi sim.c)\n");
+    fprintf(stderr, "folosire: sim screens|pages|stats|breaks|compare|ui ... (vezi sim.c)\n");
     return 2;
 }

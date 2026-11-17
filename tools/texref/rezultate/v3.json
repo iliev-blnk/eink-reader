@@ -1,0 +1,96 @@
+{
+ "layout_version": 3,
+ "flags": [
+  "one_node",
+  "exact_bad",
+  "shrink_total",
+  "fill_natural",
+  "no_first_adj"
+ ],
+ "widths": [
+  200243,
+  200243
+ ],
+ "model_ours": [
+  15576,
+  15576
+ ],
+ "model_tex": {
+  "400": [
+   15578,
+   15578
+  ],
+  "10000": [
+   15578,
+   15578
+  ]
+ },
+ "by_pass": [
+  12103,
+  3473,
+  2
+ ],
+ "pass0_tol400": {
+  "same": 11352,
+  "n": 12103,
+  "same_lines": 128306,
+  "lines": 131457,
+  "same_count": 532,
+  "forced": 0
+ },
+ "pass1_tol400": {
+  "same": 2,
+  "n": 3473,
+  "same_lines": 40658,
+  "lines": 85064,
+  "same_count": 1937,
+  "forced": 3446
+ },
+ "pass1_tol10000": {
+  "same": 3016,
+  "n": 3473,
+  "same_lines": 83003,
+  "lines": 85064,
+  "same_count": 347,
+  "forced": 0
+ },
+ "overall": [
+  14368,
+  15576,
+  211309,
+  216521
+ ],
+ "cost": {
+  "n": 751,
+  "equal": 12,
+  "not_admitted": 3,
+  "tex_forced": 0,
+  "median": 1.0353679377100442,
+  "max": 717.301775147929
+ },
+ "single": {
+  "one_node": 450,
+  "exact_bad": 74,
+  "shrink_total": 3,
+  "fill_natural": 229,
+  "no_first_adj": 58
+ },
+ "without": {
+  "one_node": 360,
+  "exact_bad": 690,
+  "shrink_total": 743,
+  "fill_natural": 533,
+  "no_first_adj": 730
+ },
+ "rescued": 27,
+ "counts": {
+  "înregistrări justificate": 15583,
+  "cu spații sau ruperi forțate lipite între ele (sărite)": 5
+ },
+ "passes": [
+  12103,
+  3475,
+  5
+ ],
+ "luatex": "This is LuaTeX, Version 1.24.0 (TeX Live 2026/Arch Linux)"
+}

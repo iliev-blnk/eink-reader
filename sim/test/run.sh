@@ -92,6 +92,22 @@ if [ "$update" = 0 ]; then
     fi
 fi
 
+# Indexurile paginărilor vechi (FW-11, spec/book-format.md, secțiunea 6): de
+# două ori spațierea, de două ori marginile, de două ori spațierea, din meniul
+# Setări. Cu paginarea de la deschidere sunt 7, una peste LAYOUTS_MAX = 6:
+# prima (cea implicită) iese din listă și indexul ei se șterge de pe card.
+sp="m n n n n m n m P P" mg="m n n n n m n n m P P"
+ui_case pg "m m $sp $sp $mg $mg $sp $sp"
+if [ "$update" = 0 ]; then
+    pgs=$(ls "$out/pg-card/.ibv" | grep -c '\.pg$' || true)
+    if [ "$pgs" = 6 ] && [ ! -e "$out/pg-card/.ibv/9c64b95eb82dac65-adf3a378.pg" ] \
+        && grep -q ',pg_prune,1,' "$out/pg-card"/perf/*.csv; then
+        echo "ok    pg: 6 indexuri rămase pe card, cel mai vechi șters"
+    else
+        echo "EȘUAT pg: $pgs indexuri"; ls "$out/pg-card/.ibv" | sed 's/^/  /'; fail=1
+    fi
+fi
+
 books=$(ls "$here"/../../corpus/out/*.ibv 2>/dev/null || true)
 if [ -n "$books" ] && [ "$1" != --update ]; then
     # shellcheck disable=SC2086

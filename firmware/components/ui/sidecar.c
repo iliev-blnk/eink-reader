@@ -1,6 +1,8 @@
 #include "sidecar.h"
 
+#include <dirent.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
@@ -9,6 +11,9 @@
 #define POS_SIZE 20         // "IPOS", book_id, u32 para, u32 byte (+ CRC = 24)
 #define BM_HEAD 14          // "IBMK", book_id, u16 count
 #define RECENT_HEAD 8       // "IREC", u8 versiune, u8 reading, u8 count, 1 rezervat
+#define LAYOUTS_HEAD 8      // "ILAY", u8 versiune, u8 count, 2 rezervați
+#define PG_NAME 32          // "<16 hex>-<8 hex>.pg.tmp", fără NUL
+#define PRUNE_BATCH 16      // nume adunate la o trecere prin dosar
 
 static void put32(uint8_t *p, uint32_t v)
 {
@@ -198,4 +203,78 @@ void recent_touch(recent_t *r, const uint8_t id[8], const char *path)
     memmove(&r->book[1], &r->book[0], (size_t)i * sizeof r->book[0]);
     memcpy(r->book[0].id, id, 8);
     snprintf(r->book[0].path, RECENT_PATH, "%s", path);
+}
+
+// Hash-ul paginării din numele unui index, `<16 hex>-<8 hex>.pg` (sau `.pg.tmp`,
+// rămas de la o scriere întreruptă). False pentru orice alt fișier.
+static bool pg_name_hash(const char *name, uint32_t *hash)
+{
+    size_t len = strlen(name);
+    if ((len != 28 || strcmp(name + 25, ".pg")) && (len != 32 || strcmp(name + 25, ".pg.tmp"))) return false;
+    for (int i = 0; i < 25; i++)
+        if (i == 16 ? name[i] != '-' : !strchr("0123456789abcdefABCDEF", name[i])) return false;
+    char hex[9];
+    memcpy(hex, name + 17, 8);
+    hex[8] = 0;
+    *hash = (uint32_t)strtoul(hex, NULL, 16);
+    return true;
+}
+
+// Șterge indexurile paginărilor care nu sunt în `keep`. Numele se adună câte
+// PRUNE_BATCH, cu dosarul închis înainte de ștergere: ștergerea în timpul
+// parcurgerii nu e sigură pe toate sistemele de fișiere.
+static int pg_prune(const char *root, const uint32_t *keep, int count)
+{
+    static char names[PRUNE_BATCH][PG_NAME + 1];
+    char dir[160], path[200];
+    int removed = 0;
+    if (snprintf(dir, sizeof dir, "%s/" SIDECAR_DIR, root) >= (int)sizeof dir) return 0;
+    for (;;) {
+        DIR *d = opendir(dir);
+        if (!d) return removed;
+        int n = 0;
+        for (struct dirent *e; n < PRUNE_BATCH && (e = readdir(d));) {
+            uint32_t h;
+            if (!pg_name_hash(e->d_name, &h)) continue;
+            bool kept = false;
+            for (int i = 0; i < count; i++) kept |= keep[i] == h;
+            if (!kept) memcpy(names[n++], e->d_name, strlen(e->d_name) + 1);   // cel mult PG_NAME, verificat
+        }
+        closedir(d);
+        int now = 0;
+        for (int i = 0; i < n; i++) {
+            if (snprintf(path, sizeof path, "%s/%s", dir, names[i]) >= (int)sizeof path) continue;
+            if (remove(path) == 0) now++;
+        }
+        removed += now;
+        // Un lot neplin a fost tot dosarul; un lot din care nu s-a șters nimic s-ar repeta la nesfârșit.
+        if (n < PRUNE_BATCH || now == 0) return removed;
+    }
+}
+
+// /.ibv/layouts: antetul, apoi count × u32 hash-ul paginării, cel mai recent primul, apoi CRC32.
+int layouts_touch(const char *root, uint32_t hash)
+{
+    uint8_t d[LAYOUTS_HEAD + LAYOUTS_MAX * 4 + 4];
+    uint32_t list[LAYOUTS_MAX + 1];
+    char path[160];
+    int count = 0;
+    if (!sidecar_path(path, sizeof path, root, NULL, "layouts")) return -1;
+    int n = sidecar_read(path, d, sizeof d);
+    if (n >= LAYOUTS_HEAD && !memcmp(d, "ILAY", 4) && d[4] == 1 && d[5] <= LAYOUTS_MAX && n == LAYOUTS_HEAD + d[5] * 4)
+        for (; count < d[5]; count++) list[count] = get32(d + LAYOUTS_HEAD + count * 4);
+    int i = 0;
+    while (i < count && list[i] != hash) i++;
+    if (i == 0 && count > 0) return 0;      // deja prima: nicio scriere pe card
+    bool known = i < count;
+    if (!known) i = count++;
+    memmove(&list[1], &list[0], (size_t)i * sizeof list[0]);
+    list[0] = hash;
+    if (count > LAYOUTS_MAX) count = LAYOUTS_MAX;
+    memcpy(d, "ILAY", 4);
+    d[4] = 1, d[5] = (uint8_t)count, d[6] = d[7] = 0;
+    for (int k = 0; k < count; k++) put32(d + LAYOUTS_HEAD + k * 4, list[k]);
+    if (!sidecar_write(path, d, LAYOUTS_HEAD + (size_t)count * 4)) return -1;
+    // O listă pierdută sau stricată începe de la zero: rămâne doar indexul paginării curente.
+    return known ? 0 : pg_prune(root, list, count);
 }

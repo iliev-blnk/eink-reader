@@ -132,6 +132,10 @@ static void load_index(ui_t *ui)
     uint32_t h = layout_hash(&R.cfg);
     snprintf(suffix, sizeof suffix, "-%08x.pg", (unsigned)h);
     sidecar_path(R.idx_path, sizeof R.idx_path, ui->p.root, R.book.book_id, suffix);
+    // Indexurile paginărilor vechi (alte setări) se șterg când ies din ultimele LAYOUTS_MAX.
+    uint32_t t0 = ui_now(ui);
+    int pruned = layouts_touch(ui->p.root, h);
+    if (pruned > 0) ui_perf(ui, "pg_prune", (uint32_t)pruned, ui_now(ui) - t0);
     pageidx_free(&R.idx);
     pageidx_init(&R.idx, h);
     pageidx_load(&R.idx, R.book.book_id, h, R.idx_path);

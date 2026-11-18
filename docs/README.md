@@ -23,6 +23,12 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 
 ## Jurnal
 
+### 2026-11-18: indexurile `.pg` vechi se șterg (FW-11)
+- Ce e: fiecare combinație de setări lăsa pe card un index `.pg` pentru fiecare carte, și nu se ștergea niciunul. Acum `/.ibv/layouts` ține ultimele 6 paginări folosite (două familii de fonturi × trei combinații de setări). Când intră una nouă și alta iese din listă, se șterg indexurile tuturor paginărilor care nu mai sunt în listă, de la orice carte, plus `.pg.tmp` rămase de la scrieri întrerupte. Ștergerea adună numele câte 16, cu dosarul închis. Lista se scrie doar când se schimbă paginarea, nu la fiecare carte deschisă cu aceleași setări.
+- De ce: `spec/book-format.md` promitea asta din octombrie („încă neimplementat”). Fără ea, cardul se umple încet cu fișiere pe care nu le mai citește nimeni, iar dosarul `/.ibv/` devine tot mai lent de parcurs pe FAT.
+- Testul: cazul nou `pg` din `sim/test/run.sh` schimbă spațierea și marginile din Setări până la 7 paginări; rămân 6 indexuri, cel implicit e șters, iar jurnalul de măsurători are `pg_prune`. Cadrele celorlalte cazuri sunt neschimbate. Firmware-ul compilează fără avertismente pentru DevKit și pentru placa v1.
+- Ce nu e: nimic pe dispozitiv; timpul ștergerii pe un card adevărat nu e măsurat.
+
 ### 2026-11-18: corpusul de 20 de cărți (MEAS-1); E5 și E6 rulate din nou
 - Ce e: corpusul are 26 de fișiere / 20 de cărți. Noi: *Hamlet* și *Ulysses* (PG, de pe oglinda PGLAF; gutenberg.org răspundea cu 503), Creangă, Slavici, Rebreanu, *Luceafărul* cu diacritice și *Капитанская дочка* de pe Wikisource (ws-export), două FB2 reale de la lib.ru (Lermontov și Dubrovski) și Caragiale în CP1250 și ISO-8859-16, făcute din TXT-ul UTF-8 de `fetch.sh`.
 - Convertorul, după ce a citit cărțile noi: scoate pagina „Despre această ediție” pe care o adaugă ws-export (de acolo veneau și 4 glife lipsă în fiecare carte Wikisource), completează cuprinsurile cu o singură intrare pe fișier cu titlurile din fișier, nu mai desparte adresele web și de e-mail, scoate „автор” din fața autorului. Cele 15 fișiere vechi dau aceleași înregistrări, cuprinsuri și despărțiri. 74 de teste trec; simulatorul paginează toate cele 26, fără glife lipsă.

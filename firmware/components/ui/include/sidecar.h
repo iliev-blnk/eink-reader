@@ -1,6 +1,7 @@
 // Fișierele însoțitoare ale cărților (FW-11, spec/book-format.md, secțiunea 6):
-// poziția (`.pos`), semnele de carte (`.bm`) și lista cărților recente
-// (`/.ibv/recent`), în `/.ibv/` pe card, numite după book_id în hex.
+// poziția (`.pos`), semnele de carte (`.bm`), lista cărților recente
+// (`/.ibv/recent`) și a paginărilor recente (`/.ibv/layouts`), în `/.ibv/` pe
+// card, numite după book_id în hex.
 //
 // Fiecare începe cu un cod magic și se termină cu un CRC32 al octeților
 // dinainte; unul greșit e ignorat. Scrierea trece prin `<nume>.tmp`, ca o cădere
@@ -17,6 +18,7 @@
 #define BOOKMARKS_MAX 64
 #define RECENT_MAX 16
 #define RECENT_PATH 120     // calea cărții față de rădăcina cardului, cu NUL
+#define LAYOUTS_MAX 6       // paginări ale căror indexuri `.pg` rămân pe card
 
 // "<root>/.ibv/<id hex><suffix>", de exemplu suffix ".pos" sau "-1a2b3c4d.pg".
 // Creează dosarul dacă lipsește. False dacă nu încape.
@@ -61,3 +63,11 @@ bool recent_save(const char *root, const recent_t *r);
 void recent_touch(recent_t *r, const uint8_t id[8], const char *path);
 // Locul cărții în listă, sau -1.
 int recent_find(const recent_t *r, const uint8_t id[8]);
+
+// Paginarea `hash` tocmai a fost folosită: o pune prima în `/.ibv/layouts`. Dacă
+// e nouă și alta iese din listă (sunt deja LAYOUTS_MAX), șterge de pe card
+// indexurile `.pg` ale tuturor paginărilor care nu mai sunt în listă, de la
+// orice carte. Cu două familii de fonturi (după limbă), 6 înseamnă ultimele
+// trei combinații de setări pentru fiecare. Întoarce câte fișiere a șters, sau
+// -1 dacă lista nu s-a putut scrie (atunci nu șterge nimic).
+int layouts_touch(const char *root, uint32_t hash);

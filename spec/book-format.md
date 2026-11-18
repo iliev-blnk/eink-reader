@@ -338,6 +338,7 @@ Fiecare fișier însoțitor începe cu un cod magic de 4 octeți și (în afară
 | `<id>.bm` | `"IBMK"`, book_id, u16 count, count × {u32 para, u32 byte}, crc32 | la adăugarea sau ștergerea unui semn de carte |
 | `recent` | `"IREC"`, u8 versiune = 1, u8 reading, u8 count, 1 B rezervat, count × {book_id, u8 len, len B calea față de rădăcină, fără NUL}, crc32 | la deschiderea unei cărți și la somn |
 | `<id>-<layout>.pg` | `"IPGC"`, book_id, u32 layout_hash, u32 page_count, u8 complete, 3 B rezervați, page_count × {u32 para, u32 byte}, crc32 | de paginatorul de fundal, pe măsură ce avansează |
+| `layouts` | `"ILAY"`, u8 versiune = 1, u8 count, 2 B rezervați, count × u32 layout_hash, crc32 | la deschiderea unei cărți cu altă paginare decât ultima folosită |
 
 `recent` ține ultimele cel mult 16 cărți deschise, cea mai recentă prima. Biblioteca le pune primele, iar `reading = 1` înseamnă că dispozitivul a adormit cu prima deschisă, deci o trezire o redeschide. Calea servește ca să se deschidă cartea fără citirea întregului card. Dacă acolo nu mai e cartea cu acel `book_id` (a fost mutată pe PC), acasă nu mai apare „Continuă”, dar biblioteca o recunoaște tot după `book_id` și o pune printre cele recente. Numele `<id>-<layout>.pg` folosește `layout_hash` în hex, 8 cifre.
 
@@ -348,7 +349,7 @@ Fiecare fișier însoțitor începe cu un cod magic de 4 octeți și (în afară
 - justificarea, despărțirea în silabe, capitolele pe pagină nouă, controlul rândurilor văduve și orfane, ruperea greedy sau prin încadrare totală
 - numărul de versiune al motorului de paginare (`LAYOUT_VERSION`)
 
-Orice schimbare de setare înseamnă alt fișier `.pg`. Dispozitivul le păstrează pe ultimele câteva și le șterge pe celelalte *(încă neimplementat: deocamdată rămân toate)*. `complete = 0` înseamnă că paginarea încă rulează: subsolul arată un procent până se termină. Un index incomplet se reia prin paginarea din nou a ultimei lui pagini. Încărcătorul respinge începuturile de pagină care nu cresc strict sau nu pornesc de la {0, 0}.
+Orice schimbare de setare înseamnă alt fișier `.pg`. `layouts` ține ultimele cel mult 6 paginări folosite, cea mai recentă prima, pentru toate cărțile deodată: cu cele două familii de fonturi alese după limbă, asta înseamnă ultimele trei combinații de setări pentru fiecare. Când intră în listă o paginare nouă, dispozitivul șterge din `/.ibv/` toate fișierele `<id>-<layout>.pg` (și `.pg.tmp` rămase de la o scriere întreruptă) a căror paginare nu mai e în listă, de la orice carte. Indexurile sunt doar o memorie de lucru: un `layouts` pierdut sau stricat începe o listă nouă, iar o carte al cărei index a fost șters se paginează din nou la deschidere. `complete = 0` înseamnă că paginarea încă rulează: subsolul arată un procent până se termină. Un index incomplet se reia prin paginarea din nou a ultimei lui pagini. Încărcătorul respinge începuturile de pagină care nu cresc strict sau nu pornesc de la {0, 0}.
 
 ## 7. Regulile validatorului
 

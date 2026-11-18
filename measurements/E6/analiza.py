@@ -63,7 +63,7 @@ def main():
     unstable = [k for k, v in hashes.items() if len(v) != 1]
 
     w("# E6: tabele (generate de analiza.py)\n")
-    w("Nu se editează de mână. Proza = rândurile celor 8 cărți în proză, puse împreună. "
+    w(f"Nu se editează de mână. Proza = rândurile celor {len(PROZA)} cărți în proză, puse împreună. "
       "r = cât de lat e spațiul justificat față de unul simplu (0 = la fel, 1 = dublu).\n")
     w(f"Hash-urile paginării la cele 5 rulări repetate: {'identice' if not unstable else 'DIFERITE la ' + str(unstable)}.\n")
 

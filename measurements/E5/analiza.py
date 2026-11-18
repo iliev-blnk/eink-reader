@@ -81,7 +81,7 @@ def main():
     w("")
 
     w("## 3. Mărimea blocului\n")
-    w("Proza, totalul celor 8 cărți. „Citit la un salt” = octeții stocați ai unui bloc (cât se citește de pe card ca "
+    w(f"Proza, totalul celor {sum(b in PROZA for b in books)} cărți. „Citit la un salt” = octeții stocați ai unui bloc (cât se citește de pe card ca "
       "să ajungi la o poziție); „RAM” = blocul decomprimat, cel mai mare din toate cărțile.\n")
     w("| bloc țintă | fișierele (KB) | față de 16 KB | blocuri | citit la un salt, mediana (B) | citit, maximul (B) | RAM, maximul (B) |")
     w("|---:|---:|---:|---:|---:|---:|---:|")

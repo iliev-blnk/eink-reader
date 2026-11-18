@@ -6,15 +6,23 @@
 # cr: % din rânduri cu cratimă, 2cr: două la rând; r: cu cât e mai lat decât un spațiu simplu un spațiu
 #   justificat (0,5 = un spațiu și jumătate), media și percentila 95; larg: % din rânduri cu r > 0,5
 carte                        pagini   parag       ms   us/pag   min  dep  văd   orf   înap  medie    cr  2cr     r   r95   larg  lipsă  hash      font
-libru-dubrovsky.ibv             532     429      7.8       15     2  1px    0     0     49   17.4   0.0    0  4.74 13.90   89.2      0  a15ba4c8  ptserif-19
-pg11.ibv                        493    1034      7.1       14     2  4px    0     0     45   20.8   0.0    0  1.86  5.01   77.6      0  4c10cc20  libron-18
-pg1322.ibv                     3082   14550     36.0       12     8  1px    0     0   3073 1537.0   0.0    0  3.85 17.20   79.0      0  cc3de07a  libron-18
-pg1342.ibv                     2396    2430     36.1       15     2  4px    0     0     89   23.1   0.0    0  2.30  6.07   81.9      0  2a0a5bd7  libron-18
-pg14741.ibv                     574    4041      5.8       10     8  2px    0     0    569  285.0   0.0    0  3.51 11.60   83.2      0  b990e884  ptserif-19
-pg16527-8.ibv                   545    1005      7.7       14    12  2px    0     0    537  269.0   0.0    0  2.78  8.51   81.3      0  d09c523e  ptserif-19
-pg2701.ibv                     4038    2954     65.7       16     2  4px    0     0    123   22.0   0.0    0  2.30  6.06   82.3      0  fc65a451  libron-18
-pg35323.ibv                    3774   22951     39.4       10     3  1px    0     0   2786 1154.7   0.0    0  3.41 10.03   85.4      0  554621e4  libron-18
-pg62916.ibv                     869    1559     14.5       17     2  1px    0     0    232   76.4   0.0    0  1.82  5.10   76.2      0  594397ea  libron-18
-pg64597.ibv                     624     977     10.8       17     2  1px    0     0    173   52.5   0.0    0  2.28  6.26   80.9      0  63e3cfcb  libron-18
-pg65565.ibv                     912    1079     15.4       17     2  3px    0     0    268   63.6   0.0    0  2.53  6.72   82.9      0  7584eba0  libron-18
-pg84.ibv                       1380     850     20.8       15     1  4px    0     0    135   31.1   0.0    0  2.24  5.69   82.7      0  046ec205  libron-18
+libru-dubrovsky.ibv             532     429     11.0       21     2  1px    0     0     49   17.4   0.0    0  4.74 13.90   89.2      0  a15ba4c8  ptserif-19
+libru-geroi.ibv                1022    1315     21.5       21     4  1px    0     0    679  278.4   0.0    0  4.20 12.44   87.9      0  2c5b00f9  ptserif-19
+pg11.ibv                        493    1034      9.8       20     2  4px    0     0     45   20.8   0.0    0  1.86  5.01   77.6      0  4c10cc20  libron-18
+pg1322.ibv                     3082   14550     42.0       14     8  1px    0     0   3073 1537.0   0.0    0  3.85 17.20   79.0      0  cc3de07a  libron-18
+pg1342.ibv                     2396    2430     49.9       21     2  4px    0     0     89   23.1   0.0    0  2.30  6.07   81.9      0  2a0a5bd7  libron-18
+pg14741.ibv                     574    4041      7.9       14     8  2px    0     0    569  285.0   0.0    0  3.51 11.60   83.2      0  b990e884  ptserif-19
+pg1524.ibv                      837    5693     11.4       14     1  4px    0     0    111   31.1   0.0    0  1.87  4.94   78.9      0  a1fbb387  libron-18
+pg16527-8.ibv                   545    1005     10.7       20    12  2px    0     0    537  269.0   0.0    0  2.78  8.51   81.3      0  d09c523e  ptserif-19
+pg2701.ibv                     4038    2954     85.9       21     2  4px    0     0    123   22.0   0.0    0  2.30  6.06   82.3      0  fc65a451  libron-18
+pg35323.ibv                    3774   22951     56.2       15     3  1px    0     0   2786 1154.7   0.0    0  3.41 10.03   85.4      0  554621e4  libron-18
+pg4300.ibv                     5112    7708    108.3       21     1  4px    0     0    767  193.0   0.0    0  2.58  7.52   82.1      0  ff67a2fd  libron-18
+pg62916.ibv                     869    1559     20.4       24     2  1px    0     0    232   76.4   0.0    0  1.82  5.10   76.2      0  594397ea  libron-18
+pg64597.ibv                     624     977     15.7       25     2  1px    0     0    173   52.5   0.0    0  2.28  6.26   80.9      0  63e3cfcb  libron-18
+pg65565.ibv                     912    1079     20.7       23     2  3px    0     0    268   63.6   0.0    0  2.53  6.72   82.9      0  7584eba0  libron-18
+pg84.ibv                       1380     850     29.2       21     1  4px    0     0    135   31.1   0.0    0  2.24  5.69   82.7      0  046ec205  libron-18
+ws-amintiri.ibv                 447     445     11.2       25     6  1px    0     0    153   62.7   0.0    0  1.94  5.25   79.4      0  89433a69  libron-18
+ws-ion.ibv                     2864    2857     69.6       24     1  1px    0     0    499  138.1   0.0    0  2.43  6.54   83.0      0  ba8d99ec  libron-18
+ws-kapitanskaya.ibv             907     844     18.1       20     2  2px    0     0     74   29.9   0.0    0  5.70 17.15   89.5      0  ee8f2008  ptserif-19
+ws-luceafarul.ibv                54     582      0.7       14     8  0px    0     0     53   27.0   0.0    0  3.15 18.32   75.0      0  8f72d75c  libron-18
+ws-moara-cu-noroc.ibv           668     851     16.0       24     1  1px    0     0    103   28.3   0.0    0  1.66  4.59   75.4      0  8ca4eacc  libron-18

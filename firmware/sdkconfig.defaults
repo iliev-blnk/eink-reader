@@ -28,3 +28,13 @@ CONFIG_TINYUSB_MSC_BUFSIZE=4096
 CONFIG_TINYUSB_DESC_MANUFACTURER_STRING="USV Suceava"
 CONFIG_TINYUSB_DESC_PRODUCT_STRING="Cititor e-ink"
 CONFIG_TINYUSB_DESC_MSC_STRING="Cititor e-ink"
+
+# Somnul ușor automat (FW-7): taskul IDLE oprește procesoarele între apăsări și
+# cât lucrează panoul. Ieșirea din somn chemă un contor (ecranul de diagnostic,
+# evenimentul light_sleep din jurnalul de măsurători).
+CONFIG_PM_ENABLE=y
+CONFIG_FREERTOS_USE_TICKLESS_IDLE=y
+CONFIG_PM_LIGHT_SLEEP_CALLBACKS=y
+# ESP-IDF deconectează în somnul ușor toți pinii (CONFIG_PM_SLP_DISABLE_GPIO,
+# cerut de ocolirea resetului din ESD). Liniile care trebuie să-și țină starea
+# (cardul, panoul, comutatoarele șinelor) le scoate board_light_sleep_pins().

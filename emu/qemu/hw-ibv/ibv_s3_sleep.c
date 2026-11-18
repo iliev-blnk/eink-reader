@@ -6,8 +6,11 @@
  * și ale trezirii, iar restul le dă mai departe neschimbate.
  *
  * La SLEEP_EN procesoarele se opresc. Trezirea vine de la EXT1 (pinii RTC
- * aleși, la nivelul ales) sau de la temporizator. Din somnul adânc cipul se
+ * aleși, la nivelul ales), de la temporizator sau, doar din somnul ușor, de
+ * la un GPIO cu trezirea pornită, la nivelul cerut de tipul întreruperii. Din somnul adânc cipul se
  * trezește prin reset, cu cauza „somn adânc” și cu registrele RTC păstrate.
+ * În somnul ușor stă și temporizatorul sistemului (cristalul e oprit), ca
+ * ESP-IDF să nu numere timpul somnului de două ori.
  *
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
@@ -18,6 +21,7 @@
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/misc/esp32s3_rtc_cntl.h"
+#include "hw/timer/esp_systimer.h"
 #include "ibv.h"
 
 #define A_SLP_TIMER0 0x04
@@ -56,6 +60,7 @@
 #define DIG_PWC_DG_WRAP_PD_EN (1u << 31)
 
 #define TRIG_EXT1 (1u << 1)
+#define TRIG_GPIO (1u << 2)    /* doar din somnul ușor */
 #define TRIG_TIMER (1u << 3)
 
 #define FALL_ASLEEP_NS 200000    /* cât îi ia cipului să adoarmă de-a binelea */
@@ -64,6 +69,7 @@ typedef struct IbvSleepState {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
     Esp32s3RtcCntlState *rtc;
+    ESPSysTimerState *systimer;
     DeviceState *pins;
     QEMUTimer *settle, *alarm;
     uint32_t regs[ESP32S3_RTC_CNTL_SIZE / 4];
@@ -121,19 +127,24 @@ static void release_cpus(IbvSleepState *s)
     }
 }
 
-static void wake(IbvSleepState *s, uint32_t cause, uint32_t ext1_status)
+static void wake(IbvSleepState *s, uint32_t cause, uint64_t status)
 {
     int64_t ms = (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - s->slept_at) / 1000000;
 
     timer_del(s->settle);
     timer_del(s->alarm);
     s->asleep = false;
+    esp_systimer_freeze(s->systimer, false);
     s->regs[A_SLP_WAKEUP_CAUSE / 4] = cause;
-    s->regs[A_EXT_WAKEUP1_STATUS / 4] = ext1_status;
+    if (cause & TRIG_EXT1) {
+        s->regs[A_EXT_WAKEUP1_STATUS / 4] = status;
+    }
     s->regs[A_INT_RAW / 4] |= INT_SLP_WAKEUP;
     s->regs[A_STATE0 / 4] &= ~STATE0_SLEEP_EN;
     if (cause & TRIG_EXT1) {
-        ibv_journal("cip: trezit de EXT1 după %" PRId64 " ms, pinii RTC 0x%x", ms, ext1_status);
+        ibv_journal("cip: trezit de EXT1 după %" PRId64 " ms, pinii RTC 0x%x", ms, (uint32_t)status);
+    } else if (cause & TRIG_GPIO) {
+        ibv_journal("cip: trezit de GPIO după %" PRId64 " ms, pinii 0x%" PRIx64, ms, status);
     } else {
         ibv_journal("cip: trezit de temporizator după %" PRId64 " ms", ms);
     }
@@ -185,12 +196,32 @@ static void check_ext1(IbvSleepState *s)
     }
 }
 
+static void check_gpio(IbvSleepState *s)
+{
+    uint32_t ena = s->regs[A_WAKEUP_STATE / 4] >> WAKEUP_ENA_SHIFT;
+    uint64_t hit;
+
+    if (!s->asleep || !s->settled || s->deep || !(ena & TRIG_GPIO)) {
+        return;
+    }
+    hit = ibv_pins_gpio_wake(s->pins);
+    if (hit) {
+        wake(s, TRIG_GPIO, hit);
+    }
+}
+
+static void check_pins(IbvSleepState *s)
+{
+    check_ext1(s);
+    check_gpio(s);
+}
+
 static void settle_cb(void *opaque)
 {
     IbvSleepState *s = opaque;
 
     s->settled = true;
-    check_ext1(s);
+    check_pins(s);
 }
 
 static void alarm_cb(void *opaque)
@@ -214,9 +245,13 @@ static void fall_asleep(IbvSleepState *s)
     for (int i = 0; i < ESP32S3_CPU_COUNT; i++) {
         qemu_set_irq(s->rtc->cpu_stall_req[i], 1);
     }
-    ibv_journal("cip: somn %s, trezire: %s%s%s", s->deep ? "adânc" : "ușor",
-                ena & TRIG_EXT1 ? "EXT1 " : "", ena & TRIG_TIMER ? "temporizator " : "",
-                ena & (TRIG_EXT1 | TRIG_TIMER) ? "" : "nimic din ce știe modelul");
+    ibv_journal("cip: somn %s, trezire: %s%s%s%s", s->deep ? "adânc" : "ușor",
+                ena & TRIG_EXT1 ? "EXT1 " : "", !s->deep && (ena & TRIG_GPIO) ? "GPIO " : "",
+                ena & TRIG_TIMER ? "temporizator " : "",
+                ena & (TRIG_EXT1 | TRIG_TIMER) || (!s->deep && (ena & TRIG_GPIO)) ? "" : "nimic din ce știe modelul");
+    if (!s->deep) {
+        esp_systimer_freeze(s->systimer, true);
+    }
     if (s->deep) {
         ibv_pins_digital_off(s->pins);
         if (s->regs[A_PWC / 4] & PWC_PD_EN) {
@@ -229,8 +264,10 @@ static void fall_asleep(IbvSleepState *s)
 
         rtc_write(s, A_TIME_UPDATE, 1u << 31);
         ticks = rtc_read(s, A_TIME_LOW0) | rtc_read(s, A_TIME_HIGH0) << 32;
-        timer_mod(s->alarm, now + (target > ticks ? muldiv64(target - ticks, NANOSECONDS_PER_SECOND,
-                                                              s->rtc->rtc_slowclk_freq) : 0) + FALL_ASLEEP_NS);
+        /* Ținta e un moment al contorului RTC, nu o durată de la adormire: cipul se
+         * trezește atunci, doar că nu înainte să fi adormit de-a binelea. */
+        timer_mod(s->alarm, now + MAX(target > ticks ? muldiv64(target - ticks, NANOSECONDS_PER_SECOND,
+                                                                 s->rtc->rtc_slowclk_freq) : 0, FALL_ASLEEP_NS));
     }
     timer_mod(s->settle, now + FALL_ASLEEP_NS);
 }
@@ -314,7 +351,7 @@ bool ibv_sleep_is_asleep(DeviceState *dev)
 
 void ibv_sleep_pins_changed(DeviceState *dev)
 {
-    check_ext1(IBV_S3_SLEEP(dev));
+    check_pins(IBV_S3_SLEEP(dev));
 }
 
 static void sleep_realize(DeviceState *dev, Error **errp)
@@ -336,6 +373,8 @@ static void sleep_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &sleep_ops, s, TYPE_IBV_S3_SLEEP, ESP32S3_RTC_CNTL_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
     object_property_add_link(obj, "rtc", TYPE_ESP32S3_RTC_CNTL, (Object **)&s->rtc,
+                             qdev_prop_allow_set_link_before_realize, OBJ_PROP_LINK_STRONG);
+    object_property_add_link(obj, "systimer", TYPE_ESP_SYSTIMER, (Object **)&s->systimer,
                              qdev_prop_allow_set_link_before_realize, OBJ_PROP_LINK_STRONG);
     object_property_add_link(obj, "pins", TYPE_IBV_S3_PINS, (Object **)&s->pins,
                              qdev_prop_allow_set_link_before_realize, OBJ_PROP_LINK_STRONG);

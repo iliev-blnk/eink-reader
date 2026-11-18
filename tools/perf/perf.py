@@ -13,7 +13,8 @@ dosarul CARD/perf) și scoate:
   E4  descărcarea bateriei cu întoarcerea automată: tensiunea în timp,
       paginile întoarse, cât a ținut;
   E6  paginarea pe dispozitiv: ms pe pagină, la lectură și la index;
-și cât au costat scrierile jurnalului însuși.
+cât a stat cipul în somnul ușor (FW-7) și cât au costat scrierile jurnalului
+însuși.
 
 --pagini scrie câte un rând pe întoarcere (E2), --baterie curba (E4), ca CSV,
 pentru graficele din lucrare. Doar biblioteca standard.
@@ -264,6 +265,20 @@ def report_e6(logs: list[Log], ts: list[Turn]) -> None:
     print(stats_row("index", [e.b / e.a for e in idx]))
 
 
+def report_light_sleep(logs: list[Log]) -> None:
+    # Rândul se scrie o dată, la intrarea în somnul adânc: a = ms dormiți, b = de câte ori.
+    print("Somnul ușor (FW-7)")
+    found = False
+    for log in logs:
+        for e in log.events:
+            if e.name == "light_sleep" and e.t > 0:
+                found = True
+                print(f" {log.file}: {e.a / 1000:.1f} s din {e.t / 1e6:.1f} s ({100 * e.a * 1000 / e.t:.0f}%),"
+                      f" {e.b} adormiri")
+    if not found:
+        print(" (niciun rând; firmware fără somn ușor sau jurnal tăiat înainte de somnul adânc)")
+
+
 def report_log(logs: list[Log]) -> None:
     fl = [e for log in logs for e in log.events if e.name == "perf_flush"]
     dropped = sum(e.a for log in logs for e in log.events if e.name == "perf_dropped")
@@ -290,6 +305,8 @@ def main(argv: list[str] | None = None) -> int:
     bat = report_e4(logs)
     print()
     report_e6(logs, ts)
+    print()
+    report_light_sleep(logs)
     print()
     report_log(logs)
 

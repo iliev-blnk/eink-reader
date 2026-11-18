@@ -144,8 +144,12 @@ static bool sample_active(void)
     CPUState *cs;
 
     b.last_xfers = xfers;
+    /*
+     * În somn procesoarele stau, dar asta nu înseamnă liniște: în somnul ușor
+     * firmware-ul poate aștepta chiar panoul, care încă desenează.
+     */
     if (ibv_sleep_is_asleep(b.sleep)) {
-        return false;
+        return active;
     }
     CPU_FOREACH(cs) {
         active |= !cs->halted;
@@ -329,6 +333,7 @@ static void ibv_reader_init(MachineState *machine)
 
     b.sleep = qdev_new(TYPE_IBV_S3_SLEEP);
     object_property_set_link(OBJECT(b.sleep), "rtc", OBJECT(soc_part("rtc_cntl")), &error_fatal);
+    object_property_set_link(OBJECT(b.sleep), "systimer", OBJECT(soc_part("systimer")), &error_fatal);
     object_property_set_link(OBJECT(b.sleep), "pins", OBJECT(b.pins), &error_fatal);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(b.sleep), &error_fatal);
     map(b.sleep, 0, DR_REG_RTCCNTL_BASE);

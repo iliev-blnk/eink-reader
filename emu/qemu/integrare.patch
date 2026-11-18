@@ -22,6 +22,22 @@ index b827c82..3bcce5b 100644
  subdir('ide')
  subdir('input')
  subdir('intc')
+diff --git a/hw/misc/esp32s3_rtc_cntl.c b/hw/misc/esp32s3_rtc_cntl.c
+index 76076c7..bfe3d84 100644
+--- a/hw/misc/esp32s3_rtc_cntl.c
++++ b/hw/misc/esp32s3_rtc_cntl.c
+@@ -164,7 +164,10 @@ static void esp32s3_rtc_update_cpu_stall(Esp32s3RtcCntlState* s)
+ 
+ static void esp32s3_rtc_update_clk(Esp32s3RtcCntlState* s)
+ {
+-    const uint32_t slowclk_freq[] = {150000, 32768, 8000000/256};
++    /* IBV: oscilatorul RC lent al lui S3 are 136 kHz, cât știe și calibrarea din
++     * esp_timg.c; cu 150 kHz (cel al lui ESP32) ceasul ar merge cu 10% înainte
++     * după fiecare somn ușor. */
++    const uint32_t slowclk_freq[] = {136000, 32768, 8000000/256};
+     const uint32_t fastclk_freq[] = {s->xtal_apb_freq / 4, 8000000};
+     s->rtc_slowclk_freq = slowclk_freq[s->rtc_slowclk];
+     s->rtc_fastclk_freq = fastclk_freq[s->rtc_fastclk];
 diff --git a/hw/sd/sd.c b/hw/sd/sd.c
 index f9bd03f..2fc4716 100644
 --- a/hw/sd/sd.c
@@ -56,6 +72,73 @@ index f9bd03f..2fc4716 100644
      }
  
      return sd_req_rca_same(sd, req) ? sd_r1 : sd_r0;
+diff --git a/hw/timer/esp_systimer.c b/hw/timer/esp_systimer.c
+index 11b2db5..11f335d 100644
+--- a/hw/timer/esp_systimer.c
++++ b/hw/timer/esp_systimer.c
+@@ -601,9 +601,39 @@ static void esp_systimer_default_conf(ESPSysTimerState *s)
+ }
+ 
+ 
++void esp_systimer_freeze(ESPSysTimerState *s, bool frozen)
++{
++    if (s->frozen == frozen) {
++        return;
++    }
++    for (int i = 0; i < ESP_SYSTIMER_COUNTER_COUNT; i++) {
++        ESPSysTimerCounter *counter = &s->counter[i];
++
++        if (frozen) {
++            if (counter->enabled) {
++                esp_systimer_update_counter(counter);
++            }
++            s->frozen_enabled[i] = counter->enabled;
++            counter->enabled = false;
++        } else {
++            counter->base = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
++            counter->enabled = s->frozen_enabled[i];
++        }
++    }
++    s->frozen = frozen;
++    /* Alarmele contoarelor oprite nu mai vin; la pornire se programează din nou. */
++    for (int i = 0; i < ESP_SYSTIMER_COMP_COUNT; i++) {
++        if (s->comparators[i].enabled) {
++            esp_systimer_comparator_reprogram(&s->comparators[i]);
++        }
++    }
++}
++
++
+ static void esp_systimer_reset_hold(Object *obj, ResetType type)
+ {
+     ESPSysTimerState *s = ESP_SYSTIMER(obj);
++    s->frozen = false;
+     for (int i = 0; i < ESP_SYSTIMER_COMP_COUNT; i++) {
+         ESPSysTimerComp* comp = &s->comparators[i];
+         QEMUTimer qtimer = comp->qtimer;
+diff --git a/include/hw/timer/esp_systimer.h b/include/hw/timer/esp_systimer.h
+index d8e2955..1010c31 100644
+--- a/include/hw/timer/esp_systimer.h
++++ b/include/hw/timer/esp_systimer.h
+@@ -113,8 +113,18 @@ struct ESPSysTimerState {
+     uint32_t conf;
+     ESPSysTimerCounter counter[ESP_SYSTIMER_COUNTER_COUNT];
+     ESPSysTimerComp comparators[ESP_SYSTIMER_COMP_COUNT];
++    /* IBV: oprit cât cipul doarme ușor; ce contoare mergeau înainte */
++    bool frozen;
++    bool frozen_enabled[ESP_SYSTIMER_COUNTER_COUNT];
+ };
+ 
++/*
++ * IBV: în somnul ușor cristalul e oprit, iar contoarele stau. ESP-IDF pune
++ * singur ceasul la zi după trezire, din contorul RTC; dacă aici contoarele
++ * ar merge mai departe, timpul somnului s-ar număra de două ori.
++ */
++void esp_systimer_freeze(ESPSysTimerState *s, bool frozen);
++
+ 
+ typedef struct ESPSysTimerClass {
+     SysBusDeviceClass parent_class;
 diff --git a/meson.build b/meson.build
 index 6cc151f..c8227d5 100644
 --- a/meson.build

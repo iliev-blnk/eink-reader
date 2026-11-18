@@ -35,40 +35,95 @@ static void post(button_t b, press_t p, int64_t edge_us)
     xQueueSend(s_queue, &ev, 0);  // se pierde când nu citește nimeni
 }
 
+// Trezirea din așteptare: primul buton care coboară. Întreruperea e pe nivel
+// (doar nivelul trezește cipul din somnul ușor), deci se oprește chiar aici,
+// altfel ar veni din nou cât timp butonul e ținut.
+static volatile int64_t s_wake_us;
+
+static void wake_isr(void *arg)
+{
+    for (int i = 0; i < BUTTON_COUNT; i++) gpio_intr_disable(s_btn[i].pin);
+    s_wake_us = esp_timer_get_time();
+    BaseType_t woken = pdFALSE;
+    vTaskNotifyGiveFromISR(s_task, &woken);
+    portYIELD_FROM_ISR(woken);
+}
+
+// Nimic apăsat, nimic de stabilizat: citirea la 10 ms nu mai are ce afla.
+static bool all_idle(void)
+{
+    for (int i = 0; i < BUTTON_COUNT; i++) {
+        const btn_t *b = &s_btn[i];
+        if (b->raw || b->down || b->stable_ms < DEBOUNCE_MS) return false;
+    }
+    return true;
+}
+
+// Taskul doarme până la o apăsare, în loc să se trezească la 10 ms. Așa cipul
+// poate intra în somnul ușor între pagini (FW-7): o citire periodică l-ar
+// trezi de 100 de ori pe secundă. Întoarce momentul frontului.
+//
+// Pinii sunt surse de trezire doar cât se așteaptă: un buton ținut ar trezi
+// altfel cipul imediat din fiecare somn dintre două citiri.
+static int64_t wait_for_press(void)
+{
+    ulTaskNotifyTake(pdTRUE, 0);
+    for (int i = 0; i < BUTTON_COUNT; i++) {
+        gpio_wakeup_enable(s_btn[i].pin, GPIO_INTR_LOW_LEVEL);
+        gpio_intr_enable(s_btn[i].pin);
+    }
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);  // un pin deja jos dă întreruperea imediat
+    for (int i = 0; i < BUTTON_COUNT; i++) gpio_wakeup_disable(s_btn[i].pin);
+    return s_wake_us;
+}
+
+static void poll_once(int64_t wake_us)
+{
+    for (int i = 0; i < BUTTON_COUNT; i++) {
+        btn_t *b = &s_btn[i];
+        bool raw = gpio_get_level(b->pin) == 0;
+        if (raw != b->raw) {
+            b->raw = raw;
+            b->stable_ms = 0;
+            // Frontul care a trezit taskul a fost la întrerupere, nu acum.
+            b->edge_us = wake_us ? wake_us : esp_timer_get_time();
+        } else if (b->stable_ms < DEBOUNCE_MS) {
+            b->stable_ms += POLL_MS;
+        }
+
+        if (b->stable_ms >= DEBOUNCE_MS && raw != b->down) {
+            b->down = raw;
+            if (raw) {
+                b->held_ms = 0;
+                b->long_sent = false;
+                b->press_us = b->edge_us;
+            } else {
+                if (!b->ignore && !b->long_sent) post(i, PRESS_SHORT, b->edge_us);
+                b->ignore = false;
+            }
+        }
+        if (b->down) {
+            b->held_ms += POLL_MS;
+            if (!b->ignore && !b->long_sent && b->held_ms >= LONG_MS) {
+                b->long_sent = true;
+                post(i, PRESS_LONG, b->press_us);
+            }
+        }
+    }
+}
+
 static void poll_task(void *arg)
 {
     TickType_t last = xTaskGetTickCount();
+    int64_t wake_us = 0;
     for (;;) {
-        vTaskDelayUntil(&last, pdMS_TO_TICKS(POLL_MS));
-        for (int i = 0; i < BUTTON_COUNT; i++) {
-            btn_t *b = &s_btn[i];
-            bool raw = gpio_get_level(b->pin) == 0;
-            if (raw != b->raw) {
-                b->raw = raw;
-                b->stable_ms = 0;
-                b->edge_us = esp_timer_get_time();
-            } else if (b->stable_ms < DEBOUNCE_MS) {
-                b->stable_ms += POLL_MS;
-            }
-
-            if (b->stable_ms >= DEBOUNCE_MS && raw != b->down) {
-                b->down = raw;
-                if (raw) {
-                    b->held_ms = 0;
-                    b->long_sent = false;
-                    b->press_us = b->edge_us;
-                } else {
-                    if (!b->ignore && !b->long_sent) post(i, PRESS_SHORT, b->edge_us);
-                    b->ignore = false;
-                }
-            }
-            if (b->down) {
-                b->held_ms += POLL_MS;
-                if (!b->ignore && !b->long_sent && b->held_ms >= LONG_MS) {
-                    b->long_sent = true;
-                    post(i, PRESS_LONG, b->press_us);
-                }
-            }
+        poll_once(wake_us);
+        wake_us = 0;
+        if (all_idle()) {
+            wake_us = wait_for_press();
+            last = xTaskGetTickCount();
+        } else {
+            vTaskDelayUntil(&last, pdMS_TO_TICKS(POLL_MS));
         }
     }
 }
@@ -95,6 +150,21 @@ esp_err_t buttons_init(const gpio_num_t pins[BUTTON_COUNT])
     }
     s_queue = xQueueCreate(8, sizeof(button_event_t));
     ESP_RETURN_ON_FALSE(s_queue, ESP_ERR_NO_MEM, TAG, "coada");
+
+    // Întreruperea de trezire: nivel jos, oprită până când taskul o cere.
+    // Sursa GPIO trezește doar din somnul ușor (din cel adânc trezește ext1);
+    // pinii și-i alege wait_for_press.
+    esp_err_t err = gpio_install_isr_service(0);
+    ESP_RETURN_ON_FALSE(err == ESP_OK || err == ESP_ERR_INVALID_STATE, err, TAG, "serviciul de întreruperi");
+    for (int i = 0; i < BUTTON_COUNT; i++) {
+        ESP_RETURN_ON_ERROR(gpio_isr_handler_add(pins[i], wake_isr, NULL), TAG, "întreruperea %d", pins[i]);
+        gpio_intr_disable(pins[i]);
+        ESP_RETURN_ON_ERROR(gpio_set_intr_type(pins[i], GPIO_INTR_LOW_LEVEL), TAG, "întreruperea %d", pins[i]);
+    }
+    ESP_RETURN_ON_ERROR(esp_sleep_enable_gpio_wakeup(), TAG, "trezirea din GPIO");
+
+    // Taskul pornește ultimul: altfel ar porni întreruperile, iar bucla de mai
+    // sus i le-ar opri și ar aștepta la nesfârșit o apăsare (s-a văzut în emulator).
     ESP_RETURN_ON_FALSE(xTaskCreate(poll_task, "buttons", 2560, NULL, 5, &s_task) == pdPASS, ESP_ERR_NO_MEM,
                         TAG, "task-ul");
     return ESP_OK;
@@ -118,10 +188,15 @@ esp_err_t buttons_enable_wakeup(void)
     if (s_task) {
         vTaskSuspend(s_task);  // pinii urmează să iasă din matricea GPIO
     }
+    // Trezirea GPIO e doar pentru somnul ușor. Lăsată pornită, ar ține
+    // alimentat domeniul perifericelor RTC și în somnul adânc.
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO);
     uint64_t mask = 0;
     for (int i = 0; i < BUTTON_COUNT; i++) {
         gpio_num_t pin = s_btn[i].pin;
         mask |= BIT64(pin);
+        gpio_intr_disable(pin);
+        gpio_wakeup_disable(pin);
         // Pull-up-uri RTC; ESP-IDF ține pinii în somn când perifericele RTC
         // sunt oprite, deci nu costă un domeniu în plus.
         ESP_RETURN_ON_ERROR(rtc_gpio_init(pin), TAG, "inițializarea RTC %d", pin);

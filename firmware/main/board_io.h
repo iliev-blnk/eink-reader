@@ -15,3 +15,8 @@ esp_err_t board_spi_init(void);
 // liniile cardului și panoului, le oprește șinele și ține pinii așa în somn.
 // Pe DevKit nu face nimic.
 void board_power_off(void);
+
+// Somnul ușor automat (FW-7): liniile spre card și panou și comutatoarele
+// șinelor își păstrează configurația și nivelul cât doarme cipul. Fără asta,
+// ESP-IDF le deconectează: CS-urile și RST ar rămâne în aer, iar șinele s-ar opri.
+void board_light_sleep_pins(void);

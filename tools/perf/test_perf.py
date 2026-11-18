@@ -41,6 +41,7 @@ ROWS = [
     (124_090_100, "layout_end", 21, 0),
     (124_700_000, "refresh", 0, 600_000),
     (124_700_000, "refresh_io", 40_000, 550_000),
+    (124_990_000, "light_sleep", 100_000, 412),
     (125_000_000, "sleep", 0, 0),
 ]
 
@@ -96,6 +97,7 @@ class Analysis(unittest.TestCase):
             perf.main([str(self.path), "--pagini", str(out / "p.csv"), "--baterie", str(out / "b.csv")])
         self.assertIn("toate: 3 (auto 2, ÎNAINTE 1)", s.getvalue())
         self.assertIn("2 pagini în 0.02 h, 4100 → 4000 mV; adormit", s.getvalue())
+        self.assertIn("100.0 s din 125.0 s (80%), 412 adormiri", s.getvalue())
         self.assertEqual(len((out / "p.csv").read_text().splitlines()), 4)
         self.assertEqual(len((out / "b.csv").read_text().splitlines()), 4)
 

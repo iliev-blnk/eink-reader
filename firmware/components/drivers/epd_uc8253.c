@@ -70,8 +70,12 @@ static uint32_t since(int64_t t0)
     return (uint32_t)(esp_timer_get_time() - t0);
 }
 
-static void IRAM_ATTR busy_isr(void *arg)
+// Întreruperea e pe nivel (doar nivelul trezește cipul din somnul ușor), deci
+// se oprește aici, altfel ar veni din nou cât timp BUSY stă în 1. Nu e în IRAM:
+// serviciul de întreruperi e instalat fără ESP_INTR_FLAG_IRAM.
+static void busy_isr(void *arg)
 {
+    gpio_intr_disable(s.cfg.busy);
     BaseType_t woken = pdFALSE;
     xSemaphoreGiveFromISR(s.busy_sem, &woken);
     portYIELD_FROM_ISR(woken);
@@ -114,10 +118,14 @@ static esp_err_t cmd_byte(uint8_t c, uint8_t d)
 
 // ---- BUSY ----
 
-// Așteaptă până BUSY e în 1 (liber), dormind pe întreruperea de front crescător.
+// Așteaptă până BUSY e în 1 (liber), dormind pe întreruperea de nivel înalt.
+// Cât lucrează panoul (0,35 s parțial, 3 s complet) cipul poate intra în somnul
+// ușor (FW-7): BUSY în 1 e atunci sursă de trezire. Doar pe durata așteptării:
+// în restul timpului BUSY stă în 1 și ar trezi cipul imediat.
 static esp_err_t wait_idle(int64_t deadline)
 {
-    xSemaphoreTake(s.busy_sem, 0);  // se aruncă un front vechi
+    xSemaphoreTake(s.busy_sem, 0);  // se aruncă o întrerupere veche
+    gpio_wakeup_enable(s.cfg.busy, GPIO_INTR_HIGH_LEVEL);
     gpio_intr_enable(s.cfg.busy);
     esp_err_t err = ESP_OK;
     while (gpio_get_level(s.cfg.busy) == 0) {
@@ -127,8 +135,10 @@ static esp_err_t wait_idle(int64_t deadline)
             break;
         }
         xSemaphoreTake(s.busy_sem, pdMS_TO_TICKS(left_us / 1000) + 1);
+        gpio_intr_enable(s.cfg.busy);  // oprită de busy_isr: dacă n-a fost BUSY, din nou
     }
     gpio_intr_disable(s.cfg.busy);
+    gpio_wakeup_disable(s.cfg.busy);
     return err;
 }
 
@@ -239,7 +249,7 @@ esp_err_t epd_init(const epd_config_t *cfg)
         .pin_bit_mask = BIT64(cfg->busy),
         .mode = GPIO_MODE_INPUT,
         .pull_up_en = GPIO_PULLUP_ENABLE,
-        .intr_type = GPIO_INTR_POSEDGE,
+        .intr_type = GPIO_INTR_DISABLE,    // tipul (nivel înalt) îl pune wait_idle
     };
     ESP_RETURN_ON_ERROR(gpio_config(&in), TAG, "pinul BUSY");
 

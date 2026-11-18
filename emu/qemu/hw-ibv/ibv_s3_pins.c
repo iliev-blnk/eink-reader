@@ -42,6 +42,7 @@
 
 #define PIN_PAD_DRIVER (1u << 2)
 #define PIN_INT_TYPE(v) (((v) >> 7) & 7)
+#define PIN_WAKEUP_ENABLE (1u << 10)
 #define PIN_INT_ENA_PRO (1u << 13)
 #define PIN_INT_ENA_PRO_NMI (1u << 14)
 
@@ -467,6 +468,23 @@ static void digital_reset(IbvPinsState *s)
     }
     s->iomux[1 + 0] |= MUX_FUN_PU;    /* GPIO0, pinul de boot */
     s->out = s->enable = s->status = 0;
+}
+
+uint64_t ibv_pins_gpio_wake(DeviceState *dev)
+{
+    IbvPinsState *s = IBV_S3_PINS(dev);
+    uint64_t hit = 0;
+
+    /* Trezirea din GPIO merge doar pe nivel: tipul 4 la 0, tipul 5 la 1. */
+    for (int pin = 0; pin < IBV_PIN_COUNT; pin++) {
+        uint32_t reg = s->gpio[(A_PIN0 + 4 * pin) / 4];
+        int type = PIN_INT_TYPE(reg);
+
+        if ((reg & PIN_WAKEUP_ENABLE) && (type == 4 || type == 5) && pad_level(s, pin) == (type == 5)) {
+            hit |= 1ull << pin;
+        }
+    }
+    return hit;
 }
 
 void ibv_pins_digital_off(DeviceState *dev)

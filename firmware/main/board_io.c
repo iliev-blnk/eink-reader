@@ -45,6 +45,15 @@ static void set_rails(int on)
     if (BOARD_EPD_PWR_EN >= 0) drive(BOARD_EPD_PWR_EN, on);
 }
 
+void board_light_sleep_pins(void)
+{
+    // Restul pinilor rămân deconectați în somn, cum îi lasă ESP-IDF: mai puțin
+    // curent, iar o intrare în aer nu mai poate reseta cipul la o descărcare ESD.
+    for (size_t i = 0; i < sizeof s_lines / sizeof s_lines[0]; i++) gpio_sleep_sel_dis(s_lines[i]);
+    if (BOARD_SD_PWR_EN >= 0) gpio_sleep_sel_dis(BOARD_SD_PWR_EN);
+    if (BOARD_EPD_PWR_EN >= 0) gpio_sleep_sel_dis(BOARD_EPD_PWR_EN);
+}
+
 void board_power_on(void)
 {
     if (!HAS_RAILS) return;

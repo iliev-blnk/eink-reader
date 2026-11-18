@@ -237,6 +237,8 @@ static void go_to_sleep(void)
     }
     s_slept = true;
     fflush(stdout);
+    // Temporizatorul lăsat de somnul ușor automat ar trezi cipul imediat (ca în main.c).
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
     esp_deep_sleep_start();
 }
 

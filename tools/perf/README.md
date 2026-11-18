@@ -11,6 +11,7 @@ tools/perf/perf.py perf/*.csv --pagini pagini.csv --baterie baterie.csv
 - **E2**: întoarcerea paginii pe bucăți, în ms: intrarea (frontul butonului → apăsarea), pregătirea, paginarea, desenarea, SPI, panoul și totalul de la front la BUSY eliberat. Separat pentru toate, parțiale și complete; medie, median, p95, min, max. Întoarcerile automate n-au front, deci totalul lor pornește de la eveniment.
 - **E4**: pentru fiecare fișier cu întoarceri automate, câte pagini, câte ore, tensiunea de la început și de la sfârșit și cum s-a terminat (baterie descărcată, adormit sau jurnal tăiat).
 - **E6**: ms pe pagină, la lectură și la index.
+- **Somnul ușor** (FW-7): cât din pornire a dormit cipul între evenimente și de câte ori a adormit. Rândul `light_sleep` se scrie o dată, la intrarea în somnul adânc.
 - Costul jurnalului: câte scrieri pe card, cât au durat, câte rânduri s-au pierdut.
 
 `--pagini` scrie un rând pe întoarcere (E2), `--baterie` curba ore–mV–pagini (E4), ca CSV pentru grafice.

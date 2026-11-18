@@ -25,6 +25,7 @@
 #include "esp_attr.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "esp_pm.h"
 #include "esp_psram.h"
 #include "esp_sleep.h"
 #include "esp_system.h"
@@ -111,11 +112,63 @@ static void save_settings(void *ctx, const void *buf, size_t len)
     nvs_close(h);
 }
 
+// ---- somnul ușor (FW-7) ----
+//
+// Somnul ușor automat: când niciun task nu are de lucru cel puțin
+// CONFIG_FREERTOS_IDLE_TIME_BEFORE_SLEEP ticuri, taskul IDLE oprește ceasul
+// procesoarelor până la următorul termen (tic, esp_timer) sau până la o sursă
+// de trezire: un buton (buttons.c) sau BUSY-ul panoului (epd_uc8253.c).
+// Perifericele care nu suportă somnul îl opresc singure cât lucrează (SPI, I²C)
+// sau cu o blocare (discul USB). Frecvența rămâne fixă (minimul = maximul):
+// fără o blocare CPU_FREQ_MAX ținută de interfață, paginarea ar rula la
+// frecvența minimă. Frecvența variabilă e de încercat pe placă, cu E2.
+static bool s_pm_ok;
+static int64_t s_pm_since_us;
+static volatile uint64_t s_light_us;
+static volatile uint32_t s_light_n;
+
+#if CONFIG_PM_LIGHT_SLEEP_CALLBACKS
+// Rulează în taskul IDLE, la ieșirea din somn, cu memoria cache poate oprită.
+static esp_err_t IRAM_ATTR on_light_exit(int64_t slept_us, void *arg)
+{
+    (void)arg;
+    s_light_us += (uint64_t)slept_us;
+    s_light_n++;
+    return ESP_OK;
+}
+#endif
+
+static void init_pm(void)
+{
+#if CONFIG_PM_ENABLE
+    const esp_pm_config_t pm = {
+        .max_freq_mhz = CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ,
+        .min_freq_mhz = CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ,
+        .light_sleep_enable = true,
+    };
+    board_light_sleep_pins();    // înainte de primul somn
+    esp_err_t err = esp_pm_configure(&pm);
+    s_pm_ok = err == ESP_OK;
+    if (!s_pm_ok) {
+        ESP_LOGW(TAG, "somnul ușor nu pornește: %s", esp_err_to_name(err));
+        return;
+    }
+    s_pm_since_us = esp_timer_get_time();
+#if CONFIG_PM_LIGHT_SLEEP_CALLBACKS
+    esp_pm_sleep_cbs_register_config_t cbs = {.exit_cb = on_light_exit};
+    err = esp_pm_light_sleep_register_cbs(&cbs);
+    if (err != ESP_OK) ESP_LOGW(TAG, "contorul somnului ușor: %s", esp_err_to_name(err));
+#endif
+#endif
+}
+
 static void deep_sleep(void *ctx)
 {
     (void)ctx;
     ESP_LOGI(TAG, "intră în somn adânc");
     if (s_epd_ok) epd_sleep();
+    // Cât a dormit ușor de la pornire: ms și de câte ori.
+    if (s_pm_ok) perflog_add(now_us(), "light_sleep", (uint32_t)(s_light_us / 1000), s_light_n);
     perflog_flush(now_us);
     if (s_sd_ok) sdcard_unmount();
 
@@ -131,6 +184,11 @@ static void deep_sleep(void *ctx)
         esp_restart();
     }
     fflush(stdout);
+    // Somnul ușor automat lasă pornit temporizatorul cu care s-a trezit ultima
+    // oară (esp_pm nu-l oprește), deja expirat: cipul s-ar trezi din somnul
+    // adânc după câteva zeci de ms. Se oprește chiar aici, după ultimul
+    // apel care mai poate bloca taskul și lăsa cipul să mai doarmă ușor o dată.
+    esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
     esp_deep_sleep_start();
 }
 
@@ -213,6 +271,13 @@ static int diag(void *ctx, char (*lines)[UI_DIAG_LINE], int max)
     else if (n < max)
         snprintf(lines[n++], UI_DIAG_LINE, "Jurnal: oprit (fără /perf)");
     if (n < max) snprintf(lines[n++], UI_DIAG_LINE, "Pornirea nr. %" PRIu32, s_boot_count);
+    if (n < max && s_pm_ok) {
+        uint64_t up = (uint64_t)(esp_timer_get_time() - s_pm_since_us);
+        snprintf(lines[n++], UI_DIAG_LINE, "Somn ușor: %u %% din %u s, %" PRIu32 " ori",
+                 (unsigned)(up ? s_light_us * 100 / up : 0), (unsigned)(up / 1000000), s_light_n);
+    } else if (n < max) {
+        snprintf(lines[n++], UI_DIAG_LINE, "Somn ușor: oprit");
+    }
     const epd_timing_t *t = epd_last_timing();
     if (n < max && s_epd_ok)
         snprintf(lines[n++], UI_DIAG_LINE, "Panoul: %s %" PRIu32 " ms", t->full ? "completă" : "parțială",
@@ -305,6 +370,7 @@ void app_main(void)
         .card_ready = card_ready,
     };
     ui_t *ui = ui_init(&platform, &s_gfx);
+    init_pm();
     ui_start(ui, wake ? UI_BOOT_WAKE : UI_BOOT_COLD);
 
     // Un singur task: apăsările au întâietate, iar între ele se face lucrul de

@@ -43,6 +43,8 @@ uint32_t ibv_pins_route(DeviceState *dev, int pin);
 void ibv_pins_set_hold(DeviceState *dev, uint32_t mask);
 /* Domeniul digital se oprește (somn adânc): registrele GPIO și IO_MUX revin la reset. */
 void ibv_pins_digital_off(DeviceState *dev);
+/* Pinii care, cu nivelul de acum, trezesc cipul din somnul ușor (GPIO_WAKEUP). */
+uint64_t ibv_pins_gpio_wake(DeviceState *dev);
 /* Perifericele RTC se opresc în somn: registrele RTC IO revin la reset, pinii ținuți rămân. */
 void ibv_pins_rtc_off(DeviceState *dev);
 /* Chemat la orice schimbare de nivel pe vreun pin. */

@@ -4,6 +4,7 @@
 
 #include "esp_check.h"
 #include "esp_log.h"
+#include "esp_pm.h"
 #include "tinyusb.h"
 #include "tinyusb_default_config.h"
 #include "tinyusb_msc.h"
@@ -18,6 +19,10 @@ static const char *TAG = "usbdisk";
 static bool s_on;
 static volatile bool s_attached, s_suspended;
 static tinyusb_msc_storage_handle_t s_storage;
+// Cât e discul pornit, cipul nu intră în somnul ușor: perifericul USB s-ar
+// opri, iar calculatorul ar pierde discul. (CONFIG_TINYUSB_PM ar elibera
+// blocarea cât e magistrala suspendată; e un pas următor, de încercat pe placă.)
+static esp_pm_lock_handle_t s_no_sleep;
 
 // Din taskul TinyUSB.
 static void on_usb(tinyusb_event_t *e, void *arg)
@@ -42,6 +47,9 @@ static void on_msc(tinyusb_msc_storage_handle_t h, tinyusb_msc_event_t *e, void 
 esp_err_t usbdisk_start(const sdcard_config_t *cfg, int vbus_gpio)
 {
     if (s_on) return ESP_ERR_INVALID_STATE;
+    // Fără gestiunea energiei (CONFIG_PM_ENABLE oprit) blocarea nu există și nici nu trebuie.
+    if (!s_no_sleep) esp_pm_lock_create(ESP_PM_NO_LIGHT_SLEEP, 0, "usbdisk", &s_no_sleep);
+    if (s_no_sleep) esp_pm_lock_acquire(s_no_sleep);
     sdmmc_card_t *card;
     ESP_RETURN_ON_ERROR(sdcard_open_raw(cfg, &card), TAG, "cardul nu pornește");
     s_attached = s_suspended = false;
@@ -78,6 +86,7 @@ fail_msc:
     tinyusb_msc_uninstall_driver();
 fail_card:
     sdcard_close_raw();
+    if (s_no_sleep) esp_pm_lock_release(s_no_sleep);
     ESP_LOGE(TAG, "discul USB nu pornește: %s", esp_err_to_name(err));
     return err;
 }
@@ -105,6 +114,7 @@ esp_err_t usbdisk_stop(void)
     sdcard_close_raw();
     s_on = false;
     s_storage = NULL;
+    if (s_no_sleep) esp_pm_lock_release(s_no_sleep);
     ESP_LOGI(TAG, "discul USB e oprit");
     return err != ESP_OK ? err : e2;
 }

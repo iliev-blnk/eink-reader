@@ -28,10 +28,13 @@ if [ "$(git -C "$src" rev-parse HEAD)" != "$commit" ]; then
     exit 1
 fi
 
-# Legătura cu restul QEMU-ului și cele două reparații din modelul cardului SD.
+# Legătura cu restul QEMU-ului, cele două reparații din modelul cardului SD și
+# ceasurile din somnul ușor (temporizatorul sistemului stă, RC lent la 136 kHz).
 if git -C "$src" apply --reverse --check "$here/qemu/integrare.patch" 2>/dev/null; then
     :
 else
+    # Un arbore cu o versiune mai veche a patch-ului se readuce întâi la sursa curată.
+    git -C "$src" apply --check "$here/qemu/integrare.patch" 2>/dev/null || git -C "$src" checkout -q -- .
     git -C "$src" apply "$here/qemu/integrare.patch"
 fi
 mkdir -p "$src/hw/ibv"

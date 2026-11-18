@@ -2,15 +2,15 @@
 
 Aici rulează binarul care se scrie în cip (`firmware/build`), neschimbat, pe o
 placă emulată: ESP32-S3 din QEMU-ul Espressif plus ce e legat de el pe prototip.
-Panoul e-paper, cardul SD, butoanele, divizorul bateriei și somnul adânc sunt
-modele scrise pentru proiect. După fiecare reîmprospătare emulatorul scrie ce
+Panoul e-paper, cardul SD, butoanele, divizorul bateriei și somnul (ușor și
+adânc) sunt modele scrise pentru proiect. După fiecare reîmprospătare emulatorul scrie ce
 s-ar vedea pe ecran, iar cadrele se compară pixel cu pixel cu cele ale
 simulatorului de pe PC (`sim ui`) pentru același card și aceleași apăsări.
 
 Simulatorul rulează doar nucleul portabil (fonturi, cititorul IBV, paginarea,
 interfața) cu un panou și un card închipuite. Emulatorul rulează și tot ce e
 dedesubt: driverul panoului, SPI cu DMA, FatFs peste driverul de card, butoanele
-cu întreruperi, NVS în flash, ADC-ul, somnul adânc și trezirea. Dacă cele două
+cu întreruperi, NVS în flash, ADC-ul, somnul ușor și cel adânc, trezirea. Dacă cele două
 dau aceleași cadre, straturile de sub nucleu și-au făcut treaba.
 
 ## Folosire
@@ -47,14 +47,14 @@ secunde; cu `--realtime` merge după ceasul calculatorului.
 
 ## Ce verifică `emu/test.sh`
 
-Rezultatele de la 2026-11-17, firmware-ul de la acea dată (paginarea LAYOUT_VERSION 4):
+Rezultatele de la 2026-11-19, firmware-ul de la acea dată (cu somnul ușor din FW-7):
 
 | verificare | ce face | rezultat |
 |---|---|---|
 | `ui` | scenariul de interfață din `sim/test/run.sh`, cu două adormiri și treziri | 22 de cadre, 22 identice |
 | `auto` | întoarcerea automată a paginii un minut, bateria care scade, oprirea | 29 de cadre, 29 identice |
-| `carte` | cardul cu cele 15 cărți ale corpusului și fonturile dispozitivului: biblioteca, *Moby Dick* (indexul de 3694 de pagini se construiește pe cipul emulat), somn și trezire în carte, meniul cărții | 41 de cadre, 41 identice |
-| `perf` | jurnalul de măsurători scris de firmware pe cardul emulat, citit de `tools/perf/perf.py` | 13 întoarceri (12 automate), oprirea de baterie |
+| `carte` | cardul cu cele 15 cărți ale corpusului și fonturile dispozitivului: biblioteca, *Moby Dick* (indexul de 3694 de pagini se construiește pe cipul emulat), somn și trezire în carte, meniul cărții | 45 de cadre, 45 identice |
+| `perf` | jurnalul de măsurători scris de firmware pe cardul emulat, citit de `tools/perf/perf.py` | 13 întoarceri (12 automate), oprirea de baterie, somnul ușor |
 | `bringup` | aplicația de punere în funcțiune: numărătoare, redesenare, somn, trezire din buton | 9 cadre, fără avertismente |
 | `repetare` | același scenariu a doua oară | aceleași evenimente, aceleași cadre |
 
@@ -109,13 +109,16 @@ ei scrise în antet. `qemu/integrare.patch` le leagă de QEMU.
 | `ibv_s3_gpspi.c` | SPI2 al cipului, ca master: fazele de comandă, adresă și date, prin registre sau prin GDMA; o tranzacție durează cât ar dura pe fir |
 | `ibv_s3_pins.c` | GPIO, IO_MUX și RTC IO cu niveluri electrice: ieșire, dispozitiv din afară, rezistență internă sau pin în aer |
 | `ibv_s3_sens.c` | citirea „oneshot” a ADC-ului SAR, pentru divizorul bateriei |
-| `ibv_s3_sleep.c` | somnul cipului, trezirea prin EXT1 și temporizator, resetul cu cauza „somn adânc” |
+| `ibv_s3_sleep.c` | somnul cipului, ușor și adânc; trezirea prin EXT1, temporizator și, din somnul ușor, GPIO pe nivel; resetul cu cauza „somn adânc” |
 | `ibv_journal.c` | jurnalul rulării |
 
 Cardul SD e modelul din QEMU, în modul SPI, cu două reparații (în
 `integrare.patch`): CMD9 și CMD10 nu erau primite în starea de transfer, iar
 CMD13 răspundea cu formatul greșit. Fără ele driverul ESP-IDF nu putea monta
-cardul. `emu/mkcard.py` face imaginea de card (MBR + FAT32 cu nume lungi) fără
+cardul. Tot acolo sunt cele două schimbări pentru somnul ușor. Temporizatorul
+sistemului stă cât doarme cipul, iar ESP-IDF își pune singur ceasul la zi din
+contorul RTC. Oscilatorul RC lent are 136 kHz, cât măsoară și calibrarea. Cu
+150 kHz, ceasul firmware-ului ar merge cu 10% înainte după fiecare somn. `emu/mkcard.py` face imaginea de card (MBR + FAT32 cu nume lungi) fără
 root și fără unelte din afară.
 
 Reîmprospătarea parțială e modelată diferențial, ca pe panou: se mișcă doar

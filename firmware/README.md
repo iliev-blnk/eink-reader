@@ -90,6 +90,8 @@ Nimic din acestea nu a rulat pe placă: placa nu e comandată. Codul compilează
 - **ÎNAINTE / ÎNAPOI**: pagina următoare / precedentă, sau elementul următor / precedent dintr-o listă. Apăsate lung în lector: capitolul următor / precedent. Într-o listă, ÎNAINTE lung sare la pagina următoare a listei, iar ÎNAPOI lung iese din ea.
 - **MENIU**: deschide elementul ales; în lector deschide meniul cărții (cuprins, semn de carte, mărimea textului, setări, bibliotecă, întoarcerea automată, diagnostic).
 - **MENIU ținut apăsat**: somn adânc, cu coperta cărții pe ecran. Orice buton trezește dispozitivul la aceeași pagină. Somnul vine și singur după inactivitate (setarea „Somn după”).
+- **Întors (setarea „Orientarea”)**: cititorul se ține cu butoanele laterale în dreapta, iar imaginea e rotită cu 180°. Butonul lateral de jos rămâne ÎNAINTE, deci cele două își schimbă rolurile; MENIU, acum jos, rămâne MENIU. Rotirea se face în interfață, la trimiterea cadrului spre panou, așa că și ecranul de somn și cel de baterie descărcată apar întoarse. Punerea în funcțiune nu se rotește.
+- **Cardul scos**: biblioteca spune „Niciun card”. Cardul pus la loc se montează la următoarea intrare în bibliotecă, fără repornire.
 
 ## Conectare la PC (copierea cărților prin USB)
 

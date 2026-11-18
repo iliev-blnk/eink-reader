@@ -5,7 +5,8 @@
 #include "crc32.h"
 #include "fontsel.h"
 
-#define VERSION 1
+#define VERSION 2       // 2: SET_FLIP, blobul de 16 octeți
+_Static_assert(1 + SET_COUNT + 4 <= SETTINGS_BLOB, "setările nu mai încap în SETTINGS_BLOB");
 
 typedef struct {
     const char *name;
@@ -25,6 +26,7 @@ static const setting_def_t defs[SET_COUNT] = {
     [SET_FULL_EVERY] = {"Curățare completă", 4, 2, false, {1, 5, 10, 20},
                         {"la fiecare pagină", "la 5 pagini", "la 10 pagini", "la 20 de pagini"}},
     [SET_SLEEP] = {"Somn după", 4, 1, false, {2, 5, 10, 30}, {"2 min", "5 min", "10 min", "30 min"}},
+    [SET_FLIP] = {"Orientarea", 2, 0, false, {0, 1}, {"butoanele în stânga", "butoanele în dreapta"}},
 };
 
 void settings_default(settings_t *s)

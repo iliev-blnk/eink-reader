@@ -98,6 +98,12 @@ fi
 # deschisă, fără repornire.
 ui_case card "m c:0 m P c:1 m m"
 
+# Ecranul întors cu 180° (FW-3): Setări, Orientarea (o reîmprospătare
+# completă, tot cadrul întors), apoi butoanele cu rolurile schimbate: cel fizic
+# ÎNAPOI, acum jos, mută selecția în jos; ÎNAINTE lung, acum sus, iese în
+# lansator; ÎNAINTE scurt urcă selecția. Cadrele sunt cum le vede panoul.
+ui_case rot "n n m n n n n n n n m p N n"
+
 # Netezirea procentului bateriei (FW-8): media exponențială cu ponderea 1/4,
 # luată de la capăt după un salt de peste 200 mV. Jurnalul de măsurători are
 # citirea și tensiunea afișată; valorile de mai jos sunt calculate de mână.

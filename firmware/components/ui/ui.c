@@ -16,6 +16,8 @@
 
 static ui_t s_ui;
 static uint8_t s_shown[GFX_BUF_SIZE(UI_W, UI_H)];
+static uint8_t s_flipped[GFX_BUF_SIZE(UI_W, UI_H)];    // cadrul întors, pentru SET_FLIP
+_Static_assert(UI_W % 8 == 0, "rotirea cu 180° presupune rânduri fără biți de umplutură");
 
 // ---- managerul ----
 
@@ -106,7 +108,26 @@ static void show(ui_t *ui, bool full)
     int every = settings_value(&ui->set, SET_FULL_EVERY);
     if (!ui->have_shown || ui->partials + 1 >= every) full = true;
     ui->partials = full ? 0 : ui->partials + 1;
-    ui->p.show(ui->p.ctx, ui->g, full ? UI_REFRESH_FULL : UI_REFRESH_PARTIAL, r);
+    ui_refresh_t kind = full ? UI_REFRESH_FULL : UI_REFRESH_PARTIAL;
+    if (ui->set.v[SET_FLIP]) {
+        // Rotirea cu 180° (FW-3). Lățimea e multiplu de 8, deci pixelul i ajunge
+        // la N−1−i: octeții în ordine inversă, fiecare cu biții inversați. Diferența
+        // se calculează tot pe cadrul drept; dreptunghiul, aliniat la 8 pe x,
+        // rămâne aliniat și oglindit.
+        size_t n = sizeof s_flipped;
+        for (size_t i = 0; i < n; i++) {
+            uint8_t b = ui->g->buf[i];
+            b = (uint8_t)((b & 0xF0) >> 4 | (b & 0x0F) << 4);
+            b = (uint8_t)((b & 0xCC) >> 2 | (b & 0x33) << 2);
+            s_flipped[n - 1 - i] = (uint8_t)((b & 0xAA) >> 1 | (b & 0x55) << 1);
+        }
+        gfx_t f = *ui->g;
+        f.buf = s_flipped;
+        gfx_rect_t fr = {ui->g->width - r.x - r.w, ui->g->height - r.y - r.h, r.w, r.h};
+        ui->p.show(ui->p.ctx, &f, kind, fr);
+    } else {
+        ui->p.show(ui->p.ctx, ui->g, kind, r);
+    }
     memcpy(s_shown, ui->g->buf, sizeof s_shown);
     ui->have_shown = true;
 }
@@ -303,6 +324,8 @@ void ui_start(ui_t *ui, ui_boot_t boot)
 
 void ui_key(ui_t *ui, ui_key_t key, ui_press_t press)
 {
+    // Întors, butonul de jos din dreapta rămâne ÎNAINTE: cele două laterale își schimbă rolul.
+    if (ui->set.v[SET_FLIP] && key != UI_KEY_MENU) key = key == UI_KEY_PREV ? UI_KEY_NEXT : UI_KEY_PREV;
     ui->last_key_ms = ui_now(ui);
     ui_perf(ui, "key", key, press);
     if (key == UI_KEY_MENU && press == UI_LONG && !usb_active()) {
@@ -673,7 +696,7 @@ static void settings_key(ui_t *ui, ui_key_t k, ui_press_t p)
     } else if (k == UI_KEY_MENU) {
         settings_cycle(&ui->set, l->sel);
         ui->settings_dirty = true;
-        ui_redraw(ui, false);
+        ui_redraw(ui, l->sel == SET_FLIP);     // întors, se mută fiecare pixel
     } else if (k == UI_KEY_PREV && p == UI_LONG) {
         ui_pop(ui);
     }

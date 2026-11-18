@@ -8,7 +8,7 @@
 008  n      parțială  0,64 240x67
 009  n      parțială  0,97 240x67
 010  n      parțială  0,130 240x67
-011  m      parțială  0,8 240x367
+011  m      parțială  0,8 240x402
 012  n      parțială  0,32 240x100
 013  m      parțială  8,115 56x13
 014  P      completă
@@ -19,7 +19,7 @@
 019  n      parțială  0,64 240x67
 020  n      parțială  0,97 240x67
 021  n      parțială  0,130 240x67
-022  m      parțială  0,8 240x367
+022  m      parțială  0,8 240x402
 023  n      parțială  0,32 240x100
 024  m      parțială  8,115 48x13
 025  P      completă
@@ -30,11 +30,11 @@
 030  n      parțială  0,64 240x67
 031  n      parțială  0,97 240x67
 032  n      parțială  0,130 240x67
-033  m      parțială  0,8 240x367
+033  m      parțială  0,8 240x402
 034  n      parțială  0,32 240x100
 035  n      parțială  0,81 240x101
 036  m      completă
-037  P      parțială  0,8 240x367
+037  P      parțială  0,8 240x402
 038  P      completă
 039  P      parțială  184,400 40x9
 040  m      parțială  0,0 240x413
@@ -42,11 +42,11 @@
 042  n      parțială  0,64 240x67
 043  n      parțială  0,97 240x67
 044  n      parțială  0,130 240x67
-045  m      parțială  0,8 240x367
+045  m      parțială  0,8 240x402
 046  n      parțială  0,32 240x100
 047  n      parțială  0,81 240x101
 048  m      completă
-049  P      parțială  0,8 240x367
+049  P      parțială  0,8 240x402
 050  P      completă
 051  P      parțială  200,400 32x9
 052  m      parțială  0,0 240x413
@@ -54,7 +54,7 @@
 054  n      parțială  0,64 240x67
 055  n      parțială  0,97 240x67
 056  n      parțială  0,130 240x67
-057  m      parțială  0,8 240x367
+057  m      parțială  0,8 240x402
 058  n      parțială  0,32 240x100
 059  m      parțială  8,115 56x10
 060  P      completă
@@ -65,7 +65,7 @@
 065  n      parțială  0,64 240x67
 066  n      parțială  0,97 240x67
 067  n      parțială  0,130 240x67
-068  m      parțială  0,8 240x367
+068  m      parțială  0,8 240x402
 069  n      parțială  0,32 240x100
 070  m      parțială  8,115 56x13
 071  P      completă

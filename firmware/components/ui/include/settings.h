@@ -17,6 +17,7 @@ enum {
     SET_HYPHENATE,
     SET_FULL_EVERY,    // o reîmprospătare completă la N pagini
     SET_SLEEP,         // minute de inactivitate până la somn
+    SET_FLIP,          // ecranul întors cu 180°: butoanele laterale în dreapta (FW-3)
     SET_COUNT
 };
 
@@ -24,7 +25,7 @@ typedef struct {
     uint8_t v[SET_COUNT];   // indicele variantei alese
 } settings_t;
 
-#define SETTINGS_BLOB 12    // octeți: versiunea, valorile, CRC32
+#define SETTINGS_BLOB 16    // octeți: versiunea, valorile (loc pentru 11), CRC32
 
 void settings_default(settings_t *s);
 // Numele setării, numărul de variante și numele variantei `i`.

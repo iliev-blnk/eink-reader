@@ -23,6 +23,12 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 
 ## Jurnal
 
+### 2026-11-18: ecranul întors cu 180° (FW-3)
+- Ce e: setarea nouă „Orientarea” (butoanele în stânga / în dreapta). Întors, cititorul se ține în mâna dreaptă: cadrul e rotit cu 180° la trimiterea spre panou, iar butoanele laterale își schimbă rolul, ca ÎNAINTE să rămână cel de jos. Diferența dintre cadre se calculează tot pe imaginea dreaptă, apoi dreptunghiul se oglindește (lățimea de 240 e multiplu de 8, deci rămâne aliniat). La schimbarea setării, reîmprospătarea e completă. Setările ocupă acum un bloc de 16 octeți, versiunea 2: setările salvate de versiunea 1 revin o dată la implicite.
+- De ce: FW-3 cerea rotația. Panoul e deja portret, deci rotația utilă e cea de 180°: butoanele sunt doar pe marginea din stânga (`enclosure/README.md`), iar fără ea cititorul nu se poate ține comod în mâna dreaptă.
+- Testul: scenariul nou `rot` din `sim/test/run.sh`. Imaginile sunt cum le primește panoul, deci întoarse. `pg` are jurnalul și câteva cadre noi: lista Setări are acum 8 rânduri, două pagini, iar subsolul arată „1/2”. Fuzzerul stării (`fuzz_state`, blobul de 16 octeți) a rulat 60 s fără erori; emulatorul dă aceleași cadre în toate scenariile.
+- Ce nu e: peisajul (ar cere altă interfață și altă paginare); nimic pe panou.
+
 ### 2026-11-18: cardul scos și pus la loc, fără repornire (FW-4)
 - Ce e: un card care lipsea la pornire sau a fost scos se montează din nou la intrarea în bibliotecă. Interfața întreabă platforma prin `card_ready`: pe dispozitiv, o comandă SEND_STATUS (CMD13) pe cardul montat, iar dacă nu răspunde, demontarea și montarea ca la pornire (20 MHz, apoi 5 MHz). Când o carte nu se deschide, biblioteca verifică întâi cardul: dacă lipsește, scrie „Niciun card” în loc să marcheze cartea ca deteriorată; dacă tocmai a fost montat din nou, mai încearcă o dată. Biblioteca goală spune acum ce lipsește: „Niciun card” sau „Nicio carte”. După ce un card revine, lista recentă se citește din nou, pentru că poate fi alt card.
 - API-ul de fișiere din FW-4 rămâne stdio peste VFS, plus scrierile atomice din `sidecar.c`. Un strat separat n-ar avea încă niciun client.

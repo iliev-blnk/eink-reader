@@ -23,6 +23,12 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 
 ## Jurnal
 
+### 2026-11-18: cardul scos și pus la loc, fără repornire (FW-4)
+- Ce e: un card care lipsea la pornire sau a fost scos se montează din nou la intrarea în bibliotecă. Interfața întreabă platforma prin `card_ready`: pe dispozitiv, o comandă SEND_STATUS (CMD13) pe cardul montat, iar dacă nu răspunde, demontarea și montarea ca la pornire (20 MHz, apoi 5 MHz). Când o carte nu se deschide, biblioteca verifică întâi cardul: dacă lipsește, scrie „Niciun card” în loc să marcheze cartea ca deteriorată; dacă tocmai a fost montat din nou, mai încearcă o dată. Biblioteca goală spune acum ce lipsește: „Niciun card” sau „Nicio carte”. După ce un card revine, lista recentă se citește din nou, pentru că poate fi alt card.
+- API-ul de fișiere din FW-4 rămâne stdio peste VFS, plus scrierile atomice din `sidecar.c`. Un strat separat n-ar avea încă niciun client.
+- Testul: în simulator, `c:0` și `c:1` mută dosarul cardului, deci fișierele chiar dispar. Scenariul nou `card` scoate cardul cu biblioteca deschisă, încearcă o carte, pune cardul la loc și deschide cartea. Celelalte scenarii sunt neschimbate. În emulator, firmware-ul întreg cu verificarea nouă dă aceleași cadre în toate cele șase scenarii, fără avertismente, deci CMD13 nu raportează greșit un card bun.
+- Ce nu e: nimic pe dispozitiv, niciun card scos de-adevăratelea. Jurnalul de măsurători se oprește la prima scriere eșuată și nu repornește după montare. O carte deschisă în momentul în care se scoate cardul nu e tratată separat, iar simulatorul nu poate arăta ce se întâmplă: pe Linux, fișierul deschis se citește și după ce dosarul e mutat. Pe dispozitiv, citirile ar eșua; ce afișează atunci cititorul e de văzut pe prototip.
+
 ### 2026-11-18: procentul bateriei netezit (FW-8)
 - Ce e: procentul din bara de sus și din Diagnostic vine acum dintr-o medie exponențială a citirilor (ponderea 1/4, o citire pe minut), nu din ultima citire. După un salt de peste 200 mV, cum e la punerea sau scoaterea încărcătorului, media o ia de la capăt. Oprirea sub 3,40 V și jurnalul de măsurători folosesc în continuare citirea brută; evenimentul `battery` are acum și tensiunea afișată.
 - De ce: la mijlocul curbei LiPo, 10 % înseamnă doar 30–40 mV, deci câțiva mV de zgomot fac procentul să sară înainte și înapoi între ecrane.

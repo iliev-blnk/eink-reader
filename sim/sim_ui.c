@@ -27,6 +27,10 @@
 //                scos în siguranță; x face ca următorul usb_start să eșueze
 //                (cardul nu răspunde). Interfața vede schimbarea la următoarea
 //                verificare, ca pe dispozitiv.
+//   c:0 c:1      cardul e scos / pus la loc (FW-4): dosarul CARD e redenumit
+//                CARD.scos și înapoi, deci fișierele chiar dispar. Interfața
+//                află prin card_ready, la intrarea în bibliotecă sau când o
+//                carte nu se deschide.
 // Fiecare apăsare înseamnă o secundă pe ceasul simulat și, cu --idle, lucrul de
 // fundal până la capăt după ea, cum ar fi între pagini pe dispozitiv. După
 // somn, apăsarea următoare trezește dispozitivul (o pornire nouă, UI_BOOT_WAKE)
@@ -51,6 +55,7 @@ typedef struct {
     int battery;
     bool slept, perf;
     bool usb_on, usb_fail;
+    bool no_card;
     ui_usb_t usb;       // starea discului, cum ar vedea-o firmware-ul
     int shown;
     char key[16];       // ce a produs reîmprospătările care urmează
@@ -166,6 +171,8 @@ static ui_usb_t usb_state(void *ctx) { return ((sim_ui_t *)ctx)->usb; }
 
 static void usb_stop(void *ctx) { ((sim_ui_t *)ctx)->usb_on = false; }
 
+static bool card_ready(void *ctx) { return !((sim_ui_t *)ctx)->no_card && !((sim_ui_t *)ctx)->usb_on; }
+
 static void idle_all(ui_t *ui)
 {
     while (ui_idle(ui)) {}
@@ -201,6 +208,7 @@ int cmd_ui(int argc, char **argv)
         .root = s.root, .ctx = &s, .now_ms = now_ms, .show = show, .battery_mv = battery_mv,
         .load_settings = load_settings, .save_settings = save_settings, .sleep = do_sleep, .diag = diag,
         .perf = perf, .usb_start = usb_start, .usb_state = usb_state, .usb_stop = usb_stop,
+        .card_ready = card_ready,
     };
     strcpy(s.key, "start");
     perflog_open(s.root, perf_us());
@@ -234,6 +242,17 @@ int cmd_ui(int argc, char **argv)
                 set_now(&s, s.now + 1000);      // următoarea verificare a interfeței
                 idle_all(ui);
             }
+            continue;
+        }
+        if (!strcmp(tok, "c:0") || !strcmp(tok, "c:1")) {
+            bool out = tok[2] == '0';
+            char away[512];
+            snprintf(away, sizeof away, "%s.scos", s.root);
+            if (out != s.no_card && rename(out ? s.root : away, out ? away : s.root) != 0) {
+                perror(away);
+                return 1;
+            }
+            s.no_card = out;
             continue;
         }
         if (!strncmp(tok, "b:", 2)) {

@@ -463,6 +463,7 @@ void ui_list_reset(ui_list_t *l, const char *title, int count, int sel, bool two
     l->sel = count ? (sel < 0 ? 0 : sel >= count ? count - 1 : sel) : 0;
     l->two_line = two_line;
     l->item = item;
+    l->empty = l->empty_sub = NULL;
     int per = rows_per_page(l);
     l->top = l->sel / per * per;
 }
@@ -494,7 +495,10 @@ void ui_list_draw(ui_t *ui, gfx_t *g, ui_list_t *l)
         if (i != l->sel && i + 1 < l->count && i + 1 < l->top + per && i + 1 != l->sel)
             gfx_hline(g, 12, y + rh - 1, UI_W - 24, GFX_BLACK);
     }
-    if (!l->count) ui_text_center(g, f, LIST_TOP + 40, "(nimic)");
+    if (!l->count) {
+        ui_text_center(g, f, LIST_TOP + 40, l->empty ? l->empty : "(nimic)");
+        if (l->empty_sub) ui_text_center(g, s, LIST_TOP + 40 + f->line_height, l->empty_sub);
+    }
 
     // Jos: unde ești în listă și ce face fiecare buton.
     int hy = UI_H - 6;

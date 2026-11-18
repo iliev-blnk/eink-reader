@@ -61,6 +61,12 @@ esp_err_t sdcard_unmount(void)
     return err;
 }
 
+esp_err_t sdcard_check(void)
+{
+    if (!s_card) return ESP_ERR_INVALID_STATE;
+    return sdmmc_get_status(s_card);
+}
+
 esp_err_t sdcard_open_raw(const sdcard_config_t *cfg, sdmmc_card_t **card)
 {
     if (s_card || s_raw_open) return ESP_ERR_INVALID_STATE;

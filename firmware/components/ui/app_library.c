@@ -108,19 +108,43 @@ static void lib_item(ui_t *ui, int i, char *label, char *value, char *sub)
     if (!b->bad && ui->recent.count && !memcmp(ui->recent.book[0].id, b->id, 8)) strcpy(value, "•");
 }
 
+// Cardul, întrebat din nou (FW-4): un card care lipsea la pornire sau a fost
+// scos între timp se montează aici, fără repornire. Un card care tocmai a
+// revenit poate fi altul, deci se recitește și lista recentă.
+static bool card_ok(ui_t *ui)
+{
+    bool was_missing = ui->card_missing;
+    ui->card_missing = ui->p.card_ready && !ui->p.card_ready(ui->p.ctx);
+    if (ui->card_missing) {
+        ui->lib_scanned = false;
+        ui->lib_count = 0;
+    } else if (was_missing) {
+        recent_load(ui->p.root, &ui->recent);
+    }
+    ui_perf(ui, "card", !ui->card_missing, was_missing);
+    return !ui->card_missing;
+}
+
+static void lib_list(ui_t *ui)
+{
+    ui_list_t *l = ui_my_list(ui);
+    ui_list_reset(l, "Biblioteca", ui->lib_count, 0, true, lib_item);
+    if (ui->card_missing) l->empty = "Niciun card", l->empty_sub = "Pune cardul și intră din nou.";
+    else if (!ui->lib_count) l->empty = "Nicio carte", l->empty_sub = "Copiază fișiere .ibv prin USB.";
+}
+
 static void lib_enter(ui_t *ui)
 {
     // Sortarea ține cont de ce s-a deschis între timp, deci se refac ordinea și titlurile.
-    library_scan(ui);
-    ui_list_reset(ui_my_list(ui), "Biblioteca", ui->lib_count, 0, true, lib_item);
+    if (card_ok(ui)) library_scan(ui);
+    lib_list(ui);
 }
 
 static void lib_resume(ui_t *ui)
 {
-    ui_list_t *l = ui_my_list(ui);
     s_sort_ui = ui;
     qsort(ui->lib, (size_t)ui->lib_count, sizeof *ui->lib, cmp_books);
-    ui_list_reset(l, l->title, ui->lib_count, 0, true, lib_item);    // cartea tocmai citită e acum prima
+    lib_list(ui);       // cartea tocmai citită e acum prima
 }
 
 static void lib_key(ui_t *ui, ui_key_t k, ui_press_t p)
@@ -131,8 +155,17 @@ static void lib_key(ui_t *ui, ui_key_t k, ui_press_t p)
     } else if (k == UI_KEY_PREV && p == UI_LONG) {
         ui_pop(ui);
     } else if (k == UI_KEY_MENU && l->count && !ui->lib[l->sel].bad) {
-        if (reader_open(ui, ui->lib[l->sel].rel)) ui_push(ui, &app_reader);
-        else ui->lib[l->sel].bad = true, ui_redraw(ui, false);
+        if (reader_open(ui, ui->lib[l->sel].rel)) {
+            ui_push(ui, &app_reader);
+        } else if (!card_ok(ui)) {
+            lib_list(ui);       // cardul a fost scos: nu e cartea de vină
+            ui_redraw(ui, false);
+        } else if (reader_open(ui, ui->lib[l->sel].rel)) {
+            ui_push(ui, &app_reader);   // cardul tocmai a fost montat din nou
+        } else {
+            ui->lib[l->sel].bad = true;
+            ui_redraw(ui, false);
+        }
     }
 }
 

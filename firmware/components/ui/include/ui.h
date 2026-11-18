@@ -63,6 +63,11 @@ typedef struct {
     bool (*usb_start)(void *ctx);
     ui_usb_t (*usb_state)(void *ctx);
     void (*usb_stop)(void *ctx);
+    // Cardul e montat și răspunde? Dacă nu (lipsea la pornire sau a fost scos),
+    // platforma încearcă să-l monteze din nou și spune dacă a reușit (FW-4).
+    // Interfața o cheamă la intrarea în bibliotecă și când o carte nu se
+    // deschide. Poate fi NULL: cardul e mereu acolo.
+    bool (*card_ready)(void *ctx);
 } ui_platform_t;
 
 typedef struct ui ui_t;

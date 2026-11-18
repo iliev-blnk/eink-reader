@@ -92,6 +92,12 @@ if [ "$update" = 0 ]; then
     fi
 fi
 
+# Cardul scos și pus la loc (FW-4): biblioteca deschisă, cardul scos, cartea
+# nu se deschide și biblioteca spune „Niciun card” (cartea nu e marcată
+# deteriorată), apoi cardul pus la loc, biblioteca citită din nou și cartea
+# deschisă, fără repornire.
+ui_case card "m c:0 m P c:1 m m"
+
 # Netezirea procentului bateriei (FW-8): media exponențială cu ponderea 1/4,
 # luată de la capăt după un salt de peste 200 mV. Jurnalul de măsurători are
 # citirea și tensiunea afișată; valorile de mai jos sunt calculate de mână.

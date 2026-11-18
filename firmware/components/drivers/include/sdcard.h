@@ -28,6 +28,11 @@ esp_err_t sdcard_mount(const sdcard_config_t *cfg, sdcard_info_t *info);
 
 esp_err_t sdcard_unmount(void);
 
+// Cardul montat răspunde? O comandă SEND_STATUS (CMD13), câteva sute de µs.
+// Un card scos, sau scos și pus la loc (care trebuie pornit din nou), nu
+// răspunde. ESP_ERR_INVALID_STATE dacă nu e montat.
+esp_err_t sdcard_check(void);
+
 // Cardul fără sistem de fișiere, pentru discul USB (FW-12): doar pornit pe SPI,
 // cu aceleași două frecvențe. Cardul trebuie să fie demontat înainte. Până la
 // sdcard_close_raw() nimeni de pe dispozitiv nu-l folosește: îl citește și îl

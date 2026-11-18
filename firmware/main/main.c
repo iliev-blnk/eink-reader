@@ -170,6 +170,23 @@ static void usb_stop(void *ctx)
     mount_sd();
 }
 
+// FW-4: un card montat care nu mai răspunde a fost scos; se demontează (ce
+// era deschis pe el e pierdut oricum) și se încearcă montarea din nou, ca la
+// pornire, cu aceleași două frecvențe.
+static bool card_ready(void *ctx)
+{
+    (void)ctx;
+    if (s_usb) return false;
+    if (s_sd_ok && sdcard_check() == ESP_OK) return true;
+    if (s_sd_ok) {
+        ESP_LOGW(TAG, "cardul nu mai răspunde, se montează din nou");
+        sdcard_unmount();
+        s_sd_ok = false;
+    }
+    mount_sd();
+    return s_sd_ok;
+}
+
 static int diag(void *ctx, char (*lines)[UI_DIAG_LINE], int max)
 {
     (void)ctx;
@@ -285,6 +302,7 @@ void app_main(void)
         .root = MOUNT_POINT, .now_ms = now_ms, .show = show, .battery_mv = battery_mv,
         .load_settings = load_settings, .save_settings = save_settings, .sleep = deep_sleep, .diag = diag,
         .perf = perf, .usb_start = usb_start, .usb_state = usb_state, .usb_stop = usb_stop,
+        .card_ready = card_ready,
     };
     ui_t *ui = ui_init(&platform, &s_gfx);
     ui_start(ui, wake ? UI_BOOT_WAKE : UI_BOOT_COLD);

@@ -35,6 +35,7 @@ typedef struct {
     int count, sel, top;
     bool two_line;
     void (*item)(ui_t *ui, int i, char *label, char *value, char *sub);   // fiecare buffer are 96 de octeți
+    const char *empty, *empty_sub;  // ce scrie pe o listă goală; NULL = „(nimic)”
 } ui_list_t;
 
 #define UI_ITEM 96
@@ -68,6 +69,7 @@ struct ui {
     lib_book_t *lib;
     int lib_count;
     bool lib_scanned;
+    bool card_missing;      // ultima intrare în bibliotecă n-a găsit cardul
     ui_list_t list[UI_STACK];   // starea listei fiecărui nivel din stivă
 };
 

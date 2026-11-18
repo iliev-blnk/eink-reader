@@ -3,7 +3,7 @@
 #
 #   measurements/E6/run.sh
 #
-# Convertește din nou cele 12 cărți distincte din corpus/files în carti/
+# Convertește din nou cele 20 de cărți distincte din corpus/files în carti/
 # (neurmărit), ca toate să vină de la același convertor. Apoi, pentru fiecare
 # algoritm × despărțire × treaptă: `sim breaks` | linii.py și `sim stats`.
 # La treapta implicită, `sim stats` rulează de 5 ori, pentru timp.
@@ -24,9 +24,11 @@ mkdir -p "$date" "$carti"
 cd "$root/corpus/files"
 python3 "$root/tools/converter/convert.py" convert -o "$carti" \
     libru-dubrovsky.txt pg11.epub pg1322.epub pg1342.epub pg14741.epub pg16527-8.txt \
-    pg2701.epub pg35323.epub pg62916.epub pg64597.epub pg65565.epub pg84.epub >/dev/null
+    pg2701.epub pg35323.epub pg62916.epub pg64597.epub pg65565.epub pg84.epub \
+    libru-geroi.fb2.zip pg1524.epub pg4300.epub ws-amintiri.epub ws-ion.epub ws-kapitanskaya.epub \
+    ws-luceafarul.epub ws-moara-cu-noroc.epub >/dev/null
 books=$(ls "$carti"/*.ibv)
-[ "$(echo "$books" | wc -l)" -eq 12 ] || { echo "se așteptau 12 cărți"; exit 1; }
+[ "$(echo "$books" | wc -l)" -eq 20 ] || { echo "se așteptau 20 de cărți"; exit 1; }
 
 {
     echo "data $(date -I)"

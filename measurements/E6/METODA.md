@@ -72,3 +72,24 @@ rulări și mediana.
 fonturile, compilatorul). Fișierele `sim breaks` nu se păstrează: au zeci de MB
 și se refac identic din aceleași intrări (paginarea e deterministă, hash-ul o
 confirmă).
+
+## Metoda v2 (2026-11-18), scrisă înainte de a doua rulare
+
+Corpusul a crescut la 20 de cărți distincte (MEAS-1), deci experimentul se
+rulează din nou, cu aceleași scripturi și aceleași 20 de condiții. Se schimbă
+doar cărțile:
+
+- **Se adaugă 8:** `libru-geroi` (Lermontov, FB2), `pg1524` (*Hamlet*),
+  `pg4300` (*Ulysses*), `ws-amintiri` (Creangă), `ws-ion` (Rebreanu),
+  `ws-kapitanskaya` (Pușkin), `ws-luceafarul` (Eminescu),
+  `ws-moara-cu-noroc` (Slavici). Copiile noi (`libru-dubrovsky.fb2.zip`,
+  `pg64597-cp1250.txt`, `pg64597-iso8859-16.txt`) se exclud, ca și cele vechi.
+- **Proza, stabilită acum:** cele 8 de dinainte plus Lermontov, *Ulysses*,
+  Creangă, Rebreanu, Pușkin și Slavici: 14 cărți (6 în română, 3 în rusă,
+  5 în engleză). În afara prozei: *Hamlet*
+  (teatru, replici scurte, mare parte în versuri) și *Luceafărul* (versuri).
+
+Predicțiile 1–5 rămân neschimbate, cu aceleași praguri, inclusiv predicția 5,
+care n-a trecut la v1. Rularea v2 le verifică pe un corpus aproape de două ori
+mai mare. Rezultatele v1 rămân în istoricul git; rezumatul lor e în
+REZULTATE.md.

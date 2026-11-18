@@ -21,7 +21,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DATE = os.path.join(HERE, "date")
 
 # Subsetul principal, stabilit în METODA.md înainte de rulare.
-PROZA = {"libru-dubrovsky", "pg11", "pg1342", "pg2701", "pg62916", "pg64597", "pg65565", "pg84"}
+PROZA = {"libru-dubrovsky", "pg11", "pg1342", "pg2701", "pg62916", "pg64597", "pg65565", "pg84",
+         # v2 (2026-11-18), tot dinainte de rulare: proza adăugată în MEAS-1
+         "libru-geroi", "pg4300", "ws-amintiri", "ws-ion", "ws-kapitanskaya", "ws-moara-cu-noroc"}
 
 LINE_HYPHEN, LINE_ORNAMENT, LINE_HEADING = 1, 2, 4
 HIST_LO, HIST_HI, HIST_STEP = -0.5, 4.0, 0.05

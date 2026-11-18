@@ -60,3 +60,28 @@ imagini): de aceea comparația principală e cu textul simplu.
 
 **Date.** `date/carti.csv` (carte × variantă), `date/blocuri.csv` (carte ×
 mărimea blocului), `date/timp.csv`, `date/versiune.txt`.
+
+## Metoda v2 (2026-11-18), scrisă înainte de a doua rulare
+
+Corpusul a crescut la 20 de cărți distincte (MEAS-1, `corpus/README.md`), deci
+experimentul se rulează din nou, cu aceleași scripturi. Se schimbă doar:
+
+- **Cărțile.** Se adaugă 8: `libru-geroi.fb2.zip` (Lermontov, primul FB2),
+  `pg1524` (*Hamlet*), `pg4300` (*Ulysses*), `ws-amintiri`, `ws-ion`,
+  `ws-kapitanskaya`, `ws-luceafarul`, `ws-moara-cu-noroc`. Se exclud și
+  copiile noi (`libru-dubrovsky.fb2.zip`, `pg64597-cp1250.txt`,
+  `pg64597-iso8859-16.txt`).
+- **Proza** e cea din E6 v2: cele 8 de dinainte, plus Lermontov, *Ulysses*,
+  Creangă, Rebreanu, Pușkin și Slavici (Wikisource): 14 cărți. În afara
+  prozei: *Hamlet* (teatru, mai ales versuri) și *Luceafărul* (versuri).
+- **Predicția 3** se scalează: deschiderea în 4 KB la cel puțin 3/4 din cărți
+  (pragul vechi, 9 din 12, era tot 3/4). Celelalte praguri rămân neschimbate,
+  inclusiv cele două care n-au trecut la v1 (2 și 4): v2 le verifică pe un
+  corpus mai mare, nu le mută.
+
+Predicțiile sunt făcute știind tabelul de conversie din `corpus/README.md`
+(numărul de intrări din cuprins, mărimile fișierelor), dar nu octeții
+secțiunilor și nici rezultatele pe variante.
+
+Rezultatele v1 (12 cărți, rulate la commitul `0f30481` pe 2026-11-17) rămân
+în istoricul git; rezumatul lor e în REZULTATE.md.

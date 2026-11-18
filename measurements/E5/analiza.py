@@ -109,8 +109,8 @@ def main():
     w(f"| 1 | TEXT comprimat ≤ 50 % din brut, la fiecare carte în proză | cel mai mare raport {pc(worst_ratio)} | {verdict(ratio_ok)} |")
     w(f"| 2 | cratimele moi adaugă ≤ 10 % la fișier | între {pc(min(hy_cost.values()), 1)} și {pc(max(hy_cost.values()), 1)} | "
       f"{verdict(max(hy_cost.values()) <= 0.10)} |")
-    w(f"| 3 | deschiderea încape în 4 KB la ≥ 9 din 12 cărți | {len(fit)} din {len(books)}; nu încap: {', '.join(nofit) or 'niciuna'} | "
-      f"{verdict(len(fit) >= 9)} |")
+    w(f"| 3 | deschiderea încape în 4 KB la ≥ 3/4 din cărți | {len(fit)} din {len(books)}; nu încap: {', '.join(nofit) or 'niciuna'} | "
+      f"{verdict(4 * len(fit) >= 3 * len(books))} |")
     w(f"| 4 | 32 KB câștigă < 5 %, 4 KB costă > 15 % (proză) | 32 KB: {sp(gain32)}, 4 KB: {sp(cost4)} | "
       f"{verdict(-gain32 < 0.05 and cost4 > 0.15)} |")
     w(f"| 5 | conversia < 5 s pe carte | cea mai lentă {slowest}, {svgplot.num(t_max)} s | {verdict(t_max < 5)} |")

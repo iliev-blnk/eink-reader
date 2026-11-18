@@ -3,7 +3,7 @@
 
     python3 measurements/E5/run.py
 
-Citește cele 12 cărți distincte din corpus/files și le convertește în memorie
+Citește cele 20 de cărți distincte din corpus/files și le convertește în memorie
 cu fiecare variantă. Scrie date/carti.csv, date/blocuri.csv, date/timp.csv și
 date/versiune.txt. Nu păstrează fișierele .ibv.
 """
@@ -25,7 +25,10 @@ import ibv      # noqa: E402
 
 FILES = ROOT / "corpus" / "files"
 BOOKS = ["libru-dubrovsky.txt", "pg11.epub", "pg1322.epub", "pg1342.epub", "pg14741.epub", "pg16527-8.txt",
-         "pg2701.epub", "pg35323.epub", "pg62916.epub", "pg64597.epub", "pg65565.epub", "pg84.epub"]
+         "pg2701.epub", "pg35323.epub", "pg62916.epub", "pg64597.epub", "pg65565.epub", "pg84.epub",
+         # v2 (2026-11-18): cărțile adăugate în MEAS-1
+         "libru-geroi.fb2.zip", "pg1524.epub", "pg4300.epub", "ws-amintiri.epub", "ws-ion.epub",
+         "ws-kapitanskaya.epub", "ws-luceafarul.epub", "ws-moara-cu-noroc.epub"]
 VARIANTS = {                     # numele -> argumentele lui convert.convert
     "implicit": {},
     "stocat": {"compress": False},

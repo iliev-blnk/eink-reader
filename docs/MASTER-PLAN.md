@@ -155,7 +155,7 @@ Limbajul și stiva (decizia mea): **C pe ESP-IDF** (ultima versiune stabilă), c
   - fiecare schimbare de stare marcată în timp, pentru măsurători
 
   *v0 2026-10-27: somn adânc după inactivitate (setarea „Somn după”) și la MENIU lung, coperta pe ecran, trezirea redeschide cartea; ecranul de baterie descărcată sub 3,40 V; linii PERF la apăsare, paginare, reîmprospătare și somn. Încă fără somn ușor.*
-- [~] FW-8 Bateria: calibrarea ADC (curba din eFuse), corecția divizorului, o curbă tensiune→% pentru LiPo, netezire. *v0: calibrarea și corecția divizorului. 2026-10-27: procentul dintr-o curbă LiPo pe 11 puncte (`ui_battery_pct`). Încă fără netezire.*
+- [~] FW-8 Bateria: calibrarea ADC (curba din eFuse), corecția divizorului, o curbă tensiune→% pentru LiPo, netezire. *v0: calibrarea și corecția divizorului. 2026-10-27: procentul dintr-o curbă LiPo pe 11 puncte (`ui_battery_pct`). 2026-11-18: netezirea, o medie exponențială cu ponderea 1/4 pentru procentul afișat, luată de la capăt după un salt de peste 200 mV; oprirea la baterie descărcată rămâne pe citirea brută (testul `baterie` din simulator). Încă neîncercat pe hardware: curba și pragul de salt sunt de verificat cu E4.*
 - [~] FW-9 Setările în NVS: mărimea fontului, spațierea rândurilor, marginile, intervalul N de reîmprospătare completă, timpul până la somn, despărțirea în silabe pornită/oprită. *v0 2026-10-27: toate, plus alinierea; blob în NVS, aplicația Setări, paginarea refăcută la aceeași poziție.*
 - [~] FW-10 Aplicațiile:
   - ecranul de pornire

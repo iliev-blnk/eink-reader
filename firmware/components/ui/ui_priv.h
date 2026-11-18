@@ -56,7 +56,8 @@ struct ui {
     int depth;
     uint32_t last_key_ms;
     uint32_t last_battery_ms;
-    int battery_mv;
+    int battery_mv;         // ultima citire: pentru oprirea la baterie descărcată și diagnostic
+    int battery_avg16;      // media netezită × 16, pentru procentul afișat; 0 = încă nicio citire
     // Întoarcerea automată a paginilor (FW-13, pentru E1, E2, E4): perioada în
     // ms, 0 = oprită, și când vine următoarea. Nu se păstrează peste somn.
     uint32_t auto_ms, auto_at;

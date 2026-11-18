@@ -1,0 +1,5 @@
+001  start  completă
+002  start  parțială  0,0 240x413
+003  t:60   completă
+     t:60   somn
+004  n      completă

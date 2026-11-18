@@ -23,6 +23,12 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 
 ## Jurnal
 
+### 2026-11-18: procentul bateriei netezit (FW-8)
+- Ce e: procentul din bara de sus și din Diagnostic vine acum dintr-o medie exponențială a citirilor (ponderea 1/4, o citire pe minut), nu din ultima citire. După un salt de peste 200 mV, cum e la punerea sau scoaterea încărcătorului, media o ia de la capăt. Oprirea sub 3,40 V și jurnalul de măsurători folosesc în continuare citirea brută; evenimentul `battery` are acum și tensiunea afișată.
+- De ce: la mijlocul curbei LiPo, 10 % înseamnă doar 30–40 mV, deci câțiva mV de zgomot fac procentul să sară înainte și înapoi între ecrane.
+- Testul: cazul `baterie` din `sim/test/run.sh` dă cinci citiri (3880, 3860, 3870, 3500, 3480 mV) și verifică tensiunile afișate față de valorile calculate de mână (3895, 3886, 3882, 3500, 3495). Celelalte cazuri sunt neschimbate, inclusiv oprirea din `auto`.
+- Ce nu e: nimic pe dispozitiv. Ponderea și pragul de 200 mV nu sunt măsurate; E4 o să arate cât zgomot are de fapt citirea, de la ADC sau de la MAX17048.
+
 ### 2026-11-18: indexurile `.pg` vechi se șterg (FW-11)
 - Ce e: fiecare combinație de setări lăsa pe card un index `.pg` pentru fiecare carte, și nu se ștergea niciunul. Acum `/.ibv/layouts` ține ultimele 6 paginări folosite (două familii de fonturi × trei combinații de setări). Când intră una nouă și alta iese din listă, se șterg indexurile tuturor paginărilor care nu mai sunt în listă, de la orice carte, plus `.pg.tmp` rămase de la scrieri întrerupte. Ștergerea adună numele câte 16, cu dosarul închis. Lista se scrie doar când se schimbă paginarea, nu la fiecare carte deschisă cu aceleași setări.
 - De ce: `spec/book-format.md` promitea asta din octombrie („încă neimplementat”). Fără ea, cardul se umple încet cu fișiere pe care nu le mai citește nimeni, iar dosarul `/.ibv/` devine tot mai lent de parcurs pe FAT.

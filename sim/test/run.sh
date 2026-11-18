@@ -92,6 +92,19 @@ if [ "$update" = 0 ]; then
     fi
 fi
 
+# Netezirea procentului bateriei (FW-8): media exponențială cu ponderea 1/4,
+# luată de la capăt după un salt de peste 200 mV. Jurnalul de măsurători are
+# citirea și tensiunea afișată; valorile de mai jos sunt calculate de mână.
+ui_case baterie "b:3880 t:60 b:3860 t:60 b:3870 t:60 b:3500 t:60 b:3480 t:60 n"
+if [ "$update" = 0 ]; then
+    got=$(grep -h ',battery,' "$out/baterie-card"/perf/*.csv | cut -d, -f3,4 | tr '\n' ' ')
+    if [ "$got" = "3880,3895 3860,3886 3870,3882 3500,3500 3480,3495 " ]; then
+        echo "ok    baterie: media netezită ca la calcul"
+    else
+        echo "EȘUAT baterie: $got"; fail=1
+    fi
+fi
+
 # Indexurile paginărilor vechi (FW-11, spec/book-format.md, secțiunea 6): de
 # două ori spațierea, de două ori marginile, de două ori spațierea, din meniul
 # Setări. Cu paginarea de la deschidere sunt 7, una peste LAYOUTS_MAX = 6:

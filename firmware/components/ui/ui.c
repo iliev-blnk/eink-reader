@@ -11,6 +11,7 @@
 #define BATTERY_EVERY_MS 60000u
 #define LOW_MV 3400             // sub atât (sub sarcină) se oprește, ca LiPo să nu se descarce adânc
 #define NO_BATTERY_MV 2500      // sub atât nu e baterie (alimentat pe USB): nu se oprește
+#define BATTERY_JUMP_MV 200     // o diferență mai mare (încărcător pus sau scos) nu se netezește
 #define UI_VERSION "0.1"
 
 static ui_t s_ui;
@@ -139,6 +140,24 @@ static void save_settings(ui_t *ui)
     ui->settings_dirty = false;
 }
 
+// O citire a bateriei (FW-8). Oprirea la baterie descărcată folosește citirea
+// așa cum e; procentul din bara de sus vine dintr-o medie exponențială cu
+// ponderea 1/4, ca să nu sară înainte și înapoi între două citiri (ADC-ul are
+// zgomot de câțiva mV, iar curba LiPo e plată la mijloc: 10 % înseamnă 30–40 mV).
+// După un salt mare media o ia de la capăt: altfel, cu o citire pe minut, ar
+// rămâne câteva minute în urma încărcătorului pus sau scos.
+static void battery_sample(ui_t *ui)
+{
+    int mv = ui->p.battery_mv ? ui->p.battery_mv(ui->p.ctx) : -1;
+    ui->battery_mv = mv;
+    if (mv <= NO_BATTERY_MV) ui->battery_avg16 = 0;
+    else if (!ui->battery_avg16 || abs(mv * 16 - ui->battery_avg16) > BATTERY_JUMP_MV * 16) ui->battery_avg16 = mv * 16;
+    else ui->battery_avg16 += (mv * 16 - ui->battery_avg16) / 4;
+}
+
+// Tensiunea afișată (netezită), sau -1 fără baterie.
+static int battery_shown_mv(const ui_t *ui) { return ui->battery_avg16 ? (ui->battery_avg16 + 8) / 16 : -1; }
+
 ui_t *ui_init(const ui_platform_t *p, gfx_t *g)
 {
     ui_t *ui = &s_ui;
@@ -148,7 +167,7 @@ ui_t *ui_init(const ui_platform_t *p, gfx_t *g)
     ui->g = g;
     load_settings(ui);
     recent_load(p->root, &ui->recent);
-    ui->battery_mv = p->battery_mv ? p->battery_mv(p->ctx) : -1;
+    battery_sample(ui);
     ui->last_key_ms = ui->last_battery_ms = ui_now(ui);
     return ui;
 }
@@ -307,8 +326,9 @@ bool ui_idle(ui_t *ui)
     uint32_t now = ui_now(ui);
     if (now - ui->last_battery_ms >= BATTERY_EVERY_MS && ui->p.battery_mv) {
         ui->last_battery_ms = now;
-        ui->battery_mv = ui->p.battery_mv(ui->p.ctx);
-        ui_perf(ui, "battery", (uint32_t)(ui->battery_mv > 0 ? ui->battery_mv : 0), 0);
+        battery_sample(ui);
+        int shown = battery_shown_mv(ui);
+        ui_perf(ui, "battery", (uint32_t)(ui->battery_mv > 0 ? ui->battery_mv : 0), (uint32_t)(shown > 0 ? shown : 0));
         if (battery_low(ui)) {
             sleep_now(ui, low_battery);    // cu întoarcerea automată: capătul lui E4
             return false;
@@ -416,9 +436,9 @@ void ui_header(ui_t *ui, gfx_t *g, const char *title)
     gfx_fill_rect(g, 0, 0, UI_W, HEADER_H, GFX_BLACK);
     int y = (HEADER_H - f->line_height) / 2 + f->ascent;
     int right = UI_W - 8;
-    if (ui->battery_mv > NO_BATTERY_MV) {
+    if (battery_shown_mv(ui) > NO_BATTERY_MV) {
         char pct[8];
-        snprintf(pct, sizeof pct, "%d%%", ui_battery_pct(ui->battery_mv));
+        snprintf(pct, sizeof pct, "%d%%", ui_battery_pct(battery_shown_mv(ui)));
         right -= gfx_text_width(&font_ui12, pct);
         gfx_text(g, &font_ui12, right, y, pct, GFX_WHITE);
         right -= 8;
@@ -600,7 +620,7 @@ static void diag_draw(ui_t *ui, gfx_t *g)
     snprintf(lines[n++], UI_DIAG_LINE, "Interfața %s, LAYOUT %d", UI_VERSION, LAYOUT_VERSION);
     if (ui->battery_mv > NO_BATTERY_MV)
         snprintf(lines[n++], UI_DIAG_LINE, "Baterie: %d,%02d V, %d%%", ui->battery_mv / 1000,
-                 ui->battery_mv % 1000 / 10, ui_battery_pct(ui->battery_mv));
+                 ui->battery_mv % 1000 / 10, ui_battery_pct(battery_shown_mv(ui)));   // V citit, % netezit ca sus
     else
         snprintf(lines[n++], UI_DIAG_LINE, "Baterie: lipsă (USB)");
     if (ui->p.diag) n += ui->p.diag(ui->p.ctx, lines + n, 24 - n - 6);
@@ -621,7 +641,7 @@ static void diag_key(ui_t *ui, ui_key_t k, ui_press_t p)
 {
     (void)p;
     if (k == UI_KEY_NEXT) {
-        if (ui->p.battery_mv) ui->battery_mv = ui->p.battery_mv(ui->p.ctx);
+        if (ui->p.battery_mv) battery_sample(ui);
         ui_redraw(ui, false);
     } else {
         ui_pop(ui);

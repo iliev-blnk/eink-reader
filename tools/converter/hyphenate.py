@@ -113,6 +113,8 @@ def _read_list(path: pathlib.Path) -> list[str]:
 # Cuvintele despărțite: șiruri de litere. Un cuvânt cu o majusculă după prima
 # literă (NATO, McDonald, iPhone) e un acronim sau un nume și rămâne neatins.
 WORD = re.compile(r"[^\W\d_]+")
+# Adresele web și de e-mail nu se despart: o cratimă în mijlocul lor ar schimba adresa.
+URL = re.compile(r"(?:\b[a-z][a-z0-9+.-]*://|\bwww\.)[^\s<>\"]+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+", re.I)
 
 
 def should_hyphenate(word: str) -> bool:

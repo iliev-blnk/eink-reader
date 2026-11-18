@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 import glyphs
 import ibv
 import textnorm
-from hyphenate import WORD, Hyphenator, should_hyphenate
+from hyphenate import URL, WORD, Hyphenator, should_hyphenate
 from textnorm import SHY, Styled
 
 CONVERTER = "ibv-convert 0.1"
@@ -286,9 +286,10 @@ def _resolve_toc(b: Builder, new_index, first_record, keep, lang, ro_legacy, rep
 def _hyphenate(st: Styled, hy: Hyphenator) -> tuple[Styled, int]:
     text, styles = st.text, st.styles
     out, sty, pos, n = [], [], 0, 0
+    urls = [u.span() for u in URL.finditer(text)]
     for m in WORD.finditer(text):
         word = m.group(0)
-        if not should_hyphenate(word):
+        if not should_hyphenate(word) or any(a <= m.start() < e for a, e in urls):
             continue
         pts = hy.points(word)
         if not pts:

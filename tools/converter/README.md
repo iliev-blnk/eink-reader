@@ -19,7 +19,7 @@ Fiecare carte e recitită și validată înainte de a fi scrisă. Raportul arat�
 |---|---|---|
 | `convert.py` | | linia de comandă |
 | `txt.py` | CONV-1 | TXT: detectarea codificării, antete Gutenberg/lib.ru, modul paragrafelor, titluri, separatoare, versuri, cuprinsuri tipărite |
-| `epub.py` | CONV-2 | EPUB 2/3: OPF, spine, cuprins nav/NCX, XHTML → înregistrări, bold/italic din CSS, copertă |
+| `epub.py` | CONV-2 | EPUB 2/3: OPF, spine, cuprins nav/NCX (completat cu titlurile din fișier când e prea sumar), XHTML → înregistrări, bold/italic din CSS, copertă, fără paginile adăugate de Gutenberg și ws-export |
 | `fb2.py` | CONV-9 | FB2 și `.fb2.zip` |
 | `doc.py` | | `Builder`-ul comun pe care îl umplu cititoarele și `finish()` (mai jos) |
 | `textnorm.py` | CONV-3 | NFC, ş/ţ românești → ș/ț (și tastarea veche ã/º/þ), ghilimele după limbă, linii de dialog, puncte de suspensie, spații |
@@ -36,7 +36,7 @@ Un cititor parsează intrarea într-un `doc.Builder`: text cu stiluri, capete de
 1. Curățarea textului: normalizare, înlocuirea glifelor lipsă, ordonarea rupturilor de rând.
 2. Un paragraf legat cu `<br>` ale cărui rânduri sunt toate scurte (≤ 80 de caractere, în medie ≤ 55) e o strofă, deci devine rânduri VERSE cu BREAK între strofe.
 3. Structura: se scot paragrafele goale, se unesc separatoarele repetate, se scot separatoarele de la margini și de lângă titluri, fără alineat după un titlu sau separator.
-4. Despărțirea în silabe: cratime moi doar în PARA și QUOTE. Versurile și titlurile nu se despart.
+4. Despărțirea în silabe: cratime moi doar în PARA și QUOTE. Versurile, titlurile și adresele web sau de e-mail nu se despart.
 5. Paragrafele de peste 8 KB se împart în înregistrări CONT. Stilurile devin intervale de octeți, iar țintele cuprinsului devin numere de paragraf.
 
 Apoi `ibv.write()` și `ibv.validate()`.

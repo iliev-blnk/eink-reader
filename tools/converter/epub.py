@@ -22,6 +22,7 @@ titluri. Fiecare id de element e o ancoră, deci legăturile din cuprins spre
 """
 from __future__ import annotations
 
+import collections
 import html.parser
 import io
 import posixpath
@@ -47,6 +48,9 @@ VERSE_HINT = re.compile(r"\b(poem|poetry|verse|stanza|lg|linegroup|line-group|so
 NOTE_HINT = re.compile(r"\b(noteref|footnote|endnote|rearnote|endnotes|footnotes|rearnotes|"
                        r"doc-noteref|doc-footnote|doc-endnotes|annoref)\b", re.I)
 BOILERPLATE_HINT = re.compile(r"\bpg-boilerplate\b")    # Antetul și licența Project Gutenberg
+ROLE_PREFIX = re.compile(r"^(?:автор|author|autor)\s+", re.I)   # „автор Пушкин” în dc:creator (ru.wikisource)
+# Pagina „Despre această ediție” adăugată de ws-export (Wikisource): licența și lista contribuitorilor
+WS_ABOUT = re.compile(r"<title>\s*MediaWiki:Wsexport_about\s*</title>", re.I)
 EPIGRAPH_HINT = re.compile(r"\b(epigraph|z3998:epigraph|doc-epigraph|motto)\b", re.I)
 
 
@@ -104,7 +108,9 @@ class Epub:
                 if _local(e.tag) == name and (e.text or "").strip():
                     return e.text.strip()
             return ""
-        creators = [e.text.strip() for e in md.iter() if _local(e.tag) == "creator" and (e.text or "").strip()]
+        # ru.wikisource scrie rolul înaintea numelui („автор Александр Сергеевич Пушкин”)
+        creators = [ROLE_PREFIX.sub("", e.text.strip()) for e in md.iter()
+                    if _local(e.tag) == "creator" and (e.text or "").strip()]
         meta = {"title": first("title"), "author": ", ".join(dict.fromkeys(creators)),
                 "language": first("language"), "description": _strip_tags(first("description"))}
         date = first("date")
@@ -443,6 +449,27 @@ class _DocParser(html.parser.HTMLParser):
         self.flush()
 
 
+def _inner_headings(b: Builder, first: int, end: int, depth: int) -> None:
+    """Cuprins prea sumar (ws-export pune o singură intrare pentru tot fișierul): titlurile din
+    fișier devin subintrări. Titlul de la ținta intrării e chiar intrarea. Nu intră titlurile
+    fără litere sau cifre („----”) și nici cele după care nu urmează text până la titlul
+    următor (rândurile unei pagini de titlu: autor, an, editură)."""
+    def has_text_after(i):
+        for k in range(i + 1, end):
+            if b.items[k].kind == ibv.HEADING:
+                return False
+            if b.items[k].kind != ibv.BREAK:
+                return True
+        return False
+    heads = [i for i in range(first + 1, end)
+             if b.items[i].kind == ibv.HEADING and any(ch.isalnum() for ch in b.items[i].st.text)
+             and has_text_after(i)]
+    if len(heads) < 2:
+        return
+    for i in heads:
+        b.toc_entry(i, min(depth + 1, 4), b.items[i].st.text)
+
+
 def parse(data: bytes, name: str = "") -> tuple[Builder, dict[str, str], dict]:
     ep = Epub(data)
     meta = ep.metadata()
@@ -451,15 +478,27 @@ def parse(data: bytes, name: str = "") -> tuple[Builder, dict[str, str], dict]:
     meta["source"] = name
     css = ep.css_rules()
     b = Builder()
+    dropped, ranges = set(), {}
     for path in ep.spine:
         if not ep.exists(path):
             continue
+        src = _decode(ep.read(path))
+        if WS_ABOUT.search(src[:4096]):
+            dropped.add(path)
+            continue
+        start = len(b.items)
         p = _DocParser(b, path, css)
-        p.feed(_decode(ep.read(path)))
+        p.feed(src)
         p.close()
         # un document nou din spine începe o secțiune nouă: textul nu trece niciodată peste el
         b.end()
-    for path, frag, depth, label in ep.toc():
-        b.toc_entry((path, frag) if frag and (path, frag) in b.anchors else (path, ""), depth, label)
+        ranges[path] = (start, len(b.items))
+    toc = [e for e in ep.toc() if e[0] not in dropped]
+    per_doc = collections.Counter(path for path, *_ in toc)
+    for path, frag, depth, label in toc:
+        target = (path, frag) if frag and (path, frag) in b.anchors else (path, "")
+        b.toc_entry(target, depth, label)
+        if per_doc[path] == 1 and path in ranges:
+            _inner_headings(b, b.anchors.get(target, ranges[path][0]), ranges[path][1], depth)
     info = {"spine": len(ep.spine), "toc": "nav/ncx" if b.toc else "headings", "css_classes": len(css)}
     return b, meta, {**info, "cover_bytes": ep.cover_bytes()}

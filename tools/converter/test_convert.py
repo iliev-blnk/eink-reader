@@ -124,6 +124,18 @@ class TestHyphenate(unittest.TestCase):
         self.assertIsNone(Hyphenator.for_language("xx"))
         self.assertIsNotNone(Hyphenator.for_language("ro-MD"))
 
+    def test_urls_and_emails_are_not_hyphenated(self):
+        b = doc.Builder()
+        b.text("Textul vine de la http://ro.wikisource.org/wiki/Scriptoriu și "
+               "www.creativecommons.org; scrieți la biblioteca@exemplu.org despre copilărie.")
+        b.end()
+        book, _ = build(b)
+        text = book.records[0].text
+        for chunk in ("http://ro.wikisource.org/wiki/Scriptoriu", "www.creativecommons.org",
+                      "biblioteca@exemplu.org"):
+            self.assertIn(chunk, text)
+        self.assertIn("co" + SHY + "pi", text)                 # restul textului se desparte în continuare
+
 
 # ---------------------------------------------------------------- codificări + TXT
 
@@ -371,6 +383,45 @@ class TestEpub(unittest.TestCase):
     def test_cover(self):
         cov = cover.load(self.info["cover_bytes"])        # 300 x 500 scalat cu 0,8
         self.assertEqual((cov.width, cov.height), (240, 400))
+
+    def test_coarse_toc_gets_the_headings_inside_the_document(self):
+        # ws-export: cuprinsul are o singură intrare pentru tot romanul, capitolele sunt <h2> în același fișier
+        body = "".join(f"<h2>Capitolul {n}</h2><p>Text {n}.</p>" for n in ("I", "II", "III")) + "<h2>----</h2><p>x</p>"
+        ch = XHTML.format("<h1>Moara cu noroc</h1><h2>Ioan Slavici</h2><h3>1881</h3>" + body)  # pagina de titlu nu intră
+        nav = NAV.replace('<li><a href="ch1.xhtml">Partea I</a><ol><li><a href="ch2.xhtml#cap2">Capitolul II</a></li></ol></li>',
+                          '<li><a href="ch1.xhtml">Moara cu noroc</a></li>')
+        manifest = ('<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>'
+                    '<item id="c1" href="ch1.xhtml" media-type="application/xhtml+xml"/>')
+        data = make_epub({"nav.xhtml": nav, "ch1.xhtml": ch}, spine='<itemref idref="c1"/>', manifest=manifest)
+        b, _, _ = epub.parse(data, "ws.epub")
+        book, _ = build(b)
+        self.assertEqual([(t.level, t.title) for t in book.toc],
+                         [(1, "Moara cu noroc"), (2, "Capitolul I"), (2, "Capitolul II"), (2, "Capitolul III")])
+
+    def test_detailed_toc_is_left_alone(self):
+        self.assertEqual(len(self.book.toc), 2)          # sample_epub: cuprinsul are deja ambele titluri
+
+    def test_creator_role_prefix_is_dropped(self):
+        manifest = '<item id="c1" href="ch1.xhtml" media-type="application/xhtml+xml"/>'
+        data = make_epub({"ch1.xhtml": CH1}, '<dc:creator>автор Александр Сергеевич Пушкин</dc:creator>',
+                         '<itemref idref="c1"/>', manifest)
+        self.assertEqual(epub.Epub(data).metadata()["author"], "Ion Creangă, Александр Сергеевич Пушкин")
+
+    def test_wikisource_about_page_is_dropped(self):
+        about = XHTML.replace("<title>x</title>", "<title>MediaWiki:Wsexport_about</title>").format(
+            "<h1>Despre această ediție electronică</h1><p>Licență și contribuitori: Utilizator1, Utilizator2.</p>")
+        nav = NAV.replace('<ol><li><a href="ch2.xhtml#cap2">Capitolul II</a></li></ol>', "").replace(
+            "</ol>", '<li><a href="about.xhtml">Despre</a></li></ol>')
+        manifest = ('<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>'
+                    '<item id="c1" href="ch1.xhtml" media-type="application/xhtml+xml"/>'
+                    '<item id="about" href="about.xhtml" media-type="application/xhtml+xml"/>')
+        data = make_epub({"nav.xhtml": nav, "ch1.xhtml": CH1, "about.xhtml": about},
+                         spine='<itemref idref="c1"/><itemref idref="about"/>', manifest=manifest)
+        b, _, _ = epub.parse(data, "ws.epub")
+        book, rep = doc.finish(b, {"title": "T", "language": "ro"})
+        self.assertNotIn("Utilizator1", " ".join(texts(book)))
+        self.assertNotIn("Despre", [t.title for t in book.toc])
+        self.assertEqual(rep.warnings, [])
 
     def test_no_nav_falls_back_to_headings(self):
         manifest = '<item id="c1" href="ch1.xhtml" media-type="application/xhtml+xml"/>'

@@ -23,6 +23,12 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 
 ## Jurnal
 
+### 2026-11-18: PCB-4 încheiată, amprentele comparate
+- Ce e: amprentele circuitelor fără picioare și a protecției USB, comparate cu desenele producătorilor. U2 (BQ24074): foaia BQ2407x îl dă în capsula RGT0016B, dar desenează doar varianta C; desenul B (EP 1,6 ± 0,05, aceeași amprentă recomandată cu EP 1,6) e luat din foaia altui circuit TI în aceeași capsulă. Amprenta KiCad are EP 1,6 și pastile 0,25, ca TI; pastilele sunt mai lungi. U3 (TPS63900, DSK0010A): EP 1,2 × 2 și pastile 0,25, ca TI. U6 (MAX17048, T822+3): amprenta KiCad urmează capsula (EP 0,8 × 1,2, pastile 0,25), nu amprenta IPC a lui Maxim (EP 0,8 × 1,38, pastile 0,3); diferența e în sensul sigur (mai mult spațiu între pastile) și se păstrează. U1 (USBLC6-2SC6): pinii și amprenta SOT23-6L din foaia ST se potrivesc.
+- De ce: erau ultimele semne de întrebare din `hardware/pcb/REVIEW.md`; o amprentă greșită la o capsulă fără picioare nu se repară cu letconul.
+- Rezultatul: nicio schimbare pe placă. PCB-4 bifat în plan; decuparea sub antenă rămâne la ENC-3.
+- Ce nu e: nimic nu e lipit sau măsurat; placa nu e comandată. Urmează PCB-5: codurile LCSC (inclusiv 470 kΩ și varianta de capsulă a lui BQ24074 din stocul JLCPCB) și rotațiile din `cpl.csv`.
+
 ### 2026-11-18: PCB-4, punctele 3–6 hotărâte
 - Ce e: divizorul VBUS e acum R17/R18 de 470 kΩ, cu C17 de 100 nF pe VBUS_SENSE; cât ESP-ul e oprit și cablul e pus, prin pinul IO2 curg ~9 µA în loc de ~40 µA. Raportul rămâne 1/2, deci firmware-ul nu se schimbă. TP7 și TP8 pe 3V3_SD și 3V3_EPD, în rândul celorlalte puncte de test. WiFi-ul (punctul 4) rămâne în firmware: 13 dBm cel mult, doar cu panoul și cardul inactive. Decuparea sub antenă (punctul 3) e amânată până la măsurătoarea de semnal din carcasă (ENC-3).
 - Trasorul: un drum nu mai poate pune două viauri mai aproape decât distanța minimă dintre găuri (0,5 mm între margini). Înainte, câte două viauri ale aceleiași rețele puteau ieși aproape suprapuse; DRC-ul le arăta ca avertismente `hole_to_hole`.

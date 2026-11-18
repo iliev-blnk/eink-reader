@@ -11,7 +11,7 @@ Revizia schemei și a plăcii, pe lista din `docs/MASTER-PLAN.md`:
 
 Fiecare legătură e comparată cu foaia de catalog a piesei. Unde regula se poate scrie în cod, a intrat în `verifica.py`, care rulează acum în `make.sh` după DRC.
 
-**Starea: prima trecere, de citit împreună.** Nimic nu e măsurat pe o placă reală. Concluziile sunt din foi de catalog și din fișierele KiCad. Ce rămâne de hotărât e la „De hotărât la citire”.
+**Starea: încheiată (2026-11-18).** Cele șase puncte de la „De hotărât la citire” au fiecare o decizie, iar amprentele U1, U2, U3 și U6 sunt comparate cu desenele producătorilor; placa nu s-a schimbat în urma comparației. Decuparea sub antenă rămâne pentru ENC-3. Nimic nu e măsurat pe o placă reală. Concluziile sunt din foi de catalog și din fișierele KiCad.
 
 Semnele din tabele:
 
@@ -31,7 +31,7 @@ Semnele din tabele:
 | TPS63900 | foaia TI, tabelele 7-2/7-3 (configurarea), 6.3 (condiții recomandate) și 8-2 (bobine) |
 | TPS22917 | foaia TI, descrierea pinilor și 9.3 |
 | MAX17048 | foaia Maxim, descrierea pinilor și modurile de somn |
-| USBLC6-2SC6 | simbolul KiCad. Foaia ST nu s-a putut descărca: **de comparat la citire.** |
+| USBLC6-2SC6 | foaia ST DS4260 rev. 7: pinii (pagina 1), capsula și amprenta recomandată SOT23-6L (tabelul 3, figura 19) |
 | microSD Molex 104031 | ordinea standard a pinilor microSD |
 
 `python3 verifica.py --pini` scoate tabelul complet pin → rețea pentru toate circuitele, cu numele pinilor din simboluri.
@@ -159,10 +159,10 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
 
 | | Piesa | Amprenta | Observații |
 |---|---|---|---|
-| ✔ | U1, U4, U5 | SOT-23-6 | capsulele DBV și SC6 sunt SOT-23-6 |
-| ? | U2 | VQFN-16 3×3, EP 1,6 mm | TI RGT0016C. De comparat la citire cu desenul „land pattern” din foaie (pastila centrală în desenul TI e ~1,68 mm) |
-| ? | U3 | WSON-10 2,5×2,5, EP 1,2×2 | TI DSK0010A; numele se potrivește, de comparat cu desenul din foaie |
-| ? | U6 | TDFN-8 2×2, EP 0,8×1,2 | Maxim T822+3, desenul 90-0065 e pe site-ul Maxim, nu în foaie: de descărcat și comparat |
+| ✔ | U1, U4, U5 | SOT-23-6 | capsulele DBV și SC6 sunt SOT-23-6. U1 față de figura 19 din foaia ST: pastile 1,325 × 0,6 la ±1,1375 (ST: 1,2 × 0,6 la ±1,15), pas 0,95; pinii 1/6 I/O1 (D+), 3/4 I/O2 (D−), 2 GND, 5 VBUS, ca în `circuit.py` |
+| ✔ | U2 | VQFN-16 3×3, EP 1,6 mm | BQ24074 vine în capsula **RGT0016B** (figura 7-2 din foaie), nu RGT0016C cum scria prima trecere; foaia BQ2407x desenează doar varianta C. Desenul B (4219033/A, luat din foaia TUSB1106): EP 1,6 ± 0,05, amprenta TI cu EP 1,6, 16 pastile 0,6 × 0,25, distanța între rânduri 2,8, viauri de 0,2 la 0,55 unul de altul. Amprenta KiCad: EP 1,6, pastile 0,875 × 0,25 la ±1,4375 (de la 1,0 la 1,875 față de centru; TI: de la 1,1 la 1,7), viauri la același pas. Pastilele sunt mai lungi spre exterior și cu 0,1 spre interior; între ele și EP rămân 0,2 mm (TI: 0,3). Merge și cu varianta C (EP 1,68 ± 0,07), dacă JLCPCB o are pe aceea |
+| ✔ | U3 | WSON-10 2,5×2,5, EP 1,2×2 | TI DSK0010A (4218903/C din foaia TPS63900): EP 1,2 ± 0,1 × 2 ± 0,1, amprenta TI cu EP 1,2 × 2, 10 pastile 0,6 × 0,25, distanța între rânduri 2,3. Amprenta KiCad: EP 1,2 × 2, pastile 0,825 × 0,25 la ±1,2125 (de la 0,8 la 1,625; TI: de la 0,85 la 1,45). Lățimea, pasul și EP identice; pastilele ies mai mult spre exterior, între ele și EP rămân 0,2 mm (TI: 0,25) |
+| ✔ | U6 | TDFN-8 2×2, EP 0,8×1,2 | Maxim T822+3. Capsula (21-0168 rev. M): EP 0,8 × 1,2 ± 0,1, terminale b 0,25, L 0,3. Amprenta Maxim (90-0065 rev. E, IPC-7351A): EP 0,8 × 1,38, pastile 0,7 × 0,3, distanța între rânduri 1,98. Amprenta KiCad: EP 0,8 × 1,2, pastile 0,775 × 0,25 la ±0,9875 (de la 0,6 la 1,375; Maxim: de la 0,64 la 1,34). Amprenta KiCad urmează capsula, nu desenul Maxim: EP mai scurt cu 0,18 și pastile mai înguste cu 0,05, deci 0,25 mm între pastile în loc de 0,2. Pentru un indicator de 2 × 2 fără căldură de disipat, diferența nu contează; rămâne amprenta KiCad. Pinii (1 CTG, 2 CELL, 3 VDD, 4 GND, 5 ALRT, 6 QSTRT, 7 SCL, 8 SDA, EP) se potrivesc cu `circuit.py` |
 | ✔ | U7 | RF_Module:ESP32-S3-WROOM-1 | amprenta KiCad a modulului, cu zona fără cupru a antenei |
 | ✔ | L1 | 1008 (2520 metric) | DFE252010F are 2,5 × 2,0 mm |
 | ✔ | J1, J4, SW1, SW2–SW6 | amprentele producătorilor din KiCad | — |
@@ -185,7 +185,6 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
 | ✎ | TP7, TP8: 3V3_SD și 3V3_EPD, după comutatoare (punctul 6), în același rând cu TP1–TP6 |
 | ✔ | JP1 (I_BAT): puntea se taie, iar ampermetrul se pune între BAT_J și VBAT, pentru măsurătorile de consum |
 | ✔ | J5 (UART0) pentru jurnal, lângă BOOT și RESET |
-| ⚠ | 3V3_SD și 3V3_EPD nu au punct de test. Se măsoară pe C9 și C11 |
 
 ## De hotărât la citire
 
@@ -214,6 +213,5 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
 ## Ce nu acoperă revizia
 
 - Codurile LCSC și stocurile (PCB-5).
-- Desenele de amprentă pentru U2, U3, U6, marcate cu „?” mai sus.
 - Poziția lui J3 și polaritatea JST: se măsoară pe piese.
 - Orice comportament real: nimic nu e lipit, iar consumul și semnalul WiFi se măsoară pe placă.

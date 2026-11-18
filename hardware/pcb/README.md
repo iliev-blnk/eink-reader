@@ -6,8 +6,8 @@ alimentare comutată, trei butoane. Totul e **generat din script**: piesele și
 legăturile sunt scrise o dată în `circuit.py`, din care ies schema, placa așezată
 și trasată, verificările și fișierele pentru fabrică.
 
-**E o ciornă.** Are o primă revizie pe hârtie (PCB-4, [`REVIEW.md`](REVIEW.md)),
-de citit împreună; nu s-a comandat, iar codurile LCSC nu sunt verificate în catalog. Pașii PCB-1…3 din `docs/MASTER-PLAN.md` au acum o
+**E o ciornă.** Are revizia pe hârtie încheiată (PCB-4, [`REVIEW.md`](REVIEW.md));
+nu s-a comandat, iar codurile LCSC nu sunt verificate în catalog. Pașii PCB-1…3 din `docs/MASTER-PLAN.md` au acum o
 primă variantă completă, cu trei luni înainte de calendar; prototipul de pe
 DevKit rămâne referința până la măsurători.
 

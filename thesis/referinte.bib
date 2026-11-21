@@ -1,0 +1,276 @@
+% Referințele lucrării. Fiecare intrare e verificată la sursă; ce s-a verificat
+% și cum e în README.md („Verificarea surselor”). verifica_surse.py reverifică
+% DOI-urile (Crossref) și adresele (HTTP 200).
+%
+% `year` e anul versiunii citite (data documentului sau a ultimului commit
+% din depozit la accesare); „f.a.” când sursa nu are dată.
+%
+% Câmpul `verificat` nu e citit de BibTeX; păstrează ce afirmă textul pe baza
+% sursei, ca să se poată reverifica.
+
+% ------------------------------------------------------------ hârtia electronică
+
+@article{comiskey1998,
+  author    = {Comiskey, Barrett and Albert, J. D. and Yoshizawa, Hidekazu and Jacobson, Joseph},
+  title     = {An electrophoretic ink for all-printed reflective electronic displays},
+  journal   = {Nature},
+  volume    = {394},
+  number    = {6690},
+  pages     = {253--255},
+  year      = {1998},
+  doi       = {10.1038/28349},
+  verificat = {rezumat: microparticule 0,1-5 um, bistabilitate intrinsecă, adresare c.c. de putere mică, microîncapsulare, fabricare prin imprimare}
+}
+
+@article{heikenfeld2011,
+  author    = {Heikenfeld, Jason and Drzaic, Paul and Yeo, Jong-Souk and Koch, Tim},
+  title     = {A critical review of the present and future prospects for electronic paper},
+  journal   = {Journal of the Society for Information Display},
+  volume    = {19},
+  number    = {2},
+  pages     = {129--156},
+  year      = {2011},
+  doi       = {10.1889/JSID19.2.129},
+  verificat = {rezumat: trecere în revistă a tuturor tehnologiilor e-paper; limite din fizica dispozitivelor; distanță mare rămasă față de tiparul pe hârtie}
+}
+
+@article{he2020,
+  author    = {He, Wenyao and Yi, Zichuan and Shen, Shitao and Huang, Zhenyu and Liu, Liming and Zhang, Taiyuan and Li, Wei and Wang, Li and Shui, Lingling and Zhang, Chongfu and Zhou, Guofu},
+  title     = {Driving Waveform Design of Electrophoretic Display Based on Optimized Particle Activation for a Rapid Response Speed},
+  journal   = {Micromachines},
+  volume    = {11},
+  number    = {5},
+  pages     = {498},
+  year      = {2020},
+  doi       = {10.3390/mi11050498},
+  verificat = {rezumat (acces deschis): răspuns de ordinul sutelor de ms; forma de undă cu faze de activare a particulelor}
+}
+
+@misc{e037a75,
+  author       = {{Shenzhen Yingruida Optoelectronics}},
+  title        = {{Specification for 3.7\textquotedbl{} {EPD}, model {E037A75}, versiunea {A0}}},
+  year         = {2025},
+  howpublished = {foaie de catalog, în depozitul WeActStudio.EpaperModule, dosarul Doc/3.7 Inch Black\&Write},
+  url          = {https://github.com/WeActStudio/WeActStudio.EpaperModule},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {producătorul: 深圳市英瑞达光电有限公司; driver UC8253; 416x240; CI cu buffere gate/source, temporizare, DC-DC, SRAM, LUT; forma de undă în OTP; SPI cu 3 sau 4 fire (pinul BS)}
+}
+
+@misc{linux-imx6sl,
+  author       = {{Dezvoltatorii nucleului Linux}},
+  title        = {{imx6sl.dtsi: descrierea hardware a {SoC}-ului i.{MX} 6{SoloLite}}},
+  year         = {2026},
+  howpublished = {arborele de surse Linux, arch/arm/boot/dts/nxp/imx/imx6sl.dtsi},
+  url          = {https://github.com/torvalds/linux/blob/master/arch/arm/boot/dts/nxp/imx/imx6sl.dtsi},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {nodul epdc@20f4000, ceasurile IMX6SL_CLK_EPDC_AXI/PIX}
+}
+
+@misc{epdiy,
+  author       = {Roland, Valentin},
+  title        = {{{EPDiy}: driver board for affordable e-Paper displays}},
+  year         = {2026},
+  howpublished = {depozit GitHub, licență LGPL-3.0},
+  url          = {https://github.com/vroland/epdiy},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {README: comandă panouri goale de la cititoare vechi; ESP32-S3 (V7) / ESP32 (V2-V6); 16 nuanțe de gri; fără consum când nu actualizează; doar conectorul și temporizările diferă}
+}
+
+% ------------------------------------------------------------ cititoare comerciale
+
+@misc{ifixit-voyage,
+  author       = {{iFixit}},
+  title        = {{Kindle Voyage Teardown}},
+  year         = {f.a.},
+  howpublished = {ghid de dezasamblare},
+  url          = {https://www.ifixit.com/Teardown/Kindle+Voyage+Teardown/32278},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {Freescale MCIMX6L8DVN10AB (i.MX 6SoloLite), LPDDR2 SDRAM, eMMC, MAX77696A}
+}
+
+@misc{kobo-gpl,
+  author       = {{Kobo Inc.}},
+  title        = {{Kobo-Reader: open source packages and patches used on the Kobo Reader}},
+  year         = {2025},
+  howpublished = {depozit GitHub},
+  url          = {https://github.com/kobolabs/Kobo-Reader},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {README: hw/ conține nucleul Linux și U-Boot pentru cititoarele Kobo; config/ construiește Qt pentru dispozitive încorporate}
+}
+
+@misc{koxtoolchain,
+  author       = {{Contribuitorii KOReader}},
+  title        = {{koxtoolchain: build script for various toolchains used by {KOReader}}},
+  year         = {2026},
+  howpublished = {depozit GitHub},
+  url          = {https://github.com/koreader/koxtoolchain},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {refs/x-compile.sh: arm-kindle*-linux-gnueabi(hf), arm-kobo*-linux-gnueabihf, arm-pocketbook-linux-gnueabi, arm-remarkable-linux-gnueabihf}
+}
+
+@misc{koreader,
+  author       = {{Contribuitorii KOReader}},
+  title        = {{{KOReader}: an ebook reader application}},
+  year         = {2026},
+  howpublished = {depozit GitHub, licență AGPL-3.0},
+  url          = {https://github.com/koreader/koreader},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {descriere: PDF, DjVu, EPUB, FB2; Cervantes, Kindle, Kobo, PocketBook, reMarkable, Android}
+}
+
+% ------------------------------------------------------------ proiecte deschise
+
+@misc{openbook,
+  author       = {Castillo, Joey},
+  title        = {{The Open Book}},
+  year         = {2023},
+  howpublished = {depozit GitHub, licență CC BY-SA 4.0},
+  url          = {https://github.com/joeycastillo/The-Open-Book},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {README: primele planuri din 2019; reluat pe Raspberry Pi Pico, baterii AAA; firmware libros; formatul canonic = text simplu, titlul pe primul rând, opțional antet + coduri de control ASCII pentru capitole; motivația: dispozitivele populare sunt închise}
+}
+
+@misc{atomic14,
+  author       = {{atomic14}},
+  title        = {{diy-esp32-epub-reader: an {ESP32} e-reader}},
+  year         = {2022},
+  howpublished = {depozit GitHub, licență MIT, commit 2c2f57f},
+  url          = {https://github.com/atomic14/diy-esp32-epub-reader},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {README: EPUB parsat pe dispozitiv (miniz, TinyXML2), CSS ignorat, cere PSRAM; lib/Epub/RubbishHtmlParser/blocks/TextBlock.cpp: programare dinamică, cost = pătratul spațiului rămas, fără despărțire}
+}
+
+@misc{crosspoint,
+  author       = {{CrossPoint Reader}},
+  title        = {{{CrossPoint}: open-source e-reader firmware}},
+  year         = {2026},
+  howpublished = {depozit GitHub, licență MIT, commit 79ae14f},
+  url          = {https://github.com/crosspoint-reader/crosspoint-reader},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {README: Xteink X4/X3 cu ESP32-C3 și dispozitive cu ESP32-S3; ~380 KB RAM utilizabil pe C3; cache pe card pe carte și pe capitol (.crosspoint/epub_<hash>/sections/N.bin); lib/Epub/Epub/ParsedText.cpp: computeLineBreaks (pătratul spațiului rămas) fără despărțire, computeHyphenatedLineBreaks (lacom, desparte doar cuvântul care depășește); lib/Xtc/Xtc/XtcTypes.h: XTC = pagini bitmap pre-randate}
+}
+
+@misc{inkplate,
+  author       = {{Soldered Electronics}},
+  title        = {{Inkplate Arduino library}},
+  year         = {2026},
+  howpublished = {depozit GitHub, licență LGPL-3.0},
+  url          = {https://github.com/SolderedElectronics/Inkplate-Arduino-library},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {README: familie de plăci e-paper cu ESP32, Wi-Fi și Bluetooth}
+}
+
+@misc{esp32s3,
+  author       = {{Espressif Systems}},
+  title        = {{{ESP32-S3} Series Datasheet, versiunea 2.2}},
+  year         = {2026},
+  url          = {https://www.espressif.com/sites/default/files/documentation/esp32-s3_datasheet_en.pdf},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {ROM 384 KB, SRAM 512 KB}
+}
+
+@misc{libros,
+  author       = {Castillo, Joey},
+  title        = {{libros: firmware for the {Open Book}}},
+  year         = {2024},
+  howpublished = {depozit GitHub, licență MIT, commit 3be5d84},
+  url          = {https://github.com/joeycastillo/libros},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {src/components/language/BabelDevice.cpp, word_wrap_position: ultima ocazie de rupere care încape (lacom), fără despărțire în silabe}
+}
+
+% ------------------------------------------------------------ formate
+
+@misc{epub33,
+  author       = {{W3C}},
+  title        = {{{EPUB} 3.3}},
+  year         = {2026},
+  howpublished = {Recomandare W3C din 13 ianuarie},
+  url          = {https://www.w3.org/TR/epub-33/},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {documente XHTML, CSS; containerul OCF ZIP, intrări doar stocate sau Deflate; extensia .epub}
+}
+
+@misc{rfc1951,
+  author       = {Deutsch, L. Peter},
+  title        = {{{DEFLATE} Compressed Data Format Specification version 1.3}},
+  howpublished = {RFC 1951, IETF},
+  year         = {1996},
+  doi          = {10.17487/RFC1951},
+  url          = {https://www.rfc-editor.org/rfc/rfc1951},
+  verificat    = {antet: Informational, May 1996}
+}
+
+@misc{fb2,
+  author       = {Gribov, Dmitry},
+  title        = {{{FictionBook} 2: schema {XML}}},
+  year         = {2023},
+  howpublished = {depozit GitHub, licență BSD-2-Clause},
+  url          = {https://github.com/gribuser/fb2},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {FictionBook.xsd: elementele body, section, title, p, cite, epigraph, poem, stanza, v; LICENSE: copyright (c) 2004 Dmitry Gribov}
+}
+
+% ------------------------------------------------------------ ruperea în rânduri
+
+@article{knuth1981,
+  author    = {Knuth, Donald E. and Plass, Michael F.},
+  title     = {Breaking paragraphs into lines},
+  journal   = {Software: Practice and Experience},
+  volume    = {11},
+  number    = {11},
+  pages     = {1119--1184},
+  year      = {1981},
+  doi       = {10.1002/spe.4380111102},
+  verificat = {rezumat: paragraful ca întreg; cutii, spații elastice, penalizări; programare dinamică fără revenire}
+}
+
+@article{hirschberg1987,
+  author    = {Hirschberg, D. S. and Larmore, L. L.},
+  title     = {The Least Weight Subsequence Problem},
+  journal   = {SIAM Journal on Computing},
+  volume    = {16},
+  number    = {4},
+  pages     = {628--638},
+  year      = {1987},
+  doi       = {10.1137/0216043},
+  verificat = {rezumat: O(n log n) în general, liniar pentru unele funcții de cost; aplicație: formarea optimă a paragrafului}
+}
+
+@phdthesis{liang1983,
+  author    = {Liang, Franklin Mark},
+  title     = {Word Hy-phen-a-tion by Com-put-er},
+  school    = {Stanford University, Department of Computer Science},
+  year      = {1983},
+  note      = {Raportul STAN-CS-83-977, august 1983. \url{https://tug.org/docs/liang/}},
+  verificat = {pagina de titlu și rezumatul: pentru TeX82; despărțirea ca problemă de compresie; modele de despărțire și de inhibare}
+}
+
+@misc{uax14,
+  author       = {{Unicode Consortium}},
+  title        = {{Unicode Standard Annex \#14: Unicode Line Breaking Algorithm, revizia 57}},
+  year         = {2026},
+  url          = {https://www.unicode.org/reports/tr14/},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {alegerea rupturilor dintre ocazii și alinierea la ambele margini sunt în afara anexei („higher level software”)}
+}
+
+@misc{csstext4,
+  author       = {{W3C}},
+  title        = {{{CSS} Text Module Level 4}},
+  year         = {2026},
+  howpublished = {Ciornă de lucru W3C din 14 august},
+  url          = {https://www.w3.org/TR/css-text-4/},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {text-wrap-style: pretty: UA preferă calitatea vitezei, ia în calcul mai multe rânduri; îmbunătățirile exacte depind de UA}
+}
+
+@misc{texhyphen,
+  author       = {{Contribuitorii hyph-utf8}},
+  title        = {{tex-hyphen: hyphenation patterns for {TeX}}},
+  year         = {2026},
+  howpublished = {depozit GitHub},
+  url          = {https://github.com/hyphenation/tex-hyphen},
+  note         = {Accesat la 22.11.2026},
+  verificat    = {sursa modelelor din tools/converter/patterns (ro, ru, en-us, en-gb)}
+}

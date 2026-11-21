@@ -19,9 +19,16 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 - `../tools/ina226/`: înregistratorul de curent pentru E3 și E4: firmware pentru o placă ESP32 cu INA226 și `ina226.py` (captura, rezumatul, figura, energia pe pagină aliniată cu jurnalul `perf`). Vezi README-ul lui.
 - `../measurements/`: experimentele E1–E9. Pentru fiecare: fișa de metodă, scrisă înainte de date, scripturile, datele brute, tabelele și figurile generate și nota cu rezultatele. Vezi README-ul lui.
 - `../corpus/`: cărțile de test (le descarcă `fetch.sh`; neurmărite în git) și rezultatele conversiei lor.
+- `../thesis/`: sursa lucrării în LaTeX (`build.sh` → PDF), referințele verificate și scriptul care le reverifică. Vezi README-ul ei.
 - `../spec/`: specificația formatului de carte (`book-format.md`), specificația formatului de font (`font-format.md`) și un fișier exemplu comentat (`examples/`).
 
 ## Jurnal
+
+### 2026-11-22: capitolul despre stadiul actual (TH-2)
+- Ce e: `thesis/` are capitolul 2 al lucrării, în LaTeX, cu 25 de referințe. Capitolul acoperă hârtia electronică, cititoarele comerciale, proiectele deschise, formatele de fișier, algoritmii de rupere în rânduri și locul proiectului printre ele. `thesis/build.sh` face PDF-ul (~5 pagini de text plus bibliografia) și iese cu eroare la o citare nedefinită.
+- Ce s-a găsit: dintre cititoarele deschise pe microcontrolere, niciunul nu combină ruperea optimă cu despărțirea în silabe. libros (Open Book) rupe lacom, diy-esp32-epub-reader face programare dinamică fără despărțire, iar CrossPoint are programare dinamică fără despărțire sau un algoritm lacom cu despărțire. Toate trei sunt citite în sursă, la commitul notat în bibliografie. Tabelul 2.1 le pune alături de proiectul de față.
+- Testul: `thesis/verifica_surse.py` verifică titlul, anul și autorii din Crossref pentru fiecare DOI și HTTP 200 pentru fiecare adresă: 25 din 25. Afirmațiile din text sunt verificate de mână la sursă: rezumate, pasaje din specificații, cod, foi de catalog. Ce n-a putut fi verificat a rămas pe dinafară (lista în `thesis/README.md`).
+- Ce nu e: forma finală. Șablonul facultății și stilul citărilor nu se știu încă (TH-1), deci preambulul și stilul `unsrtnat` sunt provizorii. Capitolul n-a fost citit de coordonator.
 
 ### 2026-11-21: codurile LCSC ale plăcii verificate (PCB-5, pregătire)
 - Ce e: fiecare piesă din `hardware/pcb/circuit.py` are acum un cod LCSC verificat pe 2026-11-19 în catalogul de asamblare JLCPCB: modelul, capsula și stocul. Codurile care lipseau sunt completate (USB-C, BQ24074, TPS63900, TPS22917, MAX17048, bobina, slotul microSD, 22 µF, 470 kΩ, 36,5 kΩ, 16,2 kΩ). Tabelul cu stocul și cantitatea pentru 5 plăci e în `hardware/pcb/README.md`, secțiunea „Comanda”.

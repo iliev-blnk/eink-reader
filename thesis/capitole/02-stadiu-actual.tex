@@ -1,0 +1,269 @@
+% Capitolul 2: stadiul actual (TH-2).
+% Fiecare citare trimite la o intrare din referinte.bib verificată la sursă;
+% afirmațiile despre proiectul acesta trimit la capitolele lui, nu la citări.
+
+\chapter{Stadiul actual}
+\label{cap:stadiu}
+
+Un cititor de cărți electronice răspunde la trei întrebări: pe ce se afișează
+textul, ce procesor îl pregătește și în ce formă ajunge cartea la acel
+procesor. Capitolul trece prin răspunsurile date până acum, de la tehnologia
+ecranului la cititoarele comerciale și la proiectele deschise construite pe
+microcontrolere, apoi la formatele de fișier și la algoritmii de rupere a
+textului în rânduri. La final arată locul acestei lucrări printre ele.
+
+% ---------------------------------------------------------------------------
+\section{Hârtia electronică}
+\label{sec:stadiu-epaper}
+
+Ecranele cititoarelor de azi descind din cerneala electroforetică descrisă de
+Comiskey și colaboratorii săi în 1998 \citep{comiskey1998}: particule încărcate
+electric, închise în microcapsule, care se deplasează într-un câmp continuu
+spre fața sau spre spatele celulei. Lucrarea numește proprietățile care fac
+tehnologia potrivită pentru citit. Imaginea e bistabilă: rămâne și după ce
+tensiunea dispare. Adresarea cere puțină energie. Ecranul e reflectiv, cu un
+contrast și un aspect apropiate de cerneala pe hârtie. Microîncapsularea
+rezolvă problemele de durată de viață ale variantelor anterioare, iar ecranul
+se poate fabrica în întregime prin imprimare.
+
+Bistabilitatea are o consecință directă pentru un cititor: energia se consumă
+doar când se schimbă pagina, nu cât timp pagina stă pe ecran. Prețul e viteza.
+Particulele au nevoie de sute de milisecunde ca să ajungă în poziție, iar
+tensiunea nu se aplică într-un singur impuls, ci ca o formă de undă cu mai
+multe faze, care întâi activează particulele și abia apoi le duce în starea
+dorită \citep{he2020}. Formele de undă sunt proprii fiecărui panou, deci le
+definește producătorul. O trecere în revistă din 2011 a
+tehnologiilor de hârtie electronică \citep{heikenfeld2011} le compară pe toate
+cele importante, arată limitele care vin din fizica dispozitivelor și
+conchide că între ecranele reflective și tiparul pe hârtie rămâne o distanță
+semnificativă.
+
+Există două feluri de a comanda un astfel de panou. Panourile
+cititoarelor comerciale au o interfață paralelă: un controler generează
+pentru fiecare cadru tensiunile de rând și de coloană după forma de undă.
+Procesoarele cititoarelor au controlerul integrat. Descrierea hardware a
+SoC-ului i.MX~6SoloLite din nucleul Linux, de exemplu, conține un bloc EPDC
+(\emph{electrophoretic display controller}) cu ceasurile lui
+\citep{linux-imx6sl}. Proiectul deschis EPDiy face același lucru cu un ESP32:
+o placă de comandă pentru panourile paralele recuperate din cititoare vechi,
+cu 16 nuanțe de gri, plecând de la observația că metoda de comandă e aproape
+aceeași pentru toate panourile matriceale e-ink \citep{epdiy}.
+
+Panourile mici vin, în schimb, cu controlerul în modul. Panoul folosit aici,
+E037A75 de 3,7~inci, are 416~×~240 de pixeli și un circuit UC8253 care
+conține bufferele de rând și de coloană, temporizarea, convertorul DC-DC,
+memoria cadrului și tabelele formelor de undă. Formele de undă sunt scrise de
+producător în memoria OTP, iar comunicarea se face prin SPI cu trei sau patru
+fire \citep{e037a75}. Microcontrolerul trimite deci doar imaginea paginii;
+tensiunile și formele de undă nu sunt treaba lui.
+
+% ---------------------------------------------------------------------------
+\section{Cititoarele comerciale}
+\label{sec:stadiu-comerciale}
+
+Cititoarele Kindle, Kobo și PocketBook sunt calculatoare mici cu Linux. Kobo
+publică sursele nucleului Linux și ale încărcătorului U-Boot folosite pe
+cititoarele sale, împreună cu construcția bibliotecii Qt pentru dispozitive
+încorporate pe care rulează interfața \citep{kobo-gpl}. Lanțurile de
+compilare încrucișată întreținute de proiectul KOReader au câte o țintă ARM
+Linux pentru fiecare familie: Kindle, Kobo, PocketBook, reMarkable și altele
+\citep{koxtoolchain}. Dezasamblarea unui Kindle Voyage arată componentele unui
+astfel de dispozitiv: un procesor Freescale i.MX~6SoloLite, memorie LPDDR2
+externă, stocare eMMC și un circuit dedicat de gestionare a alimentării
+\citep{ifixit-voyage}. Același i.MX~6SoloLite are, cum s-a văzut mai sus,
+controlerul de hârtie electronică integrat.
+
+Cu un sistem de operare complet și memorie externă, cartea se poate deschide
+în formatul ei original, cum face KOReader pe aceleași dispozitive
+(secțiunea~\ref{sec:stadiu-deschise}). Arhitectura e potrivită pentru un
+produs comercial, dar e departe de ce se poate construi și înțelege în
+întregime ca proiect de diplomă: procesorul, memoria externă și sistemul de
+operare aduc complexitate, iar platformele sunt închise, argumentul de la care
+pornește The Open Book.
+
+% ---------------------------------------------------------------------------
+\section{Proiecte deschise}
+\label{sec:stadiu-deschise}
+
+\paragraph{Programe pentru cititoarele existente.} KOReader e o aplicație de
+citit cu licență AGPL-3.0 care rulează pe cititoarele Cervantes, Kindle, Kobo,
+PocketBook și reMarkable, pe Android și pe calculatoare cu Linux, și deschide
+PDF, DjVu, EPUB, FB2 și alte formate \citep{koreader}. E dovada că partea de
+program a unui cititor poate fi deschisă. Rămâne însă legată de hardware-ul
+comercial și de Linux.
+
+\paragraph{Plăci cu ecran e-paper.} Inkplate e o familie de plăci cu ESP32,
+Wi-Fi și Bluetooth, însoțite de o bibliotecă Arduino \citep{inkplate}. Ca și
+EPDiy, oferă ecranul și comanda lui, nu un cititor: aranjarea textului rămâne
+în seama aplicației.
+
+\paragraph{Cititoare pe microcontrolere.} Proiectele care construiesc
+cititorul întreg pe un microcontroler au o resursă rară: memoria. Un ESP32-S3
+are 512~KB de SRAM internă \citep{esp32s3}. Trei proiecte arată trei răspunsuri
+la această limită.
+
+\emph{The Open Book} \citep{openbook} a pornit în 2019 cu ideea unui
+dispozitiv de citit deschis, ca alternativă la platformele închise ale
+cititoarelor populare. A fost refăcut în jurul plăcii Raspberry Pi Pico, cu
+baterii AAA și cu fișierele de asamblare pentru JLCPCB publicate. Firmware-ul
+lui, libros, nu citește EPUB: formatul lui canonic e textul simplu, cu titlul
+pe primul rând și, opțional, un antet și coduri de control ASCII pentru
+capitole și formatare. Cartea e simplificată înainte să ajungă pe dispozitiv.
+Rândurile se rup lacom: se ia ultima ocazie de rupere care mai încape, fără
+despărțire în silabe \citep{libros}.
+
+\emph{diy-esp32-epub-reader} \citep{atomic14} face opusul: deschide EPUB direct
+pe ESP32, cu miniz pentru arhivă și TinyXML2 pentru XHTML, și ignoră CSS. Cere
+PSRAM, pentru că, după README-ul proiectului, parsarea fișierelor EPUB are
+nevoie de multă memorie. Paragrafele se rup în rânduri prin programare
+dinamică la nivel de cuvânt, minimizând suma pătratelor spațiului rămas la
+capătul rândurilor, fără despărțire în silabe. Ultima modificare e din 2022.
+
+\emph{CrossPoint} \citep{crosspoint} e cel mai nou și cel mai activ dintre ele. E un firmware
+pentru cititorul Xteink X4, cu ESP32-C3, și pentru alte câteva dispozitive cu
+ESP32-S3. Citește EPUB 2 și 3 pe dispozitiv, cu kerning și despărțire în
+silabe. README-ul proiectului spune că ESP32-C3 are doar circa 380~KB de RAM
+utilizabilă. Răspunsul e un cache agresiv pe card: fiecare carte deschisă
+primește un dosar cu metadatele, regulile CSS și câte un fișier
+cu așezarea fiecărui capitol. Codul de rupere în rânduri are două ramuri. Fără
+despărțire în silabe, aplică aceeași programare dinamică cu pătratul spațiului
+rămas. Cu despărțire, trece la un algoritm lacom care desparte doar cuvântul
+care nu mai încape pe rând. CrossPoint mai citește un al doilea format, XTC,
+care stochează fiecare pagină ca imagine gata randată de un convertor pe PC.
+Pentru dispozitiv e cel mai ieftin format posibil, dar litera și așezarea se
+fixează la conversie.
+
+Tabelul~\ref{tab:stadiu-cititoare} rezumă cum tratează aceste proiecte
+formatul și ruperea în rânduri, alături de proiectul de față.
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{Cititoare deschise pe microcontrolere: formatul citit pe dispozitiv
+    și ruperea în rânduri.}
+  \label{tab:stadiu-cititoare}
+  \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.21\textwidth}
+      >{\raggedright\arraybackslash}p{0.17\textwidth}
+      >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+    \toprule
+    Proiect & Procesor & Formatul pe dispozitiv & Ruperea în rânduri \\
+    \midrule
+    The Open Book (libros) & Raspberry Pi Pico & text simplu cu coduri de control
+      & lacomă, fără despărțire \\
+    diy-esp32-epub-reader & ESP32 cu PSRAM & EPUB & optimă, fără despărțire \\
+    CrossPoint & ESP32-C3, ESP32-S3 & EPUB; XTC (pagini imagine)
+      & optimă fără despărțire sau lacomă cu despărțire \\
+    proiectul de față & ESP32-S3 & IBV (text structurat, cratime calculate)
+      & Knuth–Plass, cu despărțire \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
+
+% ---------------------------------------------------------------------------
+\section{Formatele de fișier}
+\label{sec:stadiu-formate}
+
+EPUB, standardizat acum de W3C \citep{epub33}, e formatul obișnuit al cărților
+electronice. O publicație EPUB e un set de documente XHTML, foi de stil CSS,
+imagini și fonturi, descrise de un document de pachet și strânse într-o arhivă
+ZIP (containerul OCF) cu extensia \texttt{.epub}. Intrările arhivei sunt fie
+stocate necomprimat, fie comprimate cu Deflate \citep{epub33}, algoritmul
+descris în RFC~1951 \citep{rfc1951}. Ca să afișeze o pagină dintr-un EPUB,
+un dispozitiv trebuie deci să decomprime un document din arhivă, să parseze
+XML, să aplice măcar o parte din CSS și abia apoi să așeze textul. Pe un
+microcontroler asta înseamnă fie memorie externă (PSRAM, ca la
+diy-esp32-epub-reader), fie un cache pe card refăcut la fiecare carte nouă
+(ca la CrossPoint).
+
+FictionBook~2 (FB2) e un format XML mai simplu: o carte e un singur fișier,
+cu structura (secțiuni, titluri, paragrafe, citate, poezii cu strofe și
+versuri) descrisă de o schemă XSD \citep{fb2}. Structura e mai apropiată de ce are
+nevoie un cititor, dar fișierul rămâne XML de parsat pe dispozitiv.
+
+La celălalt capăt sunt formatele pregătite pe PC: textul simplu al lui libros
+\citep{openbook}, care pierde majoritatea structurii, și paginile imagine ale
+formatului XTC \citep{crosspoint}, care păstrează aspectul dar nu mai permit
+schimbarea literei. Între ele rămâne loc pentru un format intermediar: o carte
+convertită pe PC, cu structura și despărțirea în silabe deja calculate, dar
+cu așezarea în pagină lăsată dispozitivului. Acesta e formatul IBV, descris în
+capitolul despre format.
+
+% ---------------------------------------------------------------------------
+\section{Algoritmii de rupere în rânduri}
+\label{sec:stadiu-rupere}
+
+Ruperea unui paragraf în rânduri are doi pași. Primul găsește locurile unde
+textul se poate rupe: spații, cratime, alte semne. Anexa~14 a standardului
+Unicode \citep{uax14} definește acest pas pentru toate scrierile și spune
+explicit că alegerea rupturilor dintre aceste ocazii, ce înseamnă o alegere
+optimă și alinierea rândurilor la ambele margini nu țin de ea, ci de
+programele de nivel mai înalt care cunosc lățimea rândului. Al doilea pas
+alege rupturile, iar aici algoritmii diferă.
+
+Algoritmul lacom (\emph{first fit}) pune pe fiecare rând cât de mult text
+încape și trece la următorul. E simplu și rapid, dar fiecare rând se decide
+fără să se țină seama de cele care urmează. Un rând bine umplut poate lăsa
+următorului un cuvânt lung care nu încape, iar rândul acela iese foarte rar,
+cu spații mari între cuvinte.
+
+Knuth și Plass \citep{knuth1981} au propus în 1981 ca paragraful să fie
+tratat ca un întreg, astfel încât aspectul unui rând să poată fi influențat de
+textul de pe rândurile următoare. Paragraful se descrie cu trei primitive:
+cutii (literele), spații elastice (\emph{glue}), care se pot lăți sau îngusta,
+și penalizări, care marchează locurile unde ruperea are un cost. Un singur
+algoritm găsește rupturile optime, fără reveniri, prin programare dinamică.
+E algoritmul din TeX. Hirschberg și Larmore \citep{hirschberg1987} au
+formulat problema generală din spatele lui, subșirul de cost minim, au arătat
+că un caz particular se rezolvă în $O(n \log n)$, iar pentru unele funcții de
+cost în timp liniar, și au dat formarea optimă a paragrafului ca aplicație.
+
+Minimizarea sumei pătratelor spațiului rămas, folosită de
+diy-esp32-epub-reader și de CrossPoint, e un caz mai simplu din aceeași
+familie: costul unui rând e dat doar de spațiul rămas gol la capătul lui, nu
+de cât se lățesc spațiile la justificare. Modelul Knuth–Plass merge mai departe: costul unui
+rând justificat depinde de cât se lățesc sau se îngustează spațiile, iar
+despărțirea în silabe intră ca penalizare. Algoritmul hotărăște singur dacă o
+cratimă merită pentru a evita un rând prea rar.
+
+Pentru despărțirea în silabe, metoda folosită de TeX e cea a lui Liang
+\citep{liang1983}, dezvoltată pentru TeX82. Problema e tratată ca una de
+compresie a datelor: în loc de un dicționar cu toate cuvintele despărțite, se
+păstrează un set mic de modele care permit sau interzic despărțirea între
+anumite litere. Modelele pentru zeci de limbi, inclusiv română și rusă, sunt
+întreținute în colecția hyph-utf8 \citep{texhyphen}.
+
+Navigatoarele web au început să meargă în aceeași direcție. Ciorna CSS Text
+Level~4 \citep{csstext4} definește \texttt{text-wrap-style: pretty}, cu care
+navigatorul ar trebui să prefere calitatea vitezei și să ia în calcul mai
+multe rânduri când decide unde rupe. Specificația lasă însă algoritmul exact
+la latitudinea fiecărui navigator.
+
+% ---------------------------------------------------------------------------
+\section{Locul acestei lucrări}
+\label{sec:stadiu-loc}
+
+Proiectele studiate se împart după locul unde e făcută munca grea. Cititoarele
+comerciale și KOReader au procesoare cu Linux și memorie externă, așa că
+deschid EPUB direct. Cititoarele pe microcontrolere fie fac la fel cu memorie
+externă sau cache pe card (diy-esp32-epub-reader, CrossPoint), fie mută
+pregătirea cărții pe PC și pierd ceva la conversie: structura, în textul
+simplu al lui libros, sau posibilitatea de a schimba litera, în paginile
+imagine XTC.
+
+Lucrarea de față ia o cale între ele. Un convertor pe PC citește EPUB, FB2 și
+text simplu și produce un format propriu, IBV. Formatul păstrează structura
+cărții (paragrafe, titluri, citate, versuri) și cratimele moi calculate cu
+modelele lui Liang, iar textul e împărțit în blocuri comprimate cu Deflate,
+fiecare de cel mult 32~KB. Formatul e gândit ca dispozitivul, un ESP32-S3,
+să nu aibă nevoie de memorie externă: decomprimă câte un bloc și așază textul cu fontul și mărimea
+alese de cititor. Paragrafele justificate se rup cu încadrarea totală
+Knuth–Plass, cu parametrii din TeX. Ruperile sunt comparate, pe tot corpusul
+de test, cu cele ale lui LuaTeX.
+
+Dintre cititoarele deschise pe microcontrolere analizate aici, niciunul nu
+combină ruperea optimă a paragrafului cu despărțirea în silabe: libros rupe
+lacom, diy-esp32-epub-reader nu desparte în silabe, iar CrossPoint alege fie
+optimizarea, fie despărțirea, nu amândouă. Panoul, cu controlerul și formele
+de undă integrate, scutește microcontrolerul de comanda propriu-zisă a
+ecranului. Rămân de rezolvat așezarea textului, formatul și consumul, care
+sunt subiectul capitolelor următoare.

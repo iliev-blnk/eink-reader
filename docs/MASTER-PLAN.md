@@ -108,7 +108,7 @@ eink-reader/
   measurements/<exp>/  CSV brut, scripturi, figuri generate (câte un dosar pe experiment; common/ are graficele)
   enclosure/           CAD + STL
   docs/                jurnalul din README, descrierea, planul ăsta, photos/, deciziile
-  thesis/              sursa lucrării (formatul depinde de Q1)
+  thesis/              sursa lucrării în LaTeX, referinte.bib (șablonul depinde de TH-1)
 ```
 
 Controlul versiunilor: git din prima zi; depozitul e public pe GitHub (Q6).
@@ -347,7 +347,8 @@ Metoda fiecărui experiment se scrie **înainte** de a-l rula, ca rezultatele s�
 Anexe: scheme, specificația formatului, BOM, corpusul de test.
 
 - [~] TH-1 Cerințele facultății. Se știe: română, ~40 de pagini, temă aprobată. Încă trebuie: fișierul șablon, stilul de citare, dacă anexele intră în cele 40 de pagini, regulile verificării antiplagiat.
-- [ ] TH-2 Studiul stadiului actual cu referințe reale, verificate. Găsesc și verific sursele; fără citări inventate.
+- [x] TH-2 Studiul stadiului actual cu referințe reale, verificate. Găsesc și verific sursele; fără citări inventate.
+  *2026-11-22: capitolul 2 în `thesis/capitole/02-stadiu-actual.tex` (~5 pagini), 25 de referințe în `thesis/referinte.bib`, fiecare verificată la sursă (`thesis/README.md`, „Verificarea surselor”). Stilul citărilor și șablonul rămân la TH-1.*
 - [ ] TH-3 Fiecare capitol se scrie când se închide faza lui, nu toate în iunie. Ciorna pornește din Jurnal, din specificații și din măsurători.
 - [ ] TH-4 Figurile: scheme bloc, scheme electrice, grafice ale măsurătorilor, comparații de paginare.
 - [ ] TH-5 Prezentarea plus scenariul demonstrației. Repetiții și o susținere de probă cu întrebări ca la comisie.

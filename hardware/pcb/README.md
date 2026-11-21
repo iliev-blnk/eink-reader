@@ -34,7 +34,7 @@ sau vreo diferență între schemă și placă.
 | `marking.py`, `usv_sigla.json` | serigrafia de pe spate: sigla USV și numele proiectului (mai jos) |
 | `verifica.py` | regulile de proiectare pe care ERC/DRC nu le au: pinii ESP32-S3, polaritatea, decuplarea, antena, pinii din firmware (`--pini`: tabelul pin → rețea) |
 | `REVIEW.md` | revizia PCB-4: fiecare bloc față de foaia lui de catalog, plus ce rămâne de hotărât |
-| `jlc_rotatii.py`, `jlc_corectii.csv` | corecțiile de rotație și origine pentru CPL, din amprentele EasyEDA (vezi „Comanda”) |
+| `jlc_rotatii.py`, `jlc_corectii.csv`, `test_jlc_rotatii.py` | corecțiile de rotație și origine pentru CPL, din amprentele EasyEDA, și verificarea lor pe o placă cu rotațiile confirmate de JLCPCB (vezi „Comanda”) |
 | `make.sh` | tot lanțul, cu verificările |
 
 Ies: `build/` (rapoartele ERC/DRC în JSON, poziții, BOM brut, `cupru.svg`),
@@ -252,23 +252,37 @@ piese extinse. Orice altă piesă scoasă din `cpl.csv` se lipește tot de mân�
 **Rotațiile și originile.** JLCPCB așază fiecare piesă după amprenta EasyEDA a
 codului LCSC, nu după amprenta KiCad, iar cele două pot avea pinul 1 în alt colț
 și altă origine. `jlc_rotatii.py` suprapune, pentru fiecare piesă cu cod, padurile
-din KiCad peste cele din EasyEDA: după număr (potrivire Kabsch, rotunjită la 90°)
-sau, unde numerotarea diferă (SW2–SW6, J1, J4), încercând cele patru rotații fără
-nume. Rotația găsită și originea EasyEDA adusă în cadrul KiCad merg în
+din KiCad peste cele din EasyEDA. Unde ambele numerotează la fel, decid numerele
+(potrivire Kabsch, rotunjită la 90°), iar o nepotrivire oprește piesa. Unde
+numerotarea diferă (SW1–SW6, J1, J4, padul expus al lui U2 și U3, desenat din alt
+număr de paduri) se încearcă cele patru rotații geometric. O rotație trece dacă
+fiecare pad se suprapune cu perechea lui (centrul unuia în cuprul celuilalt): un
+prag de distanță între centre nu merge, EasyEDA desenează des padurile mai lungi.
+La LED-uri și diode catodul se ia după semnul „+” din amprenta EasyEDA, după care
+se ia și previzualizarea JLCPCB, nu după numărul pinului, care diferă între
+biblioteci. Rotația găsită și originea EasyEDA adusă în cadrul KiCad merg în
 `jlc_corectii.csv`, pe care `make.sh` îl aplică la `cpl.csv` și pe care îl
 refuză dacă nu mai corespunde plăcii (cod sau amprentă schimbate). Datele EasyEDA
 se descarcă în `build/easyeda/` (`python3 jlc_rotatii.py --descarca`) și nu intră
 în depozit.
 
-Toate cele 61 de piese se potrivesc, cu cel mult 0,21 mm între centre. Pentru
-circuitele integrate, rotația iese aceeași cu cea dată de colțul pinului 1 din
-numele pachetului EasyEDA (TL 0°, BL 270°, BR 180°): U1 și U6 270°, U4 și U5
-180°, U2, U3 și U7 0°. U1 (SOT-23-6, -BL) iese 270°, ca SOT-23-6-ul MT3608
-(C84817) din datele adunate în previzualizarea JLCPCB de proiectul
-kicad-jlcpcb-tools (`tests/fixtures/jlcfootprint/truth.csv`). Originile contează
-la U7, mutat cu 3,63 mm (originea amprentei KiCad nu e în centrul pinilor), la J1
-(1,31 mm) și la J2 (1 mm, pinul 1 față de centru). SW5 și SW6 trec și la 0°, și la
-180°: piesa e simetrică.
+Metoda e verificată pe placa de test a proiectului kicad-jlcpcb-tools, care are
+rotațiile observate în previzualizarea JLCPCB pentru 47 de piese
+(`tests/fixtures/jlcfootprint/truth.csv`, cu răspunsurile EasyEDA înregistrate):
+`python3 test_jlc_rotatii.py <clona>` dă 46 corecte, 0 greșite (D5 e scoasă,
+polaritatea ei e greșită intenționat). Placa are cazurile grele: LED-uri cu anodul
+pe pinul 1 în EasyEDA, o diodă la care simbolul EasyEDA contrazice semnul „+”,
+SOT-23 -CW, care trebuie refuzat, SOT-223 cu tabul numerotat diferit.
+
+Toate cele 61 de piese ale noastre se potrivesc. Pentru circuitele integrate cu
+colțul pinului 1 în numele pachetului EasyEDA, rotația iese aceeași (TL 0°, BL
+270°, BR 180°): U1 și U6 270°, U4 și U5 180°, U2 și U3 0°; U7 (modulul ESP32) nu
+are colț în nume și iese 0°. D1 și D2 au catodul pe pinul 1 și în EasyEDA, deci
+0°. Originile contează la U7, mutat cu 3,62 mm (originea amprentei KiCad nu e în
+centrul padurilor), la J1 (1,30 mm) și la J2 (1 mm, pinul 1 față de centru). La
+J4, pinii 1–8 cad pe ei înșiși, iar pinii de detecție a cardului sunt 9–10 în
+KiCad și 11–12 în EasyEDA. SW5 și SW6 trec și la 0°, și la 180°: piesa e
+simetrică.
 
 În previzualizarea JLCPCB, înainte de plată, se verifică:
 

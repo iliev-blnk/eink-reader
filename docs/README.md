@@ -24,6 +24,11 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 
 ## Jurnal
 
+### 2026-11-22: rotațiile din CPL, verificate pe rotații confirmate de JLCPCB (PCB-5)
+- Ce e: `hardware/pcb/test_jlc_rotatii.py` rulează metoda pe placa de test a proiectului kicad-jlcpcb-tools, cu rotațiile observate în previzualizarea JLCPCB pentru 47 de piese.
+- Ce s-a găsit: prima variantă dădea 13 greșeli. Patru dintre ele erau tăcute: LED-uri și diode cu anodul pe pinul 1 în EasyEDA ieșeau cu 180° greșit. Restul erau refuzuri din pragul de 0,3 mm. Acum catodul se ia după semnul „+” din amprenta EasyEDA, după care se ia și JLCPCB, iar pragul e înlocuit cu suprapunerea padurilor. Piesele numerotate la fel în ambele biblioteci nu mai cad pe potrivirea geometrică (SOT-23 -CW). Rezultatul: 46 corecte, 0 greșite. Pe placa noastră, rotațiile rămân aceleași pentru toate 61 de piese.
+- Ce nu e: tot fără previzualizarea plăcii noastre; placa nu e comandată.
+
 ### 2026-11-22: rotațiile și originile din CPL (PCB-5)
 - Ce e: `hardware/pcb/jlc_rotatii.py` suprapune padurile fiecărei amprente KiCad peste amprenta EasyEDA a codului LCSC (după număr sau, unde numerotarea diferă, geometric) și scrie rotația și originea în `jlc_corectii.csv`. `make.sh` le aplică la `fab/cpl.csv` și se oprește dacă tabelul nu mai corespunde plăcii.
 - Ce s-a găsit: 61 din 61 de piese se potrivesc, cu cel mult 0,21 mm între centre. U1 și U6 cer 270°, U4 și U5 180°, iar J2 și J4 tot 180°. U7 (ESP32-S3) se mută cu 3,63 mm, pentru că originea amprentei KiCad nu e în centrul pinilor. La circuitele integrate, rotația coincide cu colțul pinului 1 din numele pachetului EasyEDA.

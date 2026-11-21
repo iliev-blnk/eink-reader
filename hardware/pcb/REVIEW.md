@@ -165,8 +165,8 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
 | ✔ | U6 | TDFN-8 2×2, EP 0,8×1,2 | Maxim T822+3. Capsula (21-0168 rev. M): EP 0,8 × 1,2 ± 0,1, terminale b 0,25, L 0,3. Amprenta Maxim (90-0065 rev. E, IPC-7351A): EP 0,8 × 1,38, pastile 0,7 × 0,3, distanța între rânduri 1,98. Amprenta KiCad: EP 0,8 × 1,2, pastile 0,775 × 0,25 la ±0,9875 (de la 0,6 la 1,375; Maxim: de la 0,64 la 1,34). Amprenta KiCad urmează capsula, nu desenul Maxim: EP mai scurt cu 0,18 și pastile mai înguste cu 0,05, deci 0,25 mm între pastile în loc de 0,2. Pentru un indicator de 2 × 2 fără căldură de disipat, diferența nu contează; rămâne amprenta KiCad. Pinii (1 CTG, 2 CELL, 3 VDD, 4 GND, 5 ALRT, 6 QSTRT, 7 SCL, 8 SDA, EP) se potrivesc cu `circuit.py` |
 | ✔ | U7 | RF_Module:ESP32-S3-WROOM-1 | amprenta KiCad a modulului, cu zona fără cupru a antenei |
 | ✔ | L1 | 1008 (2520 metric) | DFE252010F are 2,5 × 2,0 mm |
-| ✔ | J1, J4, SW1, SW2–SW6 | amprentele producătorilor din KiCad | — |
-| ⚠ | toate | rotațiile din `cpl.csv` | de verificat în previzualizarea JLCPCB (deja în README) |
+| ✔ | J1, J4, SW1, SW2–SW6 | amprentele producătorilor din KiCad | SW5/SW6: la comandă vine XKB TS-1187A (C318884), nu TL3342; pastilele lui intră în cele ale amprentei (README, „Comanda”) |
+| ⚠ | toate | rotațiile din `cpl.csv` | de verificat în previzualizarea JLCPCB, după lista din README („Comanda”) |
 
 ### Antena
 
@@ -212,6 +212,6 @@ Regulile au fost probate stricând intenționat circuitul în memorie: D+/D− i
 
 ## Ce nu acoperă revizia
 
-- Codurile LCSC și stocurile (PCB-5).
+- Codurile LCSC și stocurile: verificate separat, la PCB-5 (README, „Comanda”).
 - Poziția lui J3 și polaritatea JST: se măsoară pe piese.
 - Orice comportament real: nimic nu e lipit, iar consumul și semnalul WiFi se măsoară pe placă.

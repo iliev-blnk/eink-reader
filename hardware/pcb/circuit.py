@@ -15,10 +15,11 @@ def part(ref, lib, value, fp, pins, lcsc='', mpn='', group=''):
 R0603 = 'Resistor_SMD:R_0603_1608Metric'
 C0603 = 'Capacitor_SMD:C_0603_1608Metric'
 LED0603 = 'LED_SMD:LED_0603_1608Metric'
-# coduri LCSC pentru piesele de bază 0603; toate se verifică în catalog la comandă (PCB-5)
+# coduri LCSC, verificate în catalogul JLCPCB la 2026-11-19 (PCB-5): model, capsulă, stoc;
+# toate sunt de bază, în afară de 36,5k și 16,2k (aceeași serie UNI-ROYAL, extinse)
 LCSC_R = {'1k': 'C21190', '1.8k': 'C4177', '3.3k': 'C22978', '4.7k': 'C23162', '5.1k': 'C23186',
-          '10k': 'C25804', '22': 'C23345', '47k': 'C25819', '100k': 'C25803', '470k': '', '1M': 'C22935', '16.2k': '', '36.5k': ''}
-LCSC_C = {'100nF': 'C14663', '1uF': 'C15849', '4.7uF': 'C19666', '10uF': 'C19702', '22uF': '', '1nF': 'C1588'}
+          '10k': 'C25804', '22': 'C23345', '47k': 'C25819', '100k': 'C25803', '470k': 'C23178', '1M': 'C22935', '16.2k': 'C22885', '36.5k': 'C23029'}
+LCSC_C = {'100nF': 'C14663', '1uF': 'C15849', '4.7uF': 'C19666', '10uF': 'C19702', '22uF': 'C59461', '1nF': 'C1588'}
 
 def R(ref, val, a, b, group, mpn=''):
     part(ref, 'Device:R', val, R0603, {'1': a, '2': b}, LCSC_R.get(val, ''), mpn or f'{val} 1% 0603', group)
@@ -33,7 +34,7 @@ part('J1', 'Connector:USB_C_Receptacle_USB2.0_16P', 'USB-C',
      {'A4': 'VBUS', 'A9': 'VBUS', 'B4': 'VBUS', 'B9': 'VBUS',
       'A1': 'GND', 'A12': 'GND', 'B1': 'GND', 'B12': 'GND', 'SH': 'GND',
       'A5': 'CC1', 'B5': 'CC2', 'A6': 'USB_DP', 'B6': 'USB_DP', 'A7': 'USB_DN', 'B7': 'USB_DN'},
-     '', 'GCT USB4105-GF-A', G)
+     'C3020560', 'GCT USB4105-GF-A', G)
 R('R1', '5.1k', 'CC1', 'GND', G)
 R('R2', '5.1k', 'CC2', 'GND', G)
 part('U1', 'Power_Protection:USBLC6-2P6', 'USBLC6-2SC6', 'Package_TO_SOT_SMD:SOT-23-6',
@@ -53,7 +54,7 @@ part('U2', 'Battery_Management:BQ24074RGT', 'BQ24074RGTR',
       '4': 'GND',          # ~CE: încărcarea mereu permisă
       '5': 'GND', '6': 'VSYS',   # EN2=0, EN1=1: limita de intrare USB500
       '12': 'ILIM', '16': 'ISET', '1': 'TS', '7': 'PGOOD_N', '9': 'CHG_N'},
-     '', 'TI BQ24074RGTR', G)          # TMR și ITERM libere: temporizatoare și terminare implicite
+     'C54313', 'TI BQ24074RGTR', G)          # TMR și ITERM libere: temporizatoare și terminare implicite
 C('C1', '1uF', 'VBUS', 'GND', G)
 C('C2', '4.7uF', 'VSYS', 'GND', G)
 C('C3', '4.7uF', 'VBAT', 'GND', G)
@@ -62,8 +63,8 @@ R('R4', '1.8k', 'ISET', 'GND', G)
 R('R5', '10k', 'TS', 'GND', G)
 R('R6', '1k', 'VSYS', 'LED_PG', G)
 R('R7', '1k', 'VSYS', 'LED_CHG', G)
-part('D1', 'Device:LED', 'verde', LED0603, {'2': 'LED_PG', '1': 'PGOOD_N'}, 'C72043', 'LED verde 0603', G)
-part('D2', 'Device:LED', 'portocaliu', LED0603, {'2': 'LED_CHG', '1': 'CHG_N'}, 'C72038', 'LED portocaliu 0603', G)
+part('D1', 'Device:LED', 'verde', LED0603, {'2': 'LED_PG', '1': 'PGOOD_N'}, 'C12624', 'KENTO KT-0603G', G)
+part('D2', 'Device:LED', 'portocaliu', LED0603, {'2': 'LED_CHG', '1': 'CHG_N'}, 'C111340', 'KENTO KT-0603O', G)
 part('TP2', 'Connector:TestPoint', 'VSYS', 'TestPoint:TestPoint_Pad_D1.5mm', {'1': 'VSYS'}, group=G)
 
 # ======================================================================= BATERIA
@@ -76,7 +77,7 @@ part('TP3', 'Connector:TestPoint', 'BAT_J', 'TestPoint:TestPoint_Pad_D1.5mm', {'
 part('TP4', 'Connector:TestPoint', 'VBAT', 'TestPoint:TestPoint_Pad_D1.5mm', {'1': 'VBAT'}, group=G)
 part('U6', 'EinkReader:MAX17048', 'MAX17048G+T10', 'Package_DFN_QFN:TDFN-8-1EP_2x2mm_P0.5mm_EP0.8x1.2mm',
      {'1': 'GND', '2': 'VBAT', '3': 'VBAT', '4': 'GND', '5': 'FG_ALRT', '6': 'GND',
-      '7': 'I2C_SCL', '8': 'I2C_SDA', '9': 'GND'}, '', 'Analog Devices MAX17048G+T10', G)
+      '7': 'I2C_SCL', '8': 'I2C_SDA', '9': 'GND'}, 'C2682616', 'Analog Devices MAX17048G+T10', G)
 C('C12', '100nF', 'VBAT', 'GND', G)
 R('R12', '4.7k', '+3V3', 'I2C_SCL', G)
 R('R13', '4.7k', '+3V3', 'I2C_SDA', G)
@@ -92,9 +93,9 @@ part('SW1', 'Switch:SW_SPDT', 'PORNIT/OPRIT', 'Button_Switch_SMD:SW_SPDT_PCM12',
 part('U3', 'Regulator_Switching:TPS63900', 'TPS63900DSKR',
      'Package_SON:WSON-10-1EP_2.5x2.5mm_P0.5mm_EP1.2x2mm_ThermalVias',
      {'10': 'VSYS', '1': 'PWR_EN', '2': 'GND', '3': 'CFG1', '4': 'GND', '5': 'CFG3',
-      '6': '+3V3', '7': 'LX2', '9': 'LX1', '8': 'GND', '11': 'GND'}, '', 'TI TPS63900DSKR', G)
+      '6': '+3V3', '7': 'LX2', '9': 'LX1', '8': 'GND', '11': 'GND'}, 'C1518762', 'TI TPS63900DSKR', G)
 part('L1', 'Device:L', '2.2uH', 'Inductor_SMD:L_1008_2520Metric', {'1': 'LX1', '2': 'LX2'},
-     '', 'Murata DFE252010F-2R2M', G)   # din tabelul 8-2 al foii TPS63900: ISAT 3,1 A
+     'C488330', 'Murata DFE252010F-2R2M', G)   # din tabelul 8-2 al foii TPS63900: ISAT 3,1 A
 R('R8', '36.5k', 'CFG1', 'GND', G)
 R('R9', '16.2k', 'CFG3', 'GND', G)
 C('C4', '10uF', 'VSYS', 'GND', G)
@@ -107,7 +108,7 @@ G = 'loadsw'
 for ref, en, out, cref, ct, rpd, cout in (('U4', 'SD_PWR_EN', '3V3_SD', 'C7', 'CT_SD', 'R10', 'C9'),
                                           ('U5', 'EPD_PWR_EN', '3V3_EPD', 'C8', 'CT_EPD', 'R11', 'C11')):
     part(ref, 'EinkReader:TPS22917DBV', 'TPS22917DBVR', 'Package_TO_SOT_SMD:SOT-23-6',
-         {'1': '+3V3', '2': 'GND', '3': en, '4': ct, '5': out, '6': out}, '', 'TI TPS22917DBVR', G)
+         {'1': '+3V3', '2': 'GND', '3': en, '4': ct, '5': out, '6': out}, 'C2681320', 'TI TPS22917DBVR', G)
     C(cref, '1nF', ct, '+3V3', G)          # CT la VIN: ~3,6 ms de urcare, curent de pornire mic
     R(rpd, '1M', en, 'GND', G)             # ON nu are voie să plutească
     C(cout, '10uF', out, 'GND', G)
@@ -139,9 +140,9 @@ R('R19', '10k', '+3V3', 'ESP_EN', G)
 C('C16', '1uF', 'ESP_EN', 'GND', G)
 R('R20', '10k', '+3V3', 'BOOT', G)
 part('SW5', 'Switch:SW_Push', 'BOOT', 'Button_Switch_SMD:SW_SPST_TL3342', {'1': 'BOOT', '2': 'GND'},
-     'C318884', 'C&K PTS526 / TL3342', G)
+     'C318884', 'XKB TS-1187A-B-A-B', G)
 part('SW6', 'Switch:SW_Push', 'RESET', 'Button_Switch_SMD:SW_SPST_TL3342', {'1': 'ESP_EN', '2': 'GND'},
-     'C318884', 'C&K PTS526 / TL3342', G)
+     'C318884', 'XKB TS-1187A-B-A-B', G)
 part('J5', 'Connector_Generic:Conn_01x03', 'UART0', 'Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical',
      {'1': 'GND', '2': 'UART_TX', '3': 'UART_RX'}, group=G)
 
@@ -161,7 +162,7 @@ part('J3', 'Connector_Generic:Conn_01x08', 'WeAct EPD', 'Connector_PinHeader_2.5
 G = 'sd'
 part('J4', 'Connector:Micro_SD_Card', 'microSD', 'Connector_Card:microSD_HC_Molex_104031-0811',
      {'1': 'SD_DAT2', '2': 'SD_CS', '3': 'SD_MOSI', '4': '3V3_SD', '5': 'SD_SCK', '6': 'GND',
-      '7': 'SD_MISO', '8': 'SD_DAT1', 'SH': 'GND'}, '', 'Molex 104031-0811', G)
+      '7': 'SD_MISO', '8': 'SD_DAT1', 'SH': 'GND'}, 'C585350', 'Molex 104031-0811', G)
 R('R21', '47k', '3V3_SD', 'SD_CS', G)
 R('R22', '47k', '3V3_SD', 'SD_MISO', G)
 R('R23', '47k', '3V3_SD', 'SD_DAT1', G)

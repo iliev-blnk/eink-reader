@@ -7,7 +7,7 @@ legăturile sunt scrise o dată în `circuit.py`, din care ies schema, placa aș
 și trasată, verificările și fișierele pentru fabrică.
 
 **E o ciornă.** Are revizia pe hârtie încheiată (PCB-4, [`REVIEW.md`](REVIEW.md));
-nu s-a comandat, iar codurile LCSC nu sunt verificate în catalog. Pașii PCB-1…3 din `docs/MASTER-PLAN.md` au acum o
+nu s-a comandat. Codurile LCSC sunt verificate în catalog (PCB-5, mai jos); rotațiile din `cpl.csv`, încă nu. Pașii PCB-1…3 din `docs/MASTER-PLAN.md` au acum o
 primă variantă completă, cu trei luni înainte de calendar; prototipul de pe
 DevKit rămâne referința până la măsurători.
 
@@ -69,8 +69,8 @@ stau pe F.Fab.
 
 ## Piesele
 
-Codurile LCSC sunt **de verificat** toate în catalog înainte de comandă (PCB-5);
-unde lipsesc, piesa se alege atunci sau se lipește de mână.
+Codurile LCSC sunt verificate în catalogul JLCPCB (secțiunea „Comanda”);
+fără cod au rămas doar baretele J3 și J5, care se lipesc de mână.
 
 | bloc | piese | de ce |
 |---|---|---|
@@ -184,7 +184,93 @@ are rezervă de două ori. Celelalte rețele de putere sunt de 0,4 mm: VSYS
   nemetalizate, cu reguli de distanță proprii în `.kicad_dru`.
 - Etichetele pieselor sunt pe F.Fab, nu pe serigrafie: placa e plină, iar
   pozițiile se văd în `build/cupru.svg`.
-- **Rotațiile din `cpl.csv`** trebuie verificate în previzualizarea JLCPCB:
-  convențiile KiCad și JLCPCB diferă pentru unele capsule.
-- Piesele fără cod LCSC: J1, U2, U3, U4/U5, U6, L1, R8/R9, R17/R18 (470 kΩ),
-  C5/C14 (22 µF), J4. Se caută la comandă sau se lipesc de mână.
+- **Rotațiile din `cpl.csv`** nu sunt verificate: vezi „Comanda”.
+
+## Comanda (PCB-5)
+
+Codurile din `circuit.py` sunt verificate pe 2026-11-19 în catalogul de
+asamblare JLCPCB: modelul, capsula și stocul fiecăruia. Stocul e cel din acea zi
+și se schimbă. „Necesar” înseamnă 5 plăci, fără pierderile de la montaj.
+
+| Piese | LCSC | Model | Tip | Stoc | Necesar |
+|---|---|---|---|---:|---:|
+| C1, C16 | C15849 | Samsung CL10A105KB8NNNC, 1 µF 50 V X5R | de bază | 12.258.861 | 10 |
+| C2, C3 | C19666 | Samsung CL10A475KO8NNNC, 4,7 µF 16 V X5R | de bază | 3.307.574 | 10 |
+| C4, C9, C11 | C19702 | Samsung CL10A106KP8NNNC, 10 µF 10 V X5R | de bază | 10.685.497 | 15 |
+| C5, C14 | C59461 | Samsung CL10A226MQ8NRNC, 22 µF 6,3 V X5R | de bază | 5.997.547 | 10 |
+| C7, C8 | C1588 | Samsung CL10B102KB8NNNC, 1 nF 50 V X7R | de bază | 5.287.619 | 10 |
+| C10, C12, C13, C15, C17 | C14663 | YAGEO CC0603KRX7R9BB104, 100 nF 50 V X7R | de bază | 53.069.967 | 25 |
+| D1 | C12624 | KENTO KT-0603G, verde | extinsă | 208.308 | 5 |
+| D2 | C111340 | KENTO KT-0603O, portocaliu | extinsă | 16.346 | 5 |
+| J1 | C3020560 | GCT USB4105-GF-A | extinsă | 13.662 | 5 |
+| J2 | C131337 | JST B2B-PH-K-S (THT) | extinsă | 273.875 | 5 |
+| J4 | C585350 | Molex 104031-0811 | extinsă | 46.266 | 5 |
+| L1 | C488330 | Murata DFE252010F-2R2M | extinsă | 4.113 | 5 |
+| R1, R2 | C23186 | UNI-ROYAL 0603WAF5101T5E, 5,1 kΩ | de bază | 18.766.089 | 10 |
+| R3 | C22978 | UNI-ROYAL 0603WAF3301T5E, 3,3 kΩ | de bază | 4.161.647 | 5 |
+| R4 | C4177 | UNI-ROYAL 0603WAF1801T5E, 1,8 kΩ | de bază | 479.075 | 5 |
+| R5, R19, R20 | C25804 | UNI-ROYAL 0603WAF1002T5E, 10 kΩ | de bază | 43.980.846 | 15 |
+| R6, R7 | C21190 | UNI-ROYAL 0603WAF1001T5E, 1 kΩ | de bază | 31.275.885 | 10 |
+| R8 | C23029 | UNI-ROYAL 0603WAF3652T5E, 36,5 kΩ | extinsă | 40.313 | 5 |
+| R9 | C22885 | UNI-ROYAL 0603WAF1622T5E, 16,2 kΩ | extinsă | 46.486 | 5 |
+| R10, R11, R15, R16 | C22935 | UNI-ROYAL 0603WAF1004T5E, 1 MΩ | de bază | 5.254.394 | 20 |
+| R12, R13 | C23162 | UNI-ROYAL 0603WAF4701T5E, 4,7 kΩ | de bază | 16.140.631 | 10 |
+| R14 | C25803 | UNI-ROYAL 0603WAF1003T5E, 100 kΩ | de bază | 13.730.726 | 5 |
+| R17, R18 | C23178 | UNI-ROYAL 0603WAF4703T5E, 470 kΩ | de bază | 1.015.624 | 10 |
+| R21–R24 | C25819 | UNI-ROYAL 0603WAF4702T5E, 47 kΩ | de bază | 2.513.903 | 20 |
+| R25, R26 | C23345 | UNI-ROYAL 0603WAF220JT5E, 22 Ω | de bază | 4.794.624 | 10 |
+| SW1 | C221841 | C&K PCM12SMTR | extinsă | 7.732 | 5 |
+| SW2–SW4 | C110293 | Alps SKRTLAE010 | extinsă | 30.677 | 15 |
+| SW5, SW6 | C318884 | XKB TS-1187A-B-A-B | de bază | 762.721 | 10 |
+| U1 | C7519 | ST USBLC6-2SC6 | extinsă | 33.704 | 5 |
+| U2 | C54313 | TI BQ24074RGTR | extinsă | 3.319 | 5 |
+| U3 | C1518762 | TI TPS63900DSKR | extinsă | 10.658 | 5 |
+| U4, U5 | C2681320 | TI TPS22917DBVR | extinsă | 18.662 | 10 |
+| U6 | C2682616 | Analog Devices MAX17048G+T10 | extinsă | 25.314 | 5 |
+| U7 | C2913202 | Espressif ESP32-S3-WROOM-1-N16R8 | extinsă | 8.519 | 5 |
+
+Ce s-a schimbat față de lista din PCB-1:
+
+- **LED-urile.** Everlight C72043 (verde) și C72038 nu mai au stoc; C72038 era
+  galben, nu portocaliu. Le iau locul KENTO KT-0603G și KT-0603O. Verdele are
+  ~3,1 V în direct. Prin R6 de 1 kΩ, de la VSYS (peste ~4,2 V cu cablul pus),
+  îi rămâne ~1 mA, destul pentru un indicator.
+- **BOOT și RESET.** C318884 nu e C&K, ci XKB TS-1187A (5,1 × 5,1 mm). Desenul
+  XKB recomandă pastile de 1,0 × 0,75 mm, cu centrele la ±3,0 și ±1,875 mm, iar
+  perechile A–B și C–D sunt legate între ele. Amprenta TL3342 are pastile de
+  1,7 × 1,0 la ±3,15 și ±1,9, cu pinul 1 sus și 2 jos. Pastilele XKB intră
+  întregi în cele KiCad, iar perechile se potrivesc, deci amprenta rămâne.
+- **BQ24074.** JLCPCB are BQ24074RGTR (C54313). Nu spune dacă vine în capsula
+  RGT0016B sau RGT0016C, dar amprenta merge cu amândouă (`REVIEW.md`, U2).
+
+În tabel sunt 16 piese extinse distincte (SW2–SW4 contează o dată); JLCPCB
+taxează separat fiecare piesă extinsă dintr-o comandă. J2 e cu găuri, iar J3 și
+J5 nu au cod: toate trei se lipesc de mână (PCB-6), deci la montaj rămân 15
+piese extinse. Orice altă piesă scoasă din `cpl.csv` se lipește tot de mână.
+
+**Rotațiile nu sunt verificate.** JLCPCB așază fiecare piesă după amprenta
+EasyEDA a codului LCSC, nu după amprenta KiCad. `cpl.csv` are unghiurile din
+KiCad, fără corecții. Corecția ține de piesă, nu de capsulă: în datele adunate
+din previzualizarea JLCPCB de proiectul kicad-jlcpcb-tools
+(`tests/fixtures/jlcfootprint/truth.csv`), un QFN-16 3×3 (C19213) cere 270°, un
+SOT-23-6 (MT3608, C84817) tot 270°, iar un SOT-23 (C2132) 180°. Tabelele
+generale de corecții (Fabrication-Toolkit) se contrazic între ele. De aceea
+`make.sh` nu aplică niciuna. Singura potrivire apropiată e LED-ul KENTO
+KT-0603R (C2286), aceeași serie cu D1 și D2: cu amprenta `LED_0603_1608Metric`
+la 0° a cerut 0°.
+
+În previzualizarea JLCPCB, înainte de plată, se verifică:
+
+| Piese | Ce trebuie să se vadă |
+|---|---|
+| D1, D2 | catodul pe pastila 1 (rețelele PGOOD_N, CHG_N), după marcajul de catod al piesei |
+| U1 | pinul 1 al USBLC6 pe pastila 1: rotit cu 180°, VBUS ajunge pe GND |
+| U2, U3, U6 | punctul pinului 1 pe pastila 1, EP-ul centrat |
+| U4, U5 | pinul 1 (VIN) pe pastila 1 |
+| U7 | antena spre marginea plăcii, peste zona fără cupru |
+| J1, J4 | gura conectorului spre marginea plăcii |
+| SW1, SW2–SW4 | maneta, respectiv butonul, spre marginea plăcii |
+| SW5, SW6, L1, R, C | doar aliniate: 0° și 180° sunt la fel, 90° nu |
+
+O piesă rotită greșit se corectează acolo, în previzualizare. Corecția se trece
+apoi și aici, ca s-o aibă comanda următoare.

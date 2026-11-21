@@ -64,17 +64,44 @@ kicad-cli sch export bom -o build/bom.csv --exclude-dnp \
 # (Comment, Designator, Footprint, LCSC Part #), coordonatele față de colțul din
 # stânga jos al plăcii. Piesele THT și cele fără cod LCSC rămân în BOM; JLCPCB le
 # arată ca nepotrivite și se aleg sau se scot de mână.
+# CPL-ul primește corecțiile din jlc_corectii.csv (jlc_rotatii.py): JLC așază după
+# amprenta EasyEDA a codului LCSC, cu altă orientare și altă origine decât KiCad.
 python3 - <<'EOF'
-import csv
+import csv, math, re, sys
+cor = {r['ref']: r for r in csv.DictReader(open('jlc_corectii.csv', encoding='utf-8'))}
+bom = list(csv.DictReader(open('build/bom.csv')))
+cod = {}
+for r in bom:   # „R21-R24” → R21, R22, R23, R24
+    for d in r['Reference'].split(','):
+        m = re.fullmatch(r'([A-Z]+)(\d+)-[A-Z]+(\d+)', d.strip())
+        refs = [m[1] + str(i) for i in range(int(m[2]), int(m[3]) + 1)] if m else [d.strip()]
+        for x in refs:
+            cod[x] = (r['LCSC'], r['Footprint'].split(':')[-1])
+vechi = [x for x, (c, fp) in cod.items() if c and (x not in cor or cor[x]['lcsc'] != c
+                                                    or cor[x]['amprenta_kicad'] != fp)]
+if vechi:
+    sys.exit(f'jlc_corectii.csv nu corespunde plăcii pentru {", ".join(sorted(vechi))}: '
+             'rulează python3 jlc_rotatii.py --descarca')
 with open('build/pos.csv') as f, open('fab/cpl.csv', 'w', newline='') as o:
     w = csv.writer(o)
     w.writerow(['Designator', 'Mid X', 'Mid Y', 'Layer', 'Rotation'])
     for r in csv.DictReader(f):
-        w.writerow([r['Ref'], r['PosX'] + 'mm', r['PosY'] + 'mm', r['Side'].capitalize(), r['Rot']])
-with open('build/bom.csv') as f, open('fab/bom.csv', 'w', newline='') as o:
+        x, y, rot = float(r['PosX']), float(r['PosY']), float(r['Rot'])
+        c = cor.get(r['Ref'])
+        if c:
+            if r['Side'] != 'top':
+                sys.exit(f"{r['Ref']}: corecțiile acoperă doar fața de sus")
+            # originea EasyEDA din cadrul amprentei (Y în jos) pe placă; pos.csv are Y în sus
+            a = math.radians(-rot)
+            ox, oy = float(c['origine_x_mm']), float(c['origine_y_mm'])
+            x += ox * math.cos(a) - oy * math.sin(a)
+            y -= ox * math.sin(a) + oy * math.cos(a)
+            rot += int(c['rotatie'])
+        w.writerow([r['Ref'], f'{x:.4f}mm', f'{y:.4f}mm', r['Side'].capitalize(), f'{rot % 360:g}'])
+with open('fab/bom.csv', 'w', newline='') as o:
     w = csv.writer(o)
     w.writerow(['Comment', 'Designator', 'Footprint', 'LCSC Part #', 'MPN', 'Qty'])
-    for r in csv.DictReader(f):
+    for r in bom:
         w.writerow([r['Value'], r['Reference'], r['Footprint'].split(':')[-1], r['LCSC'], r['MPN'], r['QUANTITY']])
 EOF
 ls fab

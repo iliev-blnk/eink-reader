@@ -7,7 +7,7 @@ legăturile sunt scrise o dată în `circuit.py`, din care ies schema, placa aș
 și trasată, verificările și fișierele pentru fabrică.
 
 **E o ciornă.** Are revizia pe hârtie încheiată (PCB-4, [`REVIEW.md`](REVIEW.md));
-nu s-a comandat. Codurile LCSC sunt verificate în catalog (PCB-5, mai jos); rotațiile din `cpl.csv`, încă nu. Pașii PCB-1…3 din `docs/MASTER-PLAN.md` au acum o
+nu s-a comandat. Codurile LCSC sunt verificate în catalog (PCB-5, mai jos); rotațiile și originile din `cpl.csv` sunt calculate din amprentele EasyEDA, dar nu sunt încă văzute în previzualizarea JLCPCB. Pașii PCB-1…3 din `docs/MASTER-PLAN.md` au acum o
 primă variantă completă, cu trei luni înainte de calendar; prototipul de pe
 DevKit rămâne referința până la măsurători.
 
@@ -34,6 +34,7 @@ sau vreo diferență între schemă și placă.
 | `marking.py`, `usv_sigla.json` | serigrafia de pe spate: sigla USV și numele proiectului (mai jos) |
 | `verifica.py` | regulile de proiectare pe care ERC/DRC nu le au: pinii ESP32-S3, polaritatea, decuplarea, antena, pinii din firmware (`--pini`: tabelul pin → rețea) |
 | `REVIEW.md` | revizia PCB-4: fiecare bloc față de foaia lui de catalog, plus ce rămâne de hotărât |
+| `jlc_rotatii.py`, `jlc_corectii.csv` | corecțiile de rotație și origine pentru CPL, din amprentele EasyEDA (vezi „Comanda”) |
 | `make.sh` | tot lanțul, cu verificările |
 
 Ies: `build/` (rapoartele ERC/DRC în JSON, poziții, BOM brut, `cupru.svg`),
@@ -184,7 +185,7 @@ are rezervă de două ori. Celelalte rețele de putere sunt de 0,4 mm: VSYS
   nemetalizate, cu reguli de distanță proprii în `.kicad_dru`.
 - Etichetele pieselor sunt pe F.Fab, nu pe serigrafie: placa e plină, iar
   pozițiile se văd în `build/cupru.svg`.
-- **Rotațiile din `cpl.csv`** nu sunt verificate: vezi „Comanda”.
+- **Rotațiile din `cpl.csv`** sunt calculate, nu confirmate în previzualizare: vezi „Comanda”.
 
 ## Comanda (PCB-5)
 
@@ -248,16 +249,26 @@ taxează separat fiecare piesă extinsă dintr-o comandă. J2 e cu găuri, iar J
 J5 nu au cod: toate trei se lipesc de mână (PCB-6), deci la montaj rămân 15
 piese extinse. Orice altă piesă scoasă din `cpl.csv` se lipește tot de mână.
 
-**Rotațiile nu sunt verificate.** JLCPCB așază fiecare piesă după amprenta
-EasyEDA a codului LCSC, nu după amprenta KiCad. `cpl.csv` are unghiurile din
-KiCad, fără corecții. Corecția ține de piesă, nu de capsulă: în datele adunate
-din previzualizarea JLCPCB de proiectul kicad-jlcpcb-tools
-(`tests/fixtures/jlcfootprint/truth.csv`), un QFN-16 3×3 (C19213) cere 270°, un
-SOT-23-6 (MT3608, C84817) tot 270°, iar un SOT-23 (C2132) 180°. Tabelele
-generale de corecții (Fabrication-Toolkit) se contrazic între ele. De aceea
-`make.sh` nu aplică niciuna. Singura potrivire apropiată e LED-ul KENTO
-KT-0603R (C2286), aceeași serie cu D1 și D2: cu amprenta `LED_0603_1608Metric`
-la 0° a cerut 0°.
+**Rotațiile și originile.** JLCPCB așază fiecare piesă după amprenta EasyEDA a
+codului LCSC, nu după amprenta KiCad, iar cele două pot avea pinul 1 în alt colț
+și altă origine. `jlc_rotatii.py` suprapune, pentru fiecare piesă cu cod, padurile
+din KiCad peste cele din EasyEDA: după număr (potrivire Kabsch, rotunjită la 90°)
+sau, unde numerotarea diferă (SW2–SW6, J1, J4), încercând cele patru rotații fără
+nume. Rotația găsită și originea EasyEDA adusă în cadrul KiCad merg în
+`jlc_corectii.csv`, pe care `make.sh` îl aplică la `cpl.csv` și pe care îl
+refuză dacă nu mai corespunde plăcii (cod sau amprentă schimbate). Datele EasyEDA
+se descarcă în `build/easyeda/` (`python3 jlc_rotatii.py --descarca`) și nu intră
+în depozit.
+
+Toate cele 61 de piese se potrivesc, cu cel mult 0,21 mm între centre. Pentru
+circuitele integrate, rotația iese aceeași cu cea dată de colțul pinului 1 din
+numele pachetului EasyEDA (TL 0°, BL 270°, BR 180°): U1 și U6 270°, U4 și U5
+180°, U2, U3 și U7 0°. U1 (SOT-23-6, -BL) iese 270°, ca SOT-23-6-ul MT3608
+(C84817) din datele adunate în previzualizarea JLCPCB de proiectul
+kicad-jlcpcb-tools (`tests/fixtures/jlcfootprint/truth.csv`). Originile contează
+la U7, mutat cu 3,63 mm (originea amprentei KiCad nu e în centrul pinilor), la J1
+(1,31 mm) și la J2 (1 mm, pinul 1 față de centru). SW5 și SW6 trec și la 0°, și la
+180°: piesa e simetrică.
 
 În previzualizarea JLCPCB, înainte de plată, se verifică:
 
@@ -272,5 +283,5 @@ la 0° a cerut 0°.
 | SW1, SW2–SW4 | maneta, respectiv butonul, spre marginea plăcii |
 | SW5, SW6, L1, R, C | doar aliniate: 0° și 180° sunt la fel, 90° nu |
 
-O piesă rotită greșit se corectează acolo, în previzualizare. Corecția se trece
-apoi și aici, ca s-o aibă comanda următoare.
+O piesă rotită greșit se corectează acolo, în previzualizare, iar cauza se caută
+apoi în `jlc_rotatii.py`, ca să n-o repete comanda următoare.

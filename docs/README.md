@@ -24,6 +24,11 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 
 ## Jurnal
 
+### 2026-11-22: rotațiile și originile din CPL (PCB-5)
+- Ce e: `hardware/pcb/jlc_rotatii.py` suprapune padurile fiecărei amprente KiCad peste amprenta EasyEDA a codului LCSC (după număr sau, unde numerotarea diferă, geometric) și scrie rotația și originea în `jlc_corectii.csv`. `make.sh` le aplică la `fab/cpl.csv` și se oprește dacă tabelul nu mai corespunde plăcii.
+- Ce s-a găsit: 61 din 61 de piese se potrivesc, cu cel mult 0,21 mm între centre. U1 și U6 cer 270°, U4 și U5 180°, iar J2 și J4 tot 180°. U7 (ESP32-S3) se mută cu 3,63 mm, pentru că originea amprentei KiCad nu e în centrul pinilor. La circuitele integrate, rotația coincide cu colțul pinului 1 din numele pachetului EasyEDA.
+- Ce nu e: confirmarea din previzualizarea JLCPCB, care se vede doar la comandă. Placa nu e comandată.
+
 ### 2026-11-22: capitolul despre stadiul actual (TH-2)
 - Ce e: `thesis/` are capitolul 2 al lucrării, în LaTeX, cu 25 de referințe. Capitolul acoperă hârtia electronică, cititoarele comerciale, proiectele deschise, formatele de fișier, algoritmii de rupere în rânduri și locul proiectului printre ele. `thesis/build.sh` face PDF-ul (~5 pagini de text plus bibliografia) și iese cu eroare la o citare nedefinită.
 - Ce s-a găsit: dintre cititoarele deschise pe microcontrolere, niciunul nu combină ruperea optimă cu despărțirea în silabe. libros (Open Book) rupe lacom, diy-esp32-epub-reader face programare dinamică fără despărțire, iar CrossPoint are programare dinamică fără despărțire sau un algoritm lacom cu despărțire. Toate trei sunt citite în sursă, la commitul notat în bibliografie. Tabelul 2.1 le pune alături de proiectul de față.

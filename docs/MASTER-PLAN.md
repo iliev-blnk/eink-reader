@@ -189,7 +189,7 @@ Deciziile mele de proiectare (de justificat în specificație):
 - **Formatul de font:** un tabel de glife cu intervale Unicode, bitmapuri de 1 bpp (opțional 2 bpp), lățimile de avans și perechi de kerning opționale. Fonturile stau într-o partiție de flash (16 MB ajung din plin) sau pe SD.
 
 - [x] SPEC-1 Scrierea v0.1 cu o diagramă la nivel de octet și un exemplu lucrat. Făcut 2026-10-26: `spec/book-format.md`, codecul + validatorul de referință `tools/converter/ibv.py` (15 teste), exemplul `spec/examples/example.ibv`.
-- [~] SPEC-2 Revizuirea. Alegerea numelui și a extensiei (Q5). Numele e ales: IBV.
+- [x] SPEC-2 Revizuirea. Alegerea numelui și a extensiei (Q5). Numele e ales: IBV. Revizuit pe 2026-11-22 cu testul diferențial firmware–validator (`tools/fuzz/conformanta.py`): 3 nepotriviri găsite și reparate, regulile precizate în specificație, 0 încălcări pe 20.000 de cazuri.
 - [x] SPEC-3 Specificația formatului de font v0.1. Făcut 2026-10-26: `spec/font-format.md` (IBF), codecul + validatorul de referință `tools/fonttool/ibf.py`, încărcătorul C `firmware/components/core/font.c` care verifică aceleași reguli.
 - [ ] SPEC-4 Înghețarea v1.0 după ce convertorul și firmware-ul o implementează amândouă. Schimbările de după cresc versiunea.
 

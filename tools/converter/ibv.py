@@ -118,6 +118,13 @@ def read_uleb(buf: bytes, pos: int) -> tuple[int, int]:
         pos += 1
         n |= (b & 0x7F) << shift
         if not b & 0x80:
+            # forma cea mai scurtă și < 2^32: altfel aceeași valoare ar avea mai
+            # multe codificări, iar book_id (peste înregistrările codificate)
+            # n-ar mai fi o funcție de conținut
+            if i and not b:
+                raise FormatError("varint necanonic (are octeți de zero în plus)")
+            if i == 4 and b > 0x0F:
+                raise FormatError("varint mai mare de 2^32 - 1")
             return n, pos
         shift += 7
     raise FormatError("varint mai lung de 5 octeți")
@@ -134,7 +141,10 @@ def deflate_raw(b: bytes) -> bytes:
 
 def inflate_raw(b: bytes, raw_len: int) -> bytes:
     d = zlib.decompressobj(-15)
-    out = d.decompress(b, raw_len + 1)
+    try:
+        out = d.decompress(b, raw_len + 1)
+    except zlib.error as e:
+        raise FormatError(f"DEFLATE stricat: {e}") from None
     if len(out) != raw_len or not d.eof or d.unused_data:
         raise FormatError(f"blocul se decomprimă la {len(out)} octeți, se așteptau {raw_len}")
     return out
@@ -193,8 +203,10 @@ def validate_record(r: Record, where: str) -> None:
         raise FormatError(f"{where}: BREAK are text")
     if r.flags & PAGE and (r.kind == BREAK or r.flags & CONT):
         raise FormatError(f"{where}: PAGE pe o înregistrare BREAK sau CONT")
-    if r.kind != BREAK and not r.text:
+    if r.kind in KIND_NAMES and r.kind != BREAK and not r.text:
         raise FormatError(f"{where}: text gol")
+    if not r.text and r.runs:
+        raise FormatError(f"{where}: intervale de stil fără text")
     check_text(r.text, where)
     tb = r.text.encode("utf-8")
     end = 0
@@ -369,8 +381,27 @@ class Parsed:
             yield from self.block_records(i)
 
 
+def _unpack(fmt: str, buf: bytes, pos: int, where: str) -> tuple:
+    if pos + struct.calcsize(fmt) > len(buf):
+        raise FormatError(f"{where} trece de sfârșitul secțiunii")
+    return struct.unpack_from(fmt, buf, pos)
+
+
+def _utf8(b: bytes, where: str) -> str:
+    try:
+        s = b.decode("utf-8")
+    except UnicodeDecodeError:
+        raise FormatError(f"{where}: UTF-8 invalid") from None
+    if any(ord(c) < 0x20 or 0x7F <= ord(c) <= 0x9F for c in s):
+        raise FormatError(f"{where}: caracter de control")
+    return s
+
+
 def parse(data: bytes) -> Parsed:
-    """Citește antetul, directorul și secțiunile mici. Blocurile se citesc la cerere."""
+    """Citește antetul, directorul și secțiunile mici. Blocurile se citesc la cerere.
+
+    Orice fișier e fie citit, fie refuzat cu FormatError, niciodată cu altă excepție.
+    """
     if len(data) < HEADER_SIZE or data[:8] != MAGIC:
         raise FormatError("nu e un fișier de carte (cod magic greșit)")
     major, minor, hsize, flags, bid, npara, tbytes, nsec, _res, dcrc = \
@@ -389,59 +420,80 @@ def parse(data: bytes) -> Parsed:
 
     sections = {}
     for i in range(nsec):
-        pos = hsize + i * DIR_ENTRY_SIZE
-        if pos + DIR_ENTRY_SIZE > len(data):
-            raise FormatError("directorul trece de sfârșitul fișierului")
-        tag, off, length, crc = struct.unpack_from("<4sIII", data, pos)
-        name = tag.decode("ascii", "replace")
+        tag, off, length, crc = struct.unpack_from("<4sIII", data, hsize + i * DIR_ENTRY_SIZE)
+        name = tag.decode("latin-1")             # bijectiv: două etichete diferite rămân diferite
         if name in sections:
-            raise FormatError(f"secțiunea {name} apare de două ori")
+            raise FormatError(f"secțiunea {name!r} apare de două ori")
         if off + length > len(data):
-            raise FormatError(f"secțiunea {name} trece de sfârșitul fișierului")
+            raise FormatError(f"secțiunea {name!r} trece de sfârșitul fișierului")
         sections[name] = (off, length, crc)
     for req in ("META", "BLKS", "TEXT"):
         if req not in sections:
             raise FormatError(f"lipsește secțiunea {req}")
 
-    def payload(name: str, check: bool = True) -> bytes:
+    def payload(name: str) -> bytes:
         off, length, crc = sections[name]
         p = data[off:off + length]
-        if check and crc32(p) != crc:
+        if crc32(p) != crc:
             raise FormatError(f"secțiunea {name}: CRC greșit")
         return p
 
+    # META, TOC și BLKS se termină exact unde se termină conținutul lor: octeții în
+    # plus sunt o eroare (cititorul din firmware refuză un BLKS mai lung, de exemplu)
     m = payload("META")
-    meta, seen, pos = {}, set(), 2
-    for _ in range(struct.unpack_from("<H", m)[0]):
-        key, length = struct.unpack_from("<BH", m, pos)
+    meta, seen = {}, set()
+    (count,), pos = _unpack("<H", m, 0, "META"), 2
+    for _ in range(count):
+        key, length = _unpack("<BH", m, pos, "META")
         pos += 3
         if key in seen:
             raise FormatError(f"cheia META {key} apare de două ori")
         seen.add(key)
-        val = m[pos:pos + length].decode("utf-8")
+        if pos + length > len(m):
+            raise FormatError("o valoare META trece de sfârșitul secțiunii")
+        val = _utf8(m[pos:pos + length], f"cheia META {key}")
         pos += length
         if key in META_KEYS:                      # cheile necunoscute se sar
             meta[META_KEYS[key]] = val
+    if pos != len(m):
+        raise FormatError(f"META are {len(m) - pos} octeți în plus")
 
     toc = []
     if "TOC " in sections:
-        t, pos = payload("TOC "), 2
-        for _ in range(struct.unpack_from("<H", t)[0]):
-            para, level, _r, length = struct.unpack_from("<IBBH", t, pos)
+        t = payload("TOC ")
+        (count,), pos = _unpack("<H", t, 0, "TOC"), 2
+        for _ in range(count):
+            para, level, _r, length = _unpack("<IBBH", t, pos, "TOC")
             pos += 8
-            toc.append(TocEntry(para, level, t[pos:pos + length].decode("utf-8")))
+            if pos + length > len(t):
+                raise FormatError("un titlu din cuprins trece de sfârșitul secțiunii")
+            toc.append(TocEntry(para, level, _utf8(t[pos:pos + length], "cuprinsul")))
             pos += length
+        if pos != len(t):
+            raise FormatError(f"TOC are {len(t) - pos} octeți în plus")
 
     b = payload("BLKS")
+    (count,) = _unpack("<I", b, 0, "BLKS")
+    if len(b) != 4 + count * BLOCK_ENTRY_SIZE:
+        raise FormatError(f"BLKS are {len(b)} octeți pentru {count} blocuri")
     blocks = [BlockEntry(*(lambda v: (v[0], v[1], v[2], v[3], v[5], v[6], v[7]))(
                   struct.unpack_from("<IIHBBIII", b, 4 + i * BLOCK_ENTRY_SIZE)))
-              for i in range(struct.unpack_from("<I", b)[0])]
+              for i in range(count)]
 
     cover = None
     if "COVR" in sections:
         c = payload("COVR")
-        w, h, method, _r, raw_len = struct.unpack_from("<HHBBI", c)
-        bits = c[10:] if method == 0 else inflate_raw(c[10:], raw_len)
+        w, h, method, _r, raw_len = _unpack("<HHBBI", c, 0, "COVR")
+        if raw_len != (w + 7) // 8 * h:
+            raise FormatError("mărimea bitmapului copertei nu se potrivește cu lățime x înălțime")
+        if method == 0:
+            bits = c[10:]
+            if len(bits) != raw_len:
+                raise FormatError("coperta stocată are altă lungime decât raw_len")
+        elif method == 1:
+            bits = inflate_raw(c[10:], raw_len)
+        else:
+            raise FormatError(f"coperta: metodă necunoscută {method}")
         cover = Cover(w, h, bits)
 
     return Parsed((major, minor), bid, npara, tbytes, sections, meta, toc, blocks, cover, data)

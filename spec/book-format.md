@@ -1,6 +1,6 @@
 # Formatul de carte IBV, v0.1
 
-Stare: **ciornă pentru revizuire (SPEC-2).** Scrisă pe 2026-10-26.
+Stare: **ciornă, revizuită (SPEC-2) pe 2026-11-22; urmează înghețarea ca 1.0 (SPEC-4).** Scrisă pe 2026-10-26.
 Implementarea de referință: `tools/converter/ibv.py` (cititor, scriitor, validator). Teste: `tools/converter/test_ibv.py`.
 Exemplu lucrat: `spec/examples/example.ibv`, generat de `spec/examples/make_example.py`.
 
@@ -32,7 +32,7 @@ Dispozitivul face doar ce depinde de ecran: ruperea în rânduri, justificarea �
 
 - Toți întregii sunt **little-endian**, ordinea nativă a ESP32, deci dispozitivul îi citește cu încărcări simple.
 - `u8/u16/u32` sunt fără semn. Deplasamentele sunt absolute, în octeți de la începutul fișierului, deci fișierele sunt limitate la 4 GiB.
-- `varint` = LEB128 fără semn: 7 biți pe octet, grupul de jos primul, bitul de sus = „mai urmează octeți”. Valorile trebuie să fie < 2³², deci un varint are cel mult 5 octeți. Varinturile apar doar în blocurile de text, unde majoritatea valorilor sunt mici.
+- `varint` = LEB128 fără semn: 7 biți pe octet, grupul de jos primul, bitul de sus = „mai urmează octeți”. Valorile trebuie să fie < 2³², deci un varint are cel mult 5 octeți, iar al cincilea e ≤ `0x0F`. Fiecare varint e în forma cea mai scurtă (fără octeți `0x80` de umplutură): altfel aceeași înregistrare ar avea mai multe codificări, iar `book_id` (3.7) n-ar mai depinde doar de conținut. Varinturile apar doar în blocurile de text, unde majoritatea valorilor sunt mici.
 - Textul e **UTF-8, normalizat NFC**.
 - `CRC32` e CRC-32 standard folosit de zlib, PNG și Ethernet (reflectat, polinomul 0xEDB88320, valoarea inițială și XOR-ul final 0xFFFFFFFF). Pe dispozitiv e `esp_rom_crc32_le()` din ROM.
 - `DEFLATE` înseamnă DEFLATE brut (RFC 1951), fără antet zlib sau gzip. Pe dispozitiv e `tinfl_decompress()` din ROM-ul ESP32-S3 (`esp32s3.rom.ld:83`), deci nu ocupă spațiu în flash.
@@ -85,7 +85,7 @@ Codul magic e împrumutat de la PNG. Primul octet non-ASCII înseamnă că fiși
 
 Reguli:
 - Secțiuni obligatorii: `META`, `BLKS`, `TEXT`. Opționale: `TOC `, `COVR`.
-- O etichetă apare cel mult o dată. **Cititoarele sar etichetele pe care nu le cunosc**, deci un convertor mai nou poate adăuga secțiuni fără să strice firmware-ul mai vechi.
+- O etichetă apare cel mult o dată. **Cititoarele sar etichetele pe care nu le cunosc**, deci un convertor mai nou poate adăuga secțiuni fără să strice firmware-ul mai vechi. Numărul lor nu e limitat: firmware-ul citește directorul pe bucăți și ține doar etichetele cunoscute.
 - Dispozitivul verifică CRC-ul fiecărei secțiuni când o citește. CRC-ul lui `TEXT` acoperă tot conținutul, deci îl verifică doar validatorul. Dispozitivul verifică în schimb CRC-ul propriu al fiecărui bloc când îl decodează.
 
 ### 3.3 `META`: metadatele
@@ -106,7 +106,9 @@ count × { u8 key, u16 length, length octeți de UTF-8 }
 | 7 | year | | anul publicării originale, ca text |
 | 8 | description | | |
 
-Fiecare cheie apare cel mult o dată, iar cititoarele sar cheile pe care nu le cunosc. Ecranul bibliotecii are nevoie doar de antet și META.
+Fiecare cheie apare cel mult o dată, iar cititoarele sar cheile pe care nu le cunosc. Valorile sunt UTF-8 valid, fără caractere de control (firmware-ul le ține ca șiruri terminate cu NUL). Ecranul bibliotecii are nevoie doar de antet și META.
+
+META, `TOC ` și BLKS se termină exact unde se termină ultima lor intrare: octeții în plus fac fișierul invalid.
 
 ### 3.4 `TOC `: cuprinsul (opțional)
 
@@ -165,7 +167,7 @@ text_len octeți de text UTF-8
 | 3 | BREAK | **niciunul** (`text_len` = 0, fără intervale) | separator de strofă sau de scenă: un rând gol sau un ornament, dacă are indicatorul. Scos sus pe pagină. |
 | 4 | QUOTE | da | citat bloc sau motto: retras pe ambele părți |
 
-Un cititor care întâlnește un tip necunoscut cu text îl paginează ca PARA și sare un tip necunoscut fără text.
+Un cititor care întâlnește un tip necunoscut cu text îl paginează ca PARA și sare un tip necunoscut fără text. Un tip necunoscut fără text e deci valid (o versiune minoră îl poate adăuga), dar nu are intervale de stil.
 
 **Indicatori**
 
@@ -209,7 +211,7 @@ u32 raw_len                = ceil(width / 8) × height
 bitmap (stocat sau DEFLATE)
 ```
 
-Bitmapul e de 1 bpp, pe rânduri, cu rândurile completate la octeți întregi, MSB = pixelul cel mai din stânga, **bitul 1 = alb**. Asta e așezarea memoriei panoului UC8253 și a framebufferului `gfx_t` din firmware, deci o copertă pe tot ecranul se copiază direct pe panou. Convertorul scalează imaginea și aplică dithering (Floyd–Steinberg, CONV-6).
+`method` e 0 sau 1; la 0 urmează exact `raw_len` octeți. Bitmapul e de 1 bpp, pe rânduri, cu rândurile completate la octeți întregi, MSB = pixelul cel mai din stânga, **bitul 1 = alb**. Asta e așezarea memoriei panoului UC8253 și a framebufferului `gfx_t` din firmware, deci o copertă pe tot ecranul se copiază direct pe panou. Convertorul scalează imaginea și aplică dithering (Floyd–Steinberg, CONV-6).
 
 ## 4. Exemplu lucrat
 
@@ -355,24 +357,28 @@ Orice schimbare de setare înseamnă alt fișier `.pg`. `layouts` ține ultimele
 
 `ibv.py validate` verifică următoarele și iese cu un cod diferit de zero la orice eșec. CONV-10 îl rulează pe tot corpusul.
 
-1. Codul magic, versiunea majoră, `header_size`, `header_crc`, `directory_crc`.
+1. Codul magic, versiunea majoră, `header_size`, `header_crc`, `directory_crc`. Varinturile sunt canonice (secțiunea 2).
 2. Fără etichete duplicate. Fiecare secțiune e în interiorul fișierului. Fiecare CRC de secțiune se potrivește, inclusiv TEXT. META, BLKS și TEXT există.
-3. META are un titlu și o limbă și nicio cheie de două ori.
+3. META are un titlu și o limbă și nicio cheie de două ori; valorile META și titlurile din cuprins sunt UTF-8 valid, fără caractere de control. META, TOC și BLKS nu au octeți în plus.
 4. Fiecare invariant BLKS din 3.5. Fiecare bloc se decodează în exact `raw_len` octeți, CRC-ul lui se potrivește, iar înregistrările lui se termină exact la sfârșitul blocului.
 5. Fiecare înregistrare:
    - doar biți de indicator cunoscuți
    - BREAK nu are text
    - `PAGE` nu e pe BREAK sau CONT
-   - celelalte tipuri au text nevid
+   - PARA, HEADING, VERSE și QUOTE au text nevid; un tip necunoscut fără text nu are intervale
    - UTF-8 valid, normalizat NFC
    - fără caractere de control
    - fără spații la început, la sfârșit sau dublate
    - intervalele ordonate, fără suprapuneri, în limite, la granițe de caracter, stilul ≠ 0
 6. `paragraph_count`, `text_bytes` și `book_id` se potrivesc cu conținutul.
 7. Intrările cuprinsului sunt în ordine strict crescătoare și în limite, cu nivelurile 1–4.
-8. Coperta are cel mult 240 × 416.
+8. Coperta are cel mult 240 × 416, metoda 0 sau 1 și exact `raw_len` octeți după decodare.
+
+Oricare ar fi fișierul, validatorul îl acceptă sau îl refuză cu un mesaj; nu cade niciodată cu altă eroare.
 
 Testele (`test_ibv.py`) inversează pe rând fiecare bit al unui fișier exemplu și verifică că validatorul îl prinde pe fiecare. Prima rulare a testului a găsit că o etichetă de director stricată trecea neobservată, pentru că secțiunile necunoscute se sar prin proiectare. De aceea există `directory_crc`.
+
+**Conformanța cu firmware-ul** (`tools/fuzz/conformanta.py`). Validatorul și cititorul din firmware sunt două implementări ale aceluiași format, deci testul diferențial le dă aceleași cărți stricate anume, cu CRC-urile refăcute ca stricăciunea să ajungă la regulile de structură. Contractul: orice carte pe care validatorul o acceptă, firmware-ul o citește întreagă și vede exact aceleași înregistrări, stiluri, metadate, cuprins și copertă. Firmware-ul are voie să fie mai îngăduitor (nu verifică NFC, spațiile sau ordinea cuprinsului), pentru că pe card ajung doar cărți scrise de convertor; testul numără și aceste cazuri.
 
 ## 8. Versionarea
 
@@ -425,3 +431,4 @@ Mărimile sunt în octeți. Textul simplu înseamnă sursa fără cratimele moi.
 - **0.1** (2026-10-27) Bitul de indicator 6 e acum `PAGE` (capitolul începe o pagină), pus de convertor după o euristică pe nivelul capitolelor; face ieftină pagina înapoi. Secțiunea 6: scrierile fișierelor însoțitoare sunt ștergere + redenumire pe FATFS. Lista `layout_hash` adusă la zi cu codul.
 - **0.1** (2026-10-27) `layout_hash` include și modul de rupere în rânduri (greedy sau încadrare totală, LAY-5).
 - **0.1** (2026-10-27) Secțiunea 6: fișierul `/.ibv/recent` (cărțile recente și ce se citea la somn), scris de interfață (FW-10).
+- **0.1** (2026-11-22) Revizuirea SPEC-2 cu testul diferențial (secțiunea 7). Reguli precizate: varinturile canonice și < 2³²; META, TOC și BLKS fără octeți în plus; valorile META și titlurile din cuprins fără caractere de control; coperta cu metoda 0 sau 1 și lungimea exactă; un tip de înregistrare necunoscut poate fi fără text, cum spunea deja 3.6. Firmware-ul nu mai limitează directorul la 16 secțiuni, refuză varinturile ≥ 2³² și copertele mai mari de 240 × 416. Validatorul refuza cu o excepție Python, în loc de mesaj, cam 1 din 10 fișiere stricate, și accepta un BLKS cu octeți în plus pe care firmware-ul îl refuza. Niciuna nu schimbă cărțile scrise de convertor: toate cele 26 din corpus trec.

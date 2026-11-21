@@ -24,6 +24,11 @@ Materialul brut pentru redactarea lucrării de diplomă despre cititorul e-ink.
 
 ## Jurnal
 
+### 2026-11-22: formatul IBV, revizuit cu un test diferențial (SPEC-2)
+- Ce e: `tools/fuzz/conformanta.py` dă aceleași cărți stricate (cu CRC-urile refăcute) cititorului din firmware și validatorului și verifică că tot ce acceptă validatorul, firmware-ul citește identic.
+- Ce s-a găsit: validatorul cădea cu excepții Python pe ~1 din 10 fișiere stricate și accepta un BLKS cu octeți în plus pe care firmware-ul îl refuza; firmware-ul refuza cărțile valide cu peste 16 secțiuni. Plus din citire: varinturi ≥ 2³², coperte mai mari decât ecranul, tipuri necunoscute fără text. Toate reparate, specificația precizată; 20.000 de cazuri, 0 încălcări; corpusul, simulatorul, fuzzerele și firmware-ul trec.
+- Ce nu e: înghețarea 1.0 (SPEC-4) rămâne de decis. `tinfl` din ROM tot nu e testat.
+
 ### 2026-11-22: rotațiile din CPL, verificate pe rotații confirmate de JLCPCB (PCB-5)
 - Ce e: `hardware/pcb/test_jlc_rotatii.py` rulează metoda pe placa de test a proiectului kicad-jlcpcb-tools, cu rotațiile observate în previzualizarea JLCPCB pentru 47 de piese.
 - Ce s-a găsit: prima variantă dădea 13 greșeli. Patru dintre ele erau tăcute: LED-uri și diode cu anodul pe pinul 1 în EasyEDA ieșeau cu 180° greșit. Restul erau refuzuri din pragul de 0,3 mm. Acum catodul se ia după semnul „+” din amprenta EasyEDA, după care se ia și JLCPCB, iar pragul e înlocuit cu suprapunerea padurilor. Piesele numerotate la fel în ambele biblioteci nu mai cad pe potrivirea geometrică (SOT-23 -CW). Rezultatul: 46 corecte, 0 greșite. Pe placa noastră, rotațiile rămân aceleași pentru toate 61 de piese.

@@ -12,7 +12,9 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define IBV_MAX_SECTIONS 16
+// Câte secțiuni ține cititorul: doar cele cunoscute (META, TOC, BLKS, COVR, TEXT).
+// Directorul poate avea oricâte; etichetele necunoscute se sar (specificația, 3.2).
+#define IBV_MAX_SECTIONS 5
 #define IBV_MAX_BLOCK_RAW 32768
 #define IBV_CACHE_SLOTS 2
 

@@ -101,6 +101,53 @@ cu aceleași imagini de referință, `tools/texref` dă pe tot corpusul exact
 același rezultat JSON ca în `tools/texref/rezultate/v4.json`, firmware-ul se
 compilează, iar `emu/test.sh` trece cadru cu cadru.
 
+## Testul diferențial: firmware-ul față de validator
+
+Fuzzerele arată că firmware-ul nu citește în afara memoriei, nu că citește ce
+trebuie. `conformanta.py` compară cititorul din firmware (`ibv.c`, prin
+`ibv_dump.c`, cu ASan + UBSan, pe 32 de biți și cu CRC-urile verificate) cu
+validatorul de referință (`tools/converter/ibv.py`), pe aceleași fișiere:
+
+    tools/fuzz/conformanta.py            # 5000 de cazuri, ~2 min
+    tools/fuzz/conformanta.py 20000 --samanta 7
+
+Fișierele sunt cărți valide stricate (un câmp de structură, un octet din text,
+octeți inserați sau scoși), apoi resigilate: CRC-urile blocurilor, ale
+secțiunilor, al directorului și al antetului se refac, iar de cele mai multe
+ori și `book_id` și numerele din antet. Fără asta, aproape orice stricăciune
+s-ar opri la primul CRC. Printre semințe sunt și cazuri pe care specificația le
+permite și o stricăciune întâmplătoare nu le nimerește: 14 secțiuni necunoscute
+puse înaintea celor cunoscute, un antet de 60 de octeți, chei META și tipuri de
+înregistrări necunoscute, biți de stil rezervați.
+
+Contractul: (1) ce acceptă validatorul, firmware-ul citește întreg, cu aceleași
+înregistrări, stiluri, deplasamente de text, metadate, cuprins și copertă;
+(2) validatorul acceptă sau refuză cu un mesaj, nu cade; (3) cititorul nu cade.
+Cazurile refuzate de validator și deschise de firmware sunt permise (firmware-ul
+nu verifică NFC, spațiile, `book_id`, ordinea cuprinsului) și se afișează grupate
+după motiv. Încălcările ajung în `build/conformanta/`.
+
+Ce a găsit, la prima rulare (3000 de cazuri, 2026-11-22):
+- **Validatorul cădea** cu o excepție Python (`struct.error`, `zlib.error`,
+  `UnicodeDecodeError`) pe 324 de fișiere: META sau TOC tăiate, DEFLATE stricat,
+  UTF-8 invalid în META. `parse()` verifică acum fiecare lungime.
+- **Validatorul accepta ce refuza firmware-ul** în 38 de cazuri: un BLKS cu
+  octeți în plus după ultima intrare. Acum META, TOC și BLKS trebuie să se
+  termine exact după ultima intrare.
+- **Firmware-ul refuza o carte validă cu mai mult de 16 secțiuni**, deși
+  specificația cere ca secțiunile necunoscute să fie sărite. Directorul se
+  citește acum pe bucăți și se țin doar etichetele cunoscute.
+- Din citirea codului, nu din test: un varint de 5 octeți ≥ 2³² era trunchiat
+  în firmware și acceptat de validator ca număr mai mare; acum ambele îl refuză,
+  iar validatorul cere și forma cea mai scurtă (de ea depinde `book_id`). O
+  copertă mai mare decât ecranul ar fi cerut sute de KB; firmware-ul o refuză
+  acum, ca validatorul. Un tip de înregistrare necunoscut fără text era refuzat
+  de validator, deși specificația spune că se sare.
+
+După reparații: 20.000 de cazuri, 3140 acceptate de amândouă cu exact același
+conținut, 10.540 refuzate de amândouă, 6320 refuzate doar de validator, 0
+încălcări. Toate cele 26 de cărți din corpus trec în continuare validatorul.
+
 ## Cât s-a rulat
 
 După reparații, `FUZZ_TIME=600 tools/fuzz/run.sh` (2026-11-17): regresiile

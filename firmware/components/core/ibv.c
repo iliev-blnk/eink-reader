@@ -150,24 +150,37 @@ static ibv_err_t open_book(ibv_t *b, const char *path, bool full)
     b->text_bytes = rd32(h + 28);
     uint16_t nsec = rd16(h + 32);
     err = IBV_ERR_FORMAT;
-    if (nsec == 0 || nsec > IBV_MAX_SECTIONS || b->paragraph_count == 0) goto fail;
+    if (nsec == 0 || b->paragraph_count == 0) goto fail;
 
-    uint8_t dir[IBV_MAX_SECTIONS * DIR_ENTRY];
-    err = IBV_ERR_IO;
-    if (!read_at(b, hsize, dir, nsec * DIR_ENTRY)) goto fail;
-    err = IBV_ERR_CRC;
-    if (!crc32_ok(crc32_update(0, dir, nsec * DIR_ENTRY), rd32(h + 36))) goto fail;
-    err = IBV_ERR_FORMAT;
-    for (int i = 0; i < nsec; i++) {
-        const uint8_t *e = dir + i * DIR_ENTRY;
-        memcpy(b->sections[i].tag, e, 4);
-        b->sections[i].tag[4] = 0;
-        b->sections[i].offset = rd32(e + 4);
-        b->sections[i].length = rd32(e + 8);
-        b->sections[i].crc = rd32(e + 12);
-        if ((uint64_t)b->sections[i].offset + b->sections[i].length > b->file_size) goto fail;
+    // Directorul se citește pe bucăți: CRC-ul acoperă toate intrările, dar se țin
+    // doar etichetele cunoscute, prima apariție a fiecăreia. O carte mai nouă
+    // poate avea oricâte secțiuni pe care firmware-ul ăsta nu le știe.
+    static const char known[IBV_MAX_SECTIONS][5] = {"META", "TOC ", "BLKS", "COVR", "TEXT"};
+    uint8_t dir[16 * DIR_ENTRY];
+    uint32_t crc = 0;
+    for (uint32_t i = 0; i < nsec; i += 16) {
+        uint32_t n = nsec - i < 16 ? nsec - i : 16;
+        err = IBV_ERR_IO;
+        if (!read_at(b, hsize + i * DIR_ENTRY, dir, n * DIR_ENTRY)) goto fail;
+        crc = crc32_update(crc, dir, n * DIR_ENTRY);
+        for (uint32_t j = 0; j < n; j++) {
+            const uint8_t *e = dir + j * DIR_ENTRY;
+            bool want = false;
+            for (int k = 0; k < IBV_MAX_SECTIONS; k++) want |= memcmp(e, known[k], 4) == 0;
+            if (!want || find_section(b, (const char *)e) >= 0) continue;
+            int s = b->section_count++;
+            memcpy(b->sections[s].tag, e, 4);
+            b->sections[s].tag[4] = 0;
+            b->sections[s].offset = rd32(e + 4);
+            b->sections[s].length = rd32(e + 8);
+            b->sections[s].crc = rd32(e + 12);
+        }
     }
-    b->section_count = nsec;
+    err = IBV_ERR_CRC;
+    if (!crc32_ok(crc, rd32(h + 36))) goto fail;
+    err = IBV_ERR_FORMAT;
+    for (int i = 0; i < b->section_count; i++)
+        if ((uint64_t)b->sections[i].offset + b->sections[i].length > b->file_size) goto fail;
 
     int meta = find_section(b, "META"), toc = find_section(b, "TOC "), blks = find_section(b, "BLKS");
     if (meta < 0 || blks < 0 || find_section(b, "TEXT") < 0) goto fail;
@@ -215,6 +228,7 @@ static bool uleb(const uint8_t **p, const uint8_t *end, uint32_t *out)
     for (int shift = 0; shift < 35; shift += 7) {
         if (*p >= end) return false;
         uint8_t c = *(*p)++;
+        if (shift == 28 && c > 0x0F) return false;    // valoarea ar trece de 2^32 - 1
         n |= (uint32_t)(c & 0x7F) << shift;
         if (!(c & 0x80)) { *out = n; return true; }
     }
@@ -360,7 +374,9 @@ bool ibv_cover(ibv_t *b, uint16_t *w, uint16_t *h, uint8_t **bits)
     *w = rd16(p);
     *h = rd16(p + 2);
     uint32_t raw_len = rd32(p + 6), stored = b->sections[i].length - 10;
-    bool ok = raw_len == (uint32_t)(*w + 7) / 8 * *h && (*bits = malloc(raw_len ? raw_len : 1)) != NULL;
+    // cel mult ecranul în portret (specificația, 3.8): o copertă mai mare ar cere
+    // sute de KB pe un cip care n-are PSRAM
+    bool ok = *w <= 240 && *h <= 416 && raw_len == (uint32_t)(*w + 7) / 8 * *h && (*bits = malloc(raw_len ? raw_len : 1)) != NULL;
     if (ok) {
         if (p[4] == 0) ok = stored == raw_len && memcpy(*bits, p + 10, raw_len);
         else ok = p[4] == 1 && inflate_raw(p + 10, stored, *bits, raw_len);
